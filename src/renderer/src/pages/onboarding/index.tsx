@@ -1,6 +1,7 @@
 import { AlertCircle, ArrowLeft, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { LithoLogo } from '@/components/litho-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,32 +12,6 @@ import { ProviderPicker } from './provider-picker';
 
 interface OnboardingPageProps {
   onComplete: (name: string, email: string, telemetryEnabled: boolean) => Promise<void>;
-}
-
-function LithoLogo({ className }: { className?: string }): React.JSX.Element {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="671 564 706 920"
-      fill="none"
-      className={className}
-      role="img"
-      aria-label="Litho logo"
-    >
-      <path
-        fill="#C2410C"
-        d="M 671.587 564.932 L 868.454 564.969 L 868.902 1483 L 671.868 1482.98 C 670.491 1366.4 671.686 1247.51 671.673 1130.72 L 671.587 564.932 z"
-      />
-      <path
-        fill="#D97706"
-        d="M 1370.37 1288.5 L 1374.53 1288.59 C 1377.24 1293.29 1375.95 1457.84 1376 1482.97 L 911.75 1482.95 L 907.499 1482.81 C 907.112 1482.37 906.724 1481.94 906.337 1481.51 C 905.969 1439.23 906.19 1323 906.206 1288.69 L 1370.37 1288.5 z"
-      />
-      <path
-        fill="#EA580C"
-        d="M 906.031 599.612 C 911.205 603.744 944.576 637.279 950.972 644.092 C 970.544 664.941 1004.9 695.471 1022.37 716.966 C 983.526 717.677 944.505 717.174 905.62 717.6 C 905.816 681.022 904.135 635.013 906.031 599.612 z"
-      />
-    </svg>
-  );
 }
 
 const FEATURES = [

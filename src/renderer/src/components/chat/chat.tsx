@@ -1,11 +1,12 @@
 import { AlertCircle, ArrowLeft, Loader2, Send, Square, SquarePen } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ChatMessage } from '@/hooks/use-chat';
 import { useChat } from '@/hooks/use-chat';
 import type { OpencodeClient } from '@/lib/opencode-client-types';
+import { ChatCover } from './chat-cover';
 import { MessageView } from './message-list';
 import { ModelSelector } from './model-selector';
 import { PermissionCard } from './permission-card';
@@ -24,6 +25,7 @@ export function Chat({
   baseUrl,
   onBack,
   onNewChat,
+  kickoffMessage,
   onFileEdit,
   snapshotIndex,
   onRevert,
@@ -38,6 +40,7 @@ export function Chat({
   baseUrl: string | null;
   onBack?: () => void;
   onNewChat?: () => void;
+  kickoffMessage?: string;
   onFileEdit?: (filePath: string) => void;
   snapshotIndex?: Record<string, string>;
   onRevert?: (assistantMessageId: string) => Promise<void>;
@@ -52,6 +55,8 @@ export function Chat({
   const [modelId, setModelId] = useState('');
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [kickoffSent, setKickoffSent] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const chat = useChat({
     client,
@@ -75,10 +80,11 @@ export function Chat({
     [onRevert, chat],
   );
 
-  // Load existing messages on mount
-  // biome-ignore lint/correctness/useExhaustiveDependencies: one-time load
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset + load on session change
   useEffect(() => {
-    chat.loadMessages();
+    setKickoffSent(false);
+    setLoaded(false);
+    void chat.loadMessages().finally(() => setLoaded(true));
   }, [sessionId]);
 
   // Auto-scroll on new messages
@@ -106,8 +112,41 @@ export function Chat({
     [handleSend],
   );
 
+  const handleKickoff = useCallback(() => {
+    if (!kickoffMessage) return;
+    setKickoffSent(true);
+    void chat.sendMessage(kickoffMessage);
+  }, [kickoffMessage, chat]);
+
+  const displayMessages = useMemo(() => {
+    if (!kickoffMessage) return chat.messages;
+    // When kickoffMessage is set, the first user message is always the kickoff — hide it.
+    let skipped = false;
+    return chat.messages.filter((msg) => {
+      if (skipped || msg.info.role !== 'user') return true;
+      skipped = true;
+      return false;
+    });
+  }, [chat.messages, kickoffMessage]);
+
+  const showCover = Boolean(kickoffMessage) && loaded && chat.messages.length === 0 && !kickoffSent;
   const isBusy = chat.sessionStatus?.type === 'busy';
   const totalTok = chat.totalTokens.input + chat.totalTokens.output + chat.totalTokens.reasoning;
+
+  if (showCover) {
+    return (
+      <ChatCover
+        client={client}
+        providerId={providerId}
+        modelId={modelId}
+        onModelSelect={(pId, mId) => {
+          setProviderId(pId);
+          setModelId(mId);
+        }}
+        onStart={handleKickoff}
+      />
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -155,16 +194,16 @@ export function Chat({
       {/* Messages */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-wrap items-start gap-1 p-3">
-          {chat.messages.length === 0 && (
+          {displayMessages.length === 0 && !kickoffMessage && (
             <p className="text-center text-xs text-muted-foreground py-8">
               Send a message to begin
             </p>
           )}
 
-          {chat.messages.map((msg, idx) => {
+          {displayMessages.map((msg, idx) => {
             // Revert button lives on the user message — find if the immediately
             // following assistant message has a snapshot attached to it.
-            const nextMsg = chat.messages[idx + 1];
+            const nextMsg = displayMessages[idx + 1];
             const relatedAssistant =
               msg.info.role === 'user' &&
               nextMsg?.info.role === 'assistant' &&

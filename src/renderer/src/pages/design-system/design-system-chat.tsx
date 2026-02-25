@@ -162,13 +162,14 @@ export function DesignSystemChat({
   return (
     <Chat
       directory={workspacePath}
-      systemPrompt={`${userName ? `The user's name is ${userName}. ` : ''}The workspace styles file is at: \`${workspacePath}/styles.css\`${fontContext}`}
+      systemPrompt={`The workspace styles file is at: \`${workspacePath}/styles.css\`${fontContext}`}
       agentName="design-system"
       sessionId={sessionId}
       client={client}
       baseUrl={baseUrl}
       onFileEdit={onFileEdit}
       onNewChat={handleNewChat}
+      kickoffMessage={`Hey${userName ? ` ${userName} here!` : '!'} What does my design system look like? Keep your reply to 2 sentences max.`}
       snapshotIndex={snapshotIndex}
       onRevert={handleRevert}
       captureFiles={captureFiles}

@@ -104,7 +104,7 @@ export function DocumentChat({
     [snapshotIndex, workspacePath, doc.slug],
   );
 
-  const systemPrompt = `${userName ? `The user's name is ${userName}\n\n` : ''}You are helping build and edit a Litho document.
+  const systemPrompt = `You are helping build and edit a Litho document.
 
 Workspace path: ${workspacePath}
 Document slug: ${doc.slug}
@@ -180,6 +180,7 @@ ${assetsSummary}`;
       client={client}
       baseUrl={baseUrl}
       onNewChat={handleNewChat}
+      kickoffMessage={`Hey${userName ? ` ${userName} here!` : '!'} What does my document look like so far? Keep your reply to 2 sentences max.`}
       snapshotIndex={snapshotIndex}
       onRevert={handleRevert}
       captureFiles={captureFiles}
