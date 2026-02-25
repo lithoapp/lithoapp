@@ -176,6 +176,7 @@ ${assetsSummary}`;
       directory={workspacePath}
       systemPrompt={systemPrompt}
       agentName="document"
+      docSlug={doc.slug}
       sessionId={sessionId}
       client={client}
       baseUrl={baseUrl}

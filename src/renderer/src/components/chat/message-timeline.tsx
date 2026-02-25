@@ -68,11 +68,13 @@ function TimelineEntry({
 export function Timeline({
   message,
   isStreaming,
+  docSlug,
 }: {
   message: ChatMessage;
   isStreaming?: boolean;
+  docSlug?: string;
 }): React.JSX.Element {
-  const step = parseStep(message);
+  const step = parseStep(message, docSlug);
   const isActive = step.status === 'active';
   const hasTools = step.tools.length > 0;
   const hasText = Boolean(step.text);

@@ -40,7 +40,7 @@ type DisplayMode = 'activity' | 'status' | 'timeline' | 'debug';
 
 const ASSISTANT_COMPONENTS: Record<
   DisplayMode,
-  React.ComponentType<{ message: ChatMessage; isStreaming?: boolean }>
+  React.ComponentType<{ message: ChatMessage; isStreaming?: boolean; docSlug?: string }>
 > = {
   activity: ActivityLog,
   status: StatusLine,
@@ -82,11 +82,13 @@ export function Chat({
   snapshotIndex,
   onRevert,
   captureFiles,
+  docSlug,
   onTurnSnapshot,
 }: {
   directory: string;
   systemPrompt: string;
   agentName?: string;
+  docSlug?: string;
   sessionId: string;
   client: OpencodeClient | null;
   baseUrl: string | null;
@@ -308,6 +310,7 @@ export function Chat({
                 key={msg.info.id}
                 message={msg}
                 isStreaming={isBusy && isLastAssistant}
+                docSlug={docSlug}
               />
             );
           })}

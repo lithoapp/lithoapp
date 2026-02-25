@@ -41,7 +41,11 @@ function fallbackLabel(tool: string, path?: string): ToolLabel {
 // Public API
 // ---------------------------------------------------------------------------
 
-export function resolveToolLabel(tool: string, rawTitle: string): ToolLabel {
+export function resolveToolLabel(
+  tool: string,
+  rawTitle: string,
+  currentDocSlug?: string,
+): ToolLabel {
   if (!rawTitle) return fallbackLabel(tool);
 
   const path = extractRelativePath(rawTitle);
@@ -56,23 +60,31 @@ export function resolveToolLabel(tool: string, rawTitle: string): ToolLabel {
   // Document page file
   const pageMatch = path.match(/documents\/([^/]+)\/pages\/page-(\d+)\.tsx$/);
   if (pageMatch) {
-    const doc = deslugify(pageMatch[1]);
+    const slug = pageMatch[1];
     const page = pageMatch[2];
-    if (tool === 'read') return { label: `Reading ${doc}, page ${page}`, icon: 'eye' };
-    if (tool === 'write') return { label: `Creating ${doc}, page ${page}`, icon: 'plus' };
-    return { label: `Editing ${doc}, page ${page}`, icon: 'pencil' };
+    const isCurrent = currentDocSlug === slug;
+    const prefix = isCurrent ? '' : `${deslugify(slug)}, `;
+    if (tool === 'read') return { label: `Reading ${prefix}page ${page}`, icon: 'eye' };
+    if (tool === 'write') return { label: `Creating ${prefix}page ${page}`, icon: 'plus' };
+    return { label: `Editing ${prefix}page ${page}`, icon: 'pencil' };
   }
 
   // Document JSON
   const docJsonMatch = path.match(/documents\/([^/]+)\/document\.json$/);
   if (docJsonMatch) {
-    return { label: `Examining ${deslugify(docJsonMatch[1])} structure`, icon: 'eye' };
+    const slug = docJsonMatch[1];
+    const name = currentDocSlug === slug ? 'document' : deslugify(slug);
+    return { label: `Examining ${name} structure`, icon: 'eye' };
   }
 
   // Specific document directory
   const docDirMatch = path.match(/^documents\/([^/]+)\/?$/);
   if (docDirMatch) {
-    return { label: `Exploring ${deslugify(docDirMatch[1])}`, icon: 'search' };
+    const slug = docDirMatch[1];
+    if (currentDocSlug === slug) {
+      return { label: 'Exploring document files', icon: 'search' };
+    }
+    return { label: `Exploring ${deslugify(slug)}`, icon: 'search' };
   }
 
   // Documents root

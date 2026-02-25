@@ -49,7 +49,7 @@ function extractToolInfo(state: ToolState): { status: ToolStatus; title: string 
 // Public API
 // ---------------------------------------------------------------------------
 
-export function parseStep(message: ChatMessage): Step {
+export function parseStep(message: ChatMessage, currentDocSlug?: string): Step {
   const step: Step = {
     reasoning: '',
     tools: [],
@@ -69,7 +69,7 @@ export function parseStep(message: ChatMessage): Step {
         break;
       case 'tool': {
         const info = extractToolInfo(part.state);
-        const label = resolveToolLabel(part.tool, info.title);
+        const label = resolveToolLabel(part.tool, info.title, currentDocSlug);
         step.tools.push({
           id: part.id,
           tool: part.tool,
