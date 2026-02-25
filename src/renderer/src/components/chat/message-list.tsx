@@ -1,5 +1,6 @@
 import { RotateCcw } from 'lucide-react';
 import NodeRenderer, { setCustomComponents } from 'markstream-react';
+import { useState } from 'react';
 import 'markstream-react/index.css';
 import {
   AlertDialog,
@@ -157,7 +158,7 @@ export function UserMessageView({
 }
 
 // ---------------------------------------------------------------------------
-// Debug view — shows raw parts in arrival order
+// Debug view — shows raw parts in arrival order, click to expand
 // ---------------------------------------------------------------------------
 
 const TYPE_COLORS: Record<string, string> = {
@@ -179,44 +180,68 @@ function truncate(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
-function PartSummary({ part }: { part: Record<string, unknown> }): React.JSX.Element {
+function summarizePart(part: Record<string, unknown>): string {
   const type = part.type as string;
-  const color = TYPE_COLORS[type] ?? '#9ca3af';
-
-  let detail = '';
   switch (type) {
     case 'text':
-      detail = truncate((part.text as string) ?? '', 120);
-      break;
+      return truncate((part.text as string) ?? '', 120);
     case 'reasoning':
-      detail = truncate((part.text as string) ?? '', 120);
-      break;
+      return truncate((part.text as string) ?? '', 120);
     case 'tool': {
       const state = part.state as Record<string, unknown> | undefined;
       const status = state?.status ?? '?';
       const title = state?.title ?? '';
-      detail = `${part.tool} [${String(status)}]${title ? ` — ${String(title)}` : ''}`;
-      break;
+      return `${part.tool} [${String(status)}]${title ? ` — ${String(title)}` : ''}`;
     }
     case 'step-start':
-      detail = part.snapshot ? `snapshot: ${String(part.snapshot).slice(0, 20)}` : '(no snapshot)';
-      break;
+      return part.snapshot ? `snapshot: ${String(part.snapshot).slice(0, 20)}` : '(no snapshot)';
     case 'step-finish':
-      detail = `reason: ${String(part.reason ?? '?')} | cost: $${String(part.cost ?? 0)}`;
-      break;
+      return `reason: ${String(part.reason ?? '?')} | cost: $${String(part.cost ?? 0)}`;
     default:
-      detail = truncate(JSON.stringify(part, null, 0), 120);
+      return truncate(JSON.stringify(part, null, 0), 120);
   }
+}
+
+function formatPartDetail(part: Record<string, unknown>): string {
+  const type = part.type as string;
+  switch (type) {
+    case 'text':
+    case 'reasoning':
+      return (part.text as string) ?? '';
+    case 'tool':
+      return JSON.stringify(part.state ?? part, null, 2);
+    default:
+      return JSON.stringify(part, null, 2);
+  }
+}
+
+function PartRow({ part }: { part: Record<string, unknown> }): React.JSX.Element {
+  const [expanded, setExpanded] = useState(false);
+  const type = part.type as string;
+  const color = TYPE_COLORS[type] ?? '#9ca3af';
 
   return (
-    <div className="flex gap-2 items-start py-0.5 font-mono text-[11px] leading-relaxed">
-      <span
-        className="shrink-0 rounded px-1.5 py-0.5 text-white font-semibold text-[10px]"
-        style={{ backgroundColor: color }}
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full gap-2 items-start py-0.5 font-mono text-[11px] leading-relaxed text-left rounded hover:bg-muted/50"
       >
-        {type}
-      </span>
-      <span className="text-muted-foreground break-all">{detail}</span>
+        <span
+          className="shrink-0 rounded px-1.5 py-0.5 text-white font-semibold text-[10px]"
+          style={{ backgroundColor: color }}
+        >
+          {type}
+        </span>
+        <span className="text-muted-foreground break-all">
+          {expanded ? '▼' : '▶'} {summarizePart(part)}
+        </span>
+      </button>
+      {expanded && (
+        <pre className="mt-0.5 mb-1 ml-7 overflow-x-auto rounded bg-muted/40 p-2 text-[10px] leading-snug text-foreground/80 whitespace-pre-wrap break-all">
+          {formatPartDetail(part)}
+        </pre>
+      )}
     </div>
   );
 }
@@ -240,10 +265,7 @@ export function MessageDebug({
         <span className="text-[11px] text-muted-foreground italic">no parts yet</span>
       )}
       {message.parts.map((part, idx) => (
-        <PartSummary
-          key={part.id ?? String(idx)}
-          part={part as unknown as Record<string, unknown>}
-        />
+        <PartRow key={part.id ?? String(idx)} part={part as unknown as Record<string, unknown>} />
       ))}
     </div>
   );
