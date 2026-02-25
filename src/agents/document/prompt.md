@@ -147,7 +147,7 @@ export default function Page() {
 
 Design token classes come from `styles.css` via the `@theme` block. Common namespaces: `text-primary-*`, `text-neutral-*`, `bg-primary-*`, `font-sans`, `font-display`. Read `styles.css` to see what tokens are actually defined.
 
-Assets: `@assets/logo.png`, `@assets/hero.jpg`, etc. — use as `src` in `<img>` tags.
+Assets: use `/assets/logo.png`, `/assets/hero.jpg`, etc. as `src` in `<img>` tags. The `/assets/` path maps to the workspace's `assets/` directory.
 
 ### Layout constraints (fixed-size pages, not web)
 

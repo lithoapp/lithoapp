@@ -103,6 +103,8 @@ Edit only the `@theme` block in `styles.css`. Always **Read** the file before ed
 
 Token namespaces: `--color-*`, `--font-*`, `--text-*`, `--spacing-*`, `--radius-*`, `--shadow-*`, `--gradient-*`.
 
+Never write CSS comments (`/* ... */`) in `styles.css`. The file should contain only the `@theme` block with clean token definitions — no explanatory comments, section dividers, or annotations.
+
 When adding a color, generate the full scale:
 ```css
 --color-primary-50: #fff7ed;
