@@ -161,159 +161,124 @@
   background: transparent;
 }
 
-/* ── Markdown chat rendering ─────────────────────────────── */
-.markdown-chat {
-  color: var(--color-foreground);
+/* ── Streaming markdown (markstream-react) overrides ──────── */
+.markdown-stream {
+  color: inherit;
   line-height: 1.5;
-  word-break: break-words;
+  word-break: break-word;
 }
 
-/* Headings — compact, no top margin on first */
-.markdown-chat h1,
-.markdown-chat h2,
-.markdown-chat h3,
-.markdown-chat h4 {
-  font-weight: 600;
+/* Headings — compact for chat context */
+.markdown-stream .heading-node {
+  color: inherit;
+}
+.markdown-stream .heading-1 {
+  font-size: 1.05em;
+  margin-top: 0;
+  margin-bottom: 0.25em;
+}
+.markdown-stream .heading-2 {
+  font-size: 1em;
   margin-top: 0.75em;
   margin-bottom: 0.25em;
-  line-height: 1.25;
 }
-.markdown-chat h1 {
-  font-size: 1.05em;
-}
-.markdown-chat h2 {
-  font-size: 1em;
-}
-.markdown-chat h3,
-.markdown-chat h4 {
+.markdown-stream .heading-3,
+.markdown-stream .heading-4,
+.markdown-stream .heading-5,
+.markdown-stream .heading-6 {
   font-size: 0.95em;
-}
-.markdown-chat :first-child {
-  margin-top: 0;
+  margin-top: 0.75em;
+  margin-bottom: 0.25em;
 }
 
 /* Paragraphs */
-.markdown-chat p {
-  margin-top: 0;
-  margin-bottom: 0.5em;
+.markdown-stream .paragraph-node {
+  margin: 0 0 0.5em 0;
 }
-.markdown-chat p:last-child {
+.markdown-stream .paragraph-node:last-child {
   margin-bottom: 0;
 }
 
-/* Lists */
-.markdown-chat ul,
-.markdown-chat ol {
-  margin: 0.25em 0 0.5em 0;
-  padding-left: 1.25em;
-}
-.markdown-chat li {
-  margin-bottom: 0.1em;
-}
-
 /* Inline code */
-.markdown-chat code {
+.markdown-stream .inline-code {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  background: var(--color-muted);
+  background: rgba(128, 128, 128, 0.12);
   border-radius: 0.25em;
   padding: 0.1em 0.3em;
+  color: inherit;
 }
 
-/* Fenced code blocks */
-.markdown-chat pre {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 0.6em 0.75em;
-  overflow-x: auto;
+/* Code blocks */
+.markdown-stream .code-block {
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  border-radius: 0.5rem;
   margin: 0.4em 0;
 }
-.markdown-chat pre code {
+.markdown-stream .code-block-header {
+  border-bottom-color: rgba(128, 128, 128, 0.2);
+}
+.markdown-stream .code-block-node {
+  border-radius: 0.5rem;
+  padding: 0.6em 0.75em;
+  margin: 0.4em 0;
   font-family: var(--font-mono);
   font-size: 0.8em;
-  background: transparent;
-  padding: 0;
-  border-radius: 0;
 }
 
 /* Blockquotes */
-.markdown-chat blockquote {
-  border-left: 3px solid var(--color-border);
+.markdown-stream .blockquote-node {
+  border-left-color: rgba(128, 128, 128, 0.3);
+  opacity: 0.75;
   margin: 0.4em 0;
-  padding: 0.1em 0.75em;
-  color: var(--color-muted-foreground);
 }
 
 /* Links */
-.markdown-chat a {
+.markdown-stream .link-node {
   color: var(--color-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
-/* Horizontal rules */
-.markdown-chat hr {
-  border: none;
-  border-top: 1px solid var(--color-border);
+/* Thematic break */
+.markdown-stream .hr-node,
+.markdown-stream .thematic-break {
+  border-top-color: rgba(128, 128, 128, 0.25);
   margin: 0.5em 0;
 }
 
 /* Tables */
-.markdown-chat table {
-  border-collapse: collapse;
-  width: 100%;
+.markdown-stream .table-node {
   font-size: 0.85em;
-  margin: 0.4em 0;
 }
-.markdown-chat th,
-.markdown-chat td {
-  border: 1px solid var(--color-border);
+.markdown-stream .table-node th,
+.markdown-stream .table-node td {
+  border-color: rgba(128, 128, 128, 0.2);
   padding: 0.25em 0.5em;
-  text-align: left;
 }
-.markdown-chat th {
-  background: var(--color-muted);
-  font-weight: 600;
+.markdown-stream .table-node th {
+  background: rgba(128, 128, 128, 0.1);
 }
 
-/* highlight.js token colors — minimal dark theme */
-.markdown-chat .hljs-comment,
-.markdown-chat .hljs-quote {
-  color: #78716c;
-  font-style: italic;
+/* ── Color pills — inline hex color swatches ─────────────── */
+.color-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  background: rgba(128, 128, 128, 0.12);
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  color: inherit;
+  border-radius: 0.375em;
+  padding: 0.1em 0.45em;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.4;
+  vertical-align: baseline;
+  white-space: nowrap;
 }
-.markdown-chat .hljs-keyword,
-.markdown-chat .hljs-selector-tag,
-.markdown-chat .hljs-built_in {
-  color: #f59e0b;
-}
-.markdown-chat .hljs-string,
-.markdown-chat .hljs-attr {
-  color: #86efac;
-}
-.markdown-chat .hljs-number,
-.markdown-chat .hljs-literal {
-  color: #67e8f9;
-}
-.markdown-chat .hljs-title,
-.markdown-chat .hljs-section,
-.markdown-chat .hljs-name {
-  color: #c4b5fd;
-}
-.markdown-chat .hljs-variable,
-.markdown-chat .hljs-template-variable {
-  color: #fca5a5;
-}
-.markdown-chat .hljs-tag {
-  color: #a8a29e;
-}
-.markdown-chat .hljs-type,
-.markdown-chat .hljs-class .hljs-title {
-  color: #67e8f9;
-}
-.markdown-chat .hljs-symbol,
-.markdown-chat .hljs-bullet,
-.markdown-chat .hljs-selector-id {
-  color: #e8652b;
+.color-pill-swatch {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 0.2em;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  flex-shrink: 0;
 }

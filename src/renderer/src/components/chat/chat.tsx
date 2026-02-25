@@ -180,13 +180,7 @@ export function Chat({
         )}
 
         <div className="ml-auto text-right text-[11px] text-muted-foreground font-mono">
-          {chat.totalCost > 0 ? (
-            <div>${chat.totalCost.toFixed(2)}</div>
-          ) : (
-            totalTok > 0 && (
-              <div className="text-[10px] text-emerald-700 dark:text-emerald-400">free</div>
-            )
-          )}
+          {chat.totalCost > 0 && <div>${chat.totalCost.toFixed(2)}</div>}
           {totalTok > 0 && <div className="text-[10px]">{formatTokens(totalTok)} tokens</div>}
         </div>
       </div>
@@ -210,10 +204,14 @@ export function Chat({
               snapshotIndex?.[nextMsg.info.id]
                 ? nextMsg
                 : undefined;
+            // The last assistant message is streaming while the session is busy
+            const isLastAssistant =
+              msg.info.role === 'assistant' && idx === displayMessages.length - 1;
             return (
               <MessageView
                 key={msg.info.id}
                 message={msg}
+                isStreaming={isBusy && isLastAssistant}
                 snapshotId={
                   relatedAssistant ? snapshotIndex?.[relatedAssistant.info.id] : undefined
                 }

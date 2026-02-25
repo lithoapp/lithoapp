@@ -1,4 +1,6 @@
 import { Brain, Loader2, RotateCcw, Terminal } from 'lucide-react';
+import NodeRenderer, { setCustomComponents } from 'markstream-react';
+import 'markstream-react/index.css';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +22,67 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import type { ChatMessage } from '@/hooks/use-chat';
-import { parseMarkdown } from '@/lib/parse-markdown';
+
+// ---------------------------------------------------------------------------
+// Hex color detection — renders inline color pills
+// ---------------------------------------------------------------------------
+
+const HEX_EXACT_RE = /^#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})$/i;
+const HEX_SPLIT_RE = /(#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3}))(?=[^0-9a-f]|$)/gi;
+
+function ColorPill({ color }: { color: string }): React.JSX.Element {
+  return (
+    <span className="color-pill">
+      <span className="color-pill-swatch" style={{ backgroundColor: color }} />
+      {color.toLowerCase()}
+    </span>
+  );
+}
+
+function CustomInlineCode({
+  node,
+}: {
+  node: { type: 'inline_code'; code: string };
+}): React.JSX.Element {
+  const code = node.code.trim();
+  if (HEX_EXACT_RE.test(code)) {
+    return <ColorPill color={code} />;
+  }
+  return <code className="inline-code">{node.code}</code>;
+}
+
+function CustomText({
+  node,
+}: {
+  node: { type: 'text'; content: string; center?: boolean };
+}): React.JSX.Element {
+  const { content, center } = node;
+  const className = center ? 'text-node text-node-center' : 'text-node';
+  const segments = content.split(HEX_SPLIT_RE);
+
+  if (segments.length === 1) {
+    return <span className={className}>{content}</span>;
+  }
+
+  return (
+    <span className={className}>
+      {segments.map((segment, i) =>
+        HEX_EXACT_RE.test(segment) ? (
+          <ColorPill key={`${segment}-${String(i)}`} color={segment} />
+        ) : (
+          segment
+        ),
+      )}
+    </span>
+  );
+}
+
+setCustomComponents({
+  inline_code: CustomInlineCode,
+  text: CustomText,
+});
+
+// ---------------------------------------------------------------------------
 
 function getPartRecord(part: { id: string; type: string }): Record<string, unknown> {
   return part as unknown as Record<string, unknown>;
@@ -30,21 +92,42 @@ function getPartRecord(part: { id: string; type: string }): Record<string, unkno
 // Part renderers
 // ---------------------------------------------------------------------------
 
-function MarkdownView({ text }: { text: string }): React.JSX.Element {
+function StreamingMarkdown({
+  text,
+  isStreaming,
+}: {
+  text: string;
+  isStreaming: boolean;
+}): React.JSX.Element {
   return (
-    <div
-      className="markdown-chat text-sm"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: Safe — Electron app, content is AI output from our own opencode server
-      dangerouslySetInnerHTML={{ __html: parseMarkdown(text) }}
-    />
+    <div className="markdown-stream text-base">
+      <NodeRenderer
+        content={text}
+        final={!isStreaming}
+        isDark
+        renderCodeBlocksAsPre
+        typewriter={false}
+        maxLiveNodes={0}
+        renderBatchSize={40}
+        renderBatchDelay={16}
+      />
+    </div>
   );
 }
 
-function TextPartView({ text, isUser }: { text: string; isUser?: boolean }): React.JSX.Element {
+function TextPartView({
+  text,
+  isUser,
+  isStreaming,
+}: {
+  text: string;
+  isUser?: boolean;
+  isStreaming?: boolean;
+}): React.JSX.Element {
   if (isUser) {
-    return <p className="whitespace-pre-wrap break-words text-sm">{text}</p>;
+    return <p className="whitespace-pre-wrap break-words text-base">{text}</p>;
   }
-  return <MarkdownView text={text} />;
+  return <StreamingMarkdown text={text} isStreaming={isStreaming ?? false} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,10 +223,12 @@ export function MessageView({
   message,
   snapshotId,
   onRevert,
+  isStreaming,
 }: {
   message: ChatMessage;
   snapshotId?: string;
   onRevert?: () => void;
+  isStreaming?: boolean;
 }): React.JSX.Element {
   const isUser = message.info.role === 'user';
 
@@ -238,7 +323,11 @@ export function MessageView({
       {textParts.length > 0 && (
         <div className="w-full pt-1">
           {textParts.map((part) => (
-            <TextPartView key={part.id} text={(getPartRecord(part).text as string) ?? ''} />
+            <TextPartView
+              key={part.id}
+              text={(getPartRecord(part).text as string) ?? ''}
+              isStreaming={isStreaming}
+            />
           ))}
         </div>
       )}
