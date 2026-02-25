@@ -1,11 +1,12 @@
 import { Loader2, MessageSquare, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Chat } from '@/components/chat/chat';
 import { Button } from '@/components/ui/button';
 import { useOpencode } from '@/hooks/use-opencode';
 import { useSessionInit } from '@/hooks/use-session-init';
 import type { ManifestDocument } from '@/hooks/use-workspace-manifest';
+import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 
 interface DocumentChatProps {
   doc: ManifestDocument;
@@ -104,18 +105,24 @@ export function DocumentChat({
     [snapshotIndex, workspacePath, doc.slug],
   );
 
-  const systemPrompt = `You are helping build and edit a Litho document.
+  const { system, kickoff } = promptTemplates.document;
 
-Workspace path: ${workspacePath}
-Document slug: ${doc.slug}
-Document title: ${doc.title}
-Document size: ${doc.size.width} × ${doc.size.height} ${doc.size.unit}
+  const systemPrompt = useMemo(
+    () =>
+      renderTemplate(system, {
+        workspacePath,
+        slug: doc.slug,
+        title: doc.title,
+        width: doc.size.width,
+        height: doc.size.height,
+        unit: doc.size.unit,
+        pageList: doc.pages.join(', '),
+        assetsSummary,
+      }),
+    [workspacePath, doc.slug, doc.title, doc.size, doc.pages, assetsSummary, system],
+  );
 
-Pages: ${doc.pages.join(', ')}
-Page file pattern: documents/${doc.slug}/pages/{pageId}.tsx
-
-Styles: @styles.css (workspace Tailwind theme)
-${assetsSummary}`;
+  const kickoffMessage = useMemo(() => renderTemplate(kickoff, { userName }), [userName, kickoff]);
 
   if (status === 'error') {
     return (
@@ -181,7 +188,7 @@ ${assetsSummary}`;
       client={client}
       baseUrl={baseUrl}
       onNewChat={handleNewChat}
-      kickoffMessage={`Hey${userName ? ` ${userName} here!` : '!'} What does my document look like so far? Keep your reply to 2 sentences max.`}
+      kickoffMessage={kickoffMessage}
       snapshotIndex={snapshotIndex}
       onRevert={handleRevert}
       captureFiles={captureFiles}

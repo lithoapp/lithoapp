@@ -1,10 +1,11 @@
 import { Loader2, MessageSquare, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Chat } from '@/components/chat/chat';
 import { Button } from '@/components/ui/button';
 import { useOpencode } from '@/hooks/use-opencode';
 import { useSessionInit } from '@/hooks/use-session-init';
+import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 
 interface DesignSystemChatProps {
   workspacePath: string;
@@ -105,6 +106,15 @@ export function DesignSystemChat({
     [snapshotIndex, workspacePath],
   );
 
+  const { system, kickoff } = promptTemplates['design-system'];
+
+  const systemPrompt = useMemo(
+    () => renderTemplate(system, { workspacePath, fontContext }),
+    [workspacePath, fontContext, system],
+  );
+
+  const kickoffMessage = useMemo(() => renderTemplate(kickoff, { userName }), [userName, kickoff]);
+
   if (status === 'error') {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
@@ -162,14 +172,14 @@ export function DesignSystemChat({
   return (
     <Chat
       directory={workspacePath}
-      systemPrompt={`The workspace styles file is at: \`${workspacePath}/styles.css\`${fontContext}`}
+      systemPrompt={systemPrompt}
       agentName="design-system"
       sessionId={sessionId}
       client={client}
       baseUrl={baseUrl}
       onFileEdit={onFileEdit}
       onNewChat={handleNewChat}
-      kickoffMessage={`Hey${userName ? ` ${userName} here!` : '!'} What does my design system look like? Keep your reply to 2 sentences max.`}
+      kickoffMessage={kickoffMessage}
       snapshotIndex={snapshotIndex}
       onRevert={handleRevert}
       captureFiles={captureFiles}
