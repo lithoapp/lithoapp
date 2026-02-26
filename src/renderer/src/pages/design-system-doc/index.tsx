@@ -116,9 +116,11 @@ export function DesignSystemDocPage({
     }
   }, []);
 
-  const handleFileEdit = useCallback(
-    (filePath: string) => {
-      if (filePath.endsWith('styles.css')) void refetch();
+  const handleToolComplete = useCallback(
+    (tool: string, _args: Record<string, unknown>) => {
+      if (tool === 'writeMainCss' || tool === 'editMainCss') {
+        void refetch();
+      }
     },
     [refetch],
   );
@@ -208,7 +210,7 @@ export function DesignSystemDocPage({
           <DesignSystemChat
             workspaceName={workspaceName}
             workspacePath={workspacePath}
-            onFileEdit={handleFileEdit}
+            onToolComplete={handleToolComplete}
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">

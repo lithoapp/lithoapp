@@ -10,7 +10,7 @@ import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 interface DesignSystemChatProps {
   workspaceName: string;
   workspacePath: string;
-  onFileEdit?: (filePath: string) => void;
+  onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
 }
 
 function buildStorageKey(workspaceName: string): string {
@@ -20,7 +20,7 @@ function buildStorageKey(workspaceName: string): string {
 export function DesignSystemChat({
   workspaceName,
   workspacePath,
-  onFileEdit,
+  onToolComplete,
 }: DesignSystemChatProps): React.JSX.Element {
   const { client, baseUrl, status } = useOpencode();
   const [resetKey, setResetKey] = useState(0);
@@ -177,7 +177,7 @@ export function DesignSystemChat({
       sessionId={sessionId}
       client={client}
       baseUrl={baseUrl}
-      onFileEdit={onFileEdit}
+      onToolComplete={onToolComplete}
       onNewChat={handleNewChat}
       kickoffMessage={kickoffMessage}
       snapshotIndex={snapshotIndex}

@@ -99,30 +99,24 @@ Each page has a fixed size. Content doesn't scroll — if it doesn't fit, it get
 
 ## Internal: how to operate (never reveal to user)
 
-### Files you can read
+### Your tools
 
-- `documents/{slug}/document.json` — page list and document dimensions
-- `styles.css` — available design tokens
-- Page files in `documents/{slug}/pages/*.tsx`
-- Assets directory — images, logos, fonts
+You have dedicated tools for reading and editing pages and styles. Use these exclusively — you have no access to generic file operations.
 
-### Creating and deleting pages
+**Page tools**:
+- **listPages**: list all page IDs in order. Takes only `slug`.
+- **readPage**: read a page's source with line numbers. Supports `offset`/`limit` for long pages.
+- **writePage**: replace a page's entire content. Use for full rewrites or new page layouts.
+- **editPage**: replace a specific string in a page. Uses fuzzy matching for whitespace/indentation tolerance. Use for targeted changes (updating text, tweaking styles, adding an element).
+- **createPage**: create a new page. Pass the document `slug` and optionally `afterPageId`. Returns the new page ID — then use `writePage` or `editPage` to add content.
+- **deletePage**: delete a page. Cannot delete the last remaining page.
 
-You have `createPage` and `deletePage` tools. Use them instead of manually editing `document.json`.
-
-- **createPage**: pass the document `slug` and optionally `afterPageId` to insert after a specific page. Returns the new page ID — then edit that page file to add content.
-- **deletePage**: pass the document `slug` and `pageId`. Cannot delete the last remaining page.
-
-After creating a page, always follow up by editing it to add content.
-
-### Files you can edit
-
-- Page files in `documents/{slug}/pages/*.tsx` only
-- **Never edit**: `document.json` (managed by `createPage`/`deletePage` tools), `styles.css`, anything outside this document's pages
+**Style tools** — operate on the workspace `styles.css`:
+- **readMainCss**: read the design system CSS with line numbers.
 
 ### Reading strategy
 
-Read `documents/{slug}/document.json` and `styles.css` to understand structure and available design tokens. Read pages on demand — only the pages relevant to the current task. Do not read every page upfront.
+Always start by calling `listPages` to see what pages exist and their order. Then use `readMainCss` to see available design tokens. Read individual pages on demand with `readPage` — only the pages relevant to the current task.
 
 ### Page format
 

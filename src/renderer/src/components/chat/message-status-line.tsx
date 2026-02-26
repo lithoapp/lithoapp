@@ -34,13 +34,11 @@ const ICON_MAP: Record<ToolIcon, React.ElementType> = {
 export function StatusLine({
   message,
   isStreaming,
-  docSlug,
 }: {
   message: ChatMessage;
   isStreaming?: boolean;
-  docSlug?: string;
 }): React.JSX.Element {
-  const step = parseStep(message, docSlug);
+  const step = parseStep(message);
   const isActive = step.status === 'active';
   const hasTools = step.tools.length > 0;
   const hasText = Boolean(step.text);

@@ -183,19 +183,44 @@ export function DocumentPage({
     }
   }, []);
 
-  // Rebuild all pages on every agent file edit.
-  // When document.json changes, also refetch the document list so new/deleted
-  // pages appear in the sidebar immediately.
-  const onDocumentsChangeRef = useRef(onDocumentsChange);
-  onDocumentsChangeRef.current = onDocumentsChange;
-  const handleFileEdit = useCallback(
-    (filePath: string) => {
-      void buildPages();
-      if (filePath.endsWith('document.json')) {
-        onDocumentsChangeRef.current?.();
+  // Rebuild a single page after the agent edits it
+  const buildPage = useCallback(
+    async (pageId: string) => {
+      try {
+        const result = await window.litho.renderer.build(workspaceName, doc.slug, pageId);
+        if (result.ok) {
+          setPageHtmlMap((prev) => new Map(prev).set(pageId, result.data.html));
+        }
+      } catch (err) {
+        console.error(`[document] Build failed for ${pageId}:`, err);
+        Sentry.captureException(err);
       }
     },
-    [buildPages],
+    [workspaceName, doc.slug],
+  );
+
+  // Handle completed litho tool calls.
+  // writePage/editPage → rebuild the specific page only.
+  // createPage/deletePage → refetch doc list (parent updates doc.pages,
+  //   which triggers the useEffect that rebuilds all pages).
+  const onDocumentsChangeRef = useRef(onDocumentsChange);
+  onDocumentsChangeRef.current = onDocumentsChange;
+  const handleToolComplete = useCallback(
+    (tool: string, args: Record<string, unknown>) => {
+      switch (tool) {
+        case 'writePage':
+        case 'editPage': {
+          const pageId = args.pageId as string | undefined;
+          if (pageId) void buildPage(pageId);
+          break;
+        }
+        case 'createPage':
+        case 'deletePage':
+          onDocumentsChangeRef.current?.();
+          break;
+      }
+    },
+    [buildPage],
   );
 
   const [isMac, setIsMac] = useState(false);
@@ -316,7 +341,7 @@ export function DocumentPage({
             workspaceName={workspaceName}
             workspacePath={workspacePath}
             userName={userName}
-            onFileEdit={handleFileEdit}
+            onToolComplete={handleToolComplete}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

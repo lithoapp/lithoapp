@@ -1,4 +1,3 @@
-import type { ToolState } from '@opencode-ai/sdk/client';
 import type { ChatMessage } from '@/lib/opencode-types';
 import { resolveToolLabel, type ToolIcon } from './message-tool-labels';
 
@@ -16,7 +15,6 @@ export interface ResolvedTool {
   status: ToolStatus;
   label: string;
   icon: ToolIcon;
-  rawTitle: string;
 }
 
 export interface Step {
@@ -29,27 +27,10 @@ export interface Step {
 }
 
 // ---------------------------------------------------------------------------
-// Internals
-// ---------------------------------------------------------------------------
-
-function extractToolInfo(state: ToolState): { status: ToolStatus; title: string } {
-  switch (state.status) {
-    case 'pending':
-      return { status: 'pending', title: '' };
-    case 'running':
-      return { status: 'running', title: state.title ?? '' };
-    case 'completed':
-      return { status: 'completed', title: state.title };
-    case 'error':
-      return { status: 'error', title: '' };
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-export function parseStep(message: ChatMessage, currentDocSlug?: string): Step {
+export function parseStep(message: ChatMessage): Step {
   const step: Step = {
     reasoning: '',
     tools: [],
@@ -68,15 +49,15 @@ export function parseStep(message: ChatMessage, currentDocSlug?: string): Step {
         step.text += part.text;
         break;
       case 'tool': {
-        const info = extractToolInfo(part.state);
-        const label = resolveToolLabel(part.tool, info.title, currentDocSlug);
+        const status: ToolStatus = part.state.status;
+        const input = (part.state.input as Record<string, unknown>) ?? {};
+        const label = resolveToolLabel(part.tool, input);
         step.tools.push({
           id: part.id,
           tool: part.tool,
-          status: info.status,
+          status,
           label: label.label,
           icon: label.icon,
-          rawTitle: info.title,
         });
         break;
       }

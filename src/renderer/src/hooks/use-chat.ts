@@ -24,7 +24,7 @@ interface UseChatInput {
   sessionId: string | null;
   providerId: string;
   modelId: string;
-  onFileEdit?: (filePath: string) => void;
+  onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   captureFiles?: () => Promise<Record<string, string>>;
   onTurnSnapshot?: (data: {
     files: Record<string, string>;
@@ -61,7 +61,7 @@ export function useChat({
   sessionId,
   providerId,
   modelId,
-  onFileEdit,
+  onToolComplete,
   captureFiles,
   onTurnSnapshot,
 }: UseChatInput): UseChatReturn {
@@ -83,8 +83,8 @@ export function useChat({
   directoryRef.current = directory;
 
   // Callback refs so changes don't force SSE reconnection
-  const onFileEditRef = useRef(onFileEdit);
-  onFileEditRef.current = onFileEdit;
+  const onToolCompleteRef = useRef(onToolComplete);
+  onToolCompleteRef.current = onToolComplete;
   const captureFilesRef = useRef(captureFiles);
   captureFilesRef.current = captureFiles;
   const onTurnSnapshotRef = useRef(onTurnSnapshot);
@@ -153,15 +153,23 @@ export function useChat({
               tokensRef.current.reasoning += stats.tokens.reasoning;
               setTotalTokens({ ...tokensRef.current });
             }
-            // Treat completed createPage/deletePage as a document.json edit
-            // so the page list refetches automatically
-            if (
-              part.type === 'tool' &&
-              (part.tool === 'createPage' || part.tool === 'deletePage') &&
-              part.state.status === 'completed'
-            ) {
-              fileEditedCountRef.current += 1;
-              onFileEditRef.current?.('document.json');
+            // Detect completed litho tool calls that mutate files
+            if (part.type === 'tool' && part.state.status === 'completed') {
+              const mutatingTools = [
+                'writePage',
+                'editPage',
+                'createPage',
+                'deletePage',
+                'writeMainCss',
+                'editMainCss',
+              ];
+              if (mutatingTools.includes(part.tool)) {
+                fileEditedCountRef.current += 1;
+                onToolCompleteRef.current?.(
+                  part.tool,
+                  (part.state.input as Record<string, unknown>) ?? {},
+                );
+              }
             }
             break;
           }
@@ -224,11 +232,6 @@ export function useChat({
           case 'permission.replied': {
             const { permissionID } = event.properties;
             setPendingPermissions((prev) => removePermission(prev, permissionID));
-            break;
-          }
-          case 'file.edited': {
-            fileEditedCountRef.current += 1;
-            onFileEditRef.current?.(event.properties.file);
             break;
           }
         }

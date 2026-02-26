@@ -9,108 +9,61 @@ export interface ToolLabel {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function deslugify(slug: string): string {
-  return slug
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
-function extractRelativePath(raw: string): string {
-  const match = raw.match(/litho-workspaces\/[^/]+\/(.+)/);
-  return match?.[1] ?? raw;
-}
-
-function fallbackLabel(tool: string, path?: string): ToolLabel {
-  const name = path?.split('/').pop() ?? '';
-  switch (tool) {
-    case 'glob':
-      return { label: name ? `Searching ${name}` : 'Searching files', icon: 'search' };
-    case 'read':
-      return { label: name ? `Reading ${name}` : 'Reading a file', icon: 'eye' };
-    case 'write':
-      return { label: name ? `Creating ${name}` : 'Creating a file', icon: 'plus' };
-    case 'edit':
-      return { label: name ? `Editing ${name}` : 'Editing a file', icon: 'pencil' };
-    case 'createPage':
-      return { label: 'Adding a new page', icon: 'plus' };
-    case 'deletePage':
-      return { label: 'Removing a page', icon: 'error' };
-    default:
-      return { label: tool, icon: 'terminal' };
-  }
+/** Extract page number from a pageId like "page-3" → "3" */
+function pageNumber(pageId: string): string {
+  return pageId.replace(/^page-/, '');
 }
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-export function resolveToolLabel(
-  tool: string,
-  rawTitle: string,
-  currentDocSlug?: string,
-): ToolLabel {
-  if (!rawTitle) return fallbackLabel(tool);
+export function resolveToolLabel(tool: string, input: Record<string, unknown>): ToolLabel {
+  const pageId = input.pageId as string | undefined;
 
-  const path = extractRelativePath(rawTitle);
+  switch (tool) {
+    case 'listPages':
+      return { label: 'Listing pages', icon: 'search' };
 
-  // Design system
-  if (path === 'styles.css' || path.endsWith('/styles.css')) {
-    return tool === 'read'
-      ? { label: 'Reviewing design system', icon: 'eye' }
-      : { label: 'Updating design system', icon: 'pencil' };
+    case 'readPage':
+      return {
+        label: pageId ? `Reading page ${pageNumber(pageId)}` : 'Reading a page',
+        icon: 'eye',
+      };
+
+    case 'writePage':
+      return {
+        label: pageId ? `Writing page ${pageNumber(pageId)}` : 'Writing a page',
+        icon: 'pencil',
+      };
+
+    case 'editPage':
+      return {
+        label: pageId ? `Editing page ${pageNumber(pageId)}` : 'Editing a page',
+        icon: 'pencil',
+      };
+
+    case 'createPage':
+      return { label: 'Adding a new page', icon: 'plus' };
+
+    case 'deletePage':
+      return {
+        label: pageId ? `Removing page ${pageNumber(pageId)}` : 'Removing a page',
+        icon: 'error',
+      };
+
+    case 'readMainCss':
+      return { label: 'Reading styles', icon: 'eye' };
+
+    case 'writeMainCss':
+      return { label: 'Writing styles', icon: 'pencil' };
+
+    case 'editMainCss':
+      return { label: 'Editing styles', icon: 'pencil' };
+
+    default:
+      return { label: tool, icon: 'terminal' };
   }
-
-  // Document page file
-  const pageMatch = path.match(/documents\/([^/]+)\/pages\/page-(\d+)\.tsx$/);
-  if (pageMatch) {
-    const slug = pageMatch[1];
-    const page = pageMatch[2];
-    const isCurrent = currentDocSlug === slug;
-    const prefix = isCurrent ? '' : `${deslugify(slug)}, `;
-    if (tool === 'read') return { label: `Reading ${prefix}page ${page}`, icon: 'eye' };
-    if (tool === 'write') return { label: `Creating ${prefix}page ${page}`, icon: 'plus' };
-    return { label: `Editing ${prefix}page ${page}`, icon: 'pencil' };
-  }
-
-  // Document JSON
-  const docJsonMatch = path.match(/documents\/([^/]+)\/document\.json$/);
-  if (docJsonMatch) {
-    const slug = docJsonMatch[1];
-    const name = currentDocSlug === slug ? 'document' : deslugify(slug);
-    return tool === 'read'
-      ? { label: `Examining ${name} structure`, icon: 'eye' }
-      : { label: `Editing ${name} structure`, icon: 'pencil' };
-  }
-
-  // Specific document directory
-  const docDirMatch = path.match(/^documents\/([^/]+)\/?$/);
-  if (docDirMatch) {
-    const slug = docDirMatch[1];
-    if (currentDocSlug === slug) {
-      return { label: 'Exploring document files', icon: 'search' };
-    }
-    return { label: `Exploring ${deslugify(slug)}`, icon: 'search' };
-  }
-
-  // Documents root
-  if (/^documents\/?$/.test(path)) {
-    return { label: 'Browsing documents', icon: 'search' };
-  }
-
-  // Assets
-  if (path.startsWith('assets') || /\/assets(\/|$)/.test(path)) {
-    return tool === 'read'
-      ? { label: 'Checking an asset', icon: 'eye' }
-      : { label: 'Looking through assets', icon: 'search' };
-  }
-
-  // Workspace root glob
-  if (/^[^/]*\/?$/.test(path) && tool === 'glob') {
-    return { label: 'Exploring workspace', icon: 'search' };
-  }
-
-  return fallbackLabel(tool, path);
 }
 
 export function summarizeStep(labels: string[]): string {

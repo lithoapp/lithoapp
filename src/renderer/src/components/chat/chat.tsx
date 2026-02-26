@@ -23,7 +23,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ChatMessage } from '@/hooks/use-chat';
 import { useChat } from '@/hooks/use-chat';
-import { useWorkspaceErrors } from '@/hooks/use-workspace-errors';
 import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
 import type { OpencodeClient } from '@/lib/opencode-client-types';
 import { ChatCover } from './chat-cover';
@@ -33,7 +32,6 @@ import { StatusLine } from './message-status-line';
 import { Timeline } from './message-timeline';
 import { ModelSelector } from './model-selector';
 import { PermissionCard } from './permission-card';
-import { WorkspaceErrorPill } from './workspace-error-pill';
 
 // ---------------------------------------------------------------------------
 // Display modes
@@ -43,7 +41,7 @@ type DisplayMode = 'activity' | 'status' | 'timeline' | 'debug';
 
 const ASSISTANT_COMPONENTS: Record<
   DisplayMode,
-  React.ComponentType<{ message: ChatMessage; isStreaming?: boolean; docSlug?: string }>
+  React.ComponentType<{ message: ChatMessage; isStreaming?: boolean }>
 > = {
   activity: ActivityLog,
   status: StatusLine,
@@ -81,24 +79,22 @@ export function Chat({
   onBack,
   onNewChat,
   kickoffMessage,
-  onFileEdit,
+  onToolComplete,
   snapshotIndex,
   onRevert,
   captureFiles,
-  docSlug,
   onTurnSnapshot,
 }: {
   directory: string;
   systemPrompt: string;
   agentName?: string;
-  docSlug?: string;
   sessionId: string;
   client: OpencodeClient | null;
   baseUrl: string | null;
   onBack?: () => void;
   onNewChat?: () => void;
   kickoffMessage?: string;
-  onFileEdit?: (filePath: string) => void;
+  onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   snapshotIndex?: Record<string, string>;
   onRevert?: (assistantMessageId: string) => Promise<void>;
   captureFiles?: () => Promise<Record<string, string>>;
@@ -122,18 +118,6 @@ export function Chat({
     saveChatPrefs({ providerId: pId, modelId: mId });
   }, []);
 
-  const wsErrors = useWorkspaceErrors();
-
-  // Clear workspace errors on file edits — the server will recompile and
-  // re-emit if the issue persists.
-  const handleFileEdit = useCallback(
-    (filePath: string) => {
-      wsErrors.clear();
-      onFileEdit?.(filePath);
-    },
-    [onFileEdit, wsErrors],
-  );
-
   const chat = useChat({
     client,
     baseUrl,
@@ -143,16 +127,10 @@ export function Chat({
     sessionId,
     providerId,
     modelId,
-    onFileEdit: handleFileEdit,
+    onToolComplete,
     captureFiles,
     onTurnSnapshot,
   });
-
-  // Clear workspace errors when navigating to a different document
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional clear on session/doc change
-  useEffect(() => {
-    wsErrors.clear();
-  }, [sessionId, docSlug]);
 
   const handleRevert = useCallback(
     async (msg: ChatMessage) => {
@@ -331,7 +309,6 @@ export function Chat({
                 key={msg.info.id}
                 message={msg}
                 isStreaming={isBusy && isLastAssistant}
-                docSlug={docSlug}
               />
             );
           })}
@@ -354,9 +331,6 @@ export function Chat({
           <span className="truncate">{chat.error}</span>
         </div>
       )}
-
-      {/* Workspace error pill */}
-      <WorkspaceErrorPill wsErrors={wsErrors} onSendToAgent={chat.sendMessage} />
 
       {/* Input */}
       <div className="border-t p-2">
