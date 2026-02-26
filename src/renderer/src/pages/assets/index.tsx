@@ -26,13 +26,13 @@ import { AssetGridItem, IMAGE_EXTS } from './asset-grid-item';
 import { PreviewDialog } from './asset-preview-dialog';
 
 interface AssetsPageProps {
-  workspacePath: string;
+  workspaceName: string;
   serverUrl: string;
   onBack: () => void;
 }
 
 export function AssetsPage({
-  workspacePath,
+  workspaceName,
   serverUrl,
   onBack,
 }: AssetsPageProps): React.JSX.Element {
@@ -55,7 +55,7 @@ export function AssetsPage({
     setIsLoading(true);
     setError(null);
     try {
-      const raw = await window.litho.assets.list(workspacePath, currentDir, false);
+      const raw = await window.litho.assets.list(workspaceName, currentDir, false);
       const sorted = [...raw].sort((a, b) => {
         if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
         return a.name.localeCompare(b.name);
@@ -66,7 +66,7 @@ export function AssetsPage({
     } finally {
       setIsLoading(false);
     }
-  }, [workspacePath, currentDir]);
+  }, [workspaceName, currentDir]);
 
   useEffect(() => {
     void loadEntries();
@@ -88,7 +88,7 @@ export function AssetsPage({
     }
 
     try {
-      await window.litho.assets.upload(workspacePath, currentDir, toUpload);
+      await window.litho.assets.upload(workspaceName, currentDir, toUpload);
       await loadEntries();
       toast.success(`Uploaded ${toUpload.length} file(s)`);
     } catch (err) {
@@ -127,7 +127,7 @@ export function AssetsPage({
     if (!newFolderName.trim()) return;
     const dirPath = currentDir ? `${currentDir}/${newFolderName.trim()}` : newFolderName.trim();
     try {
-      await window.litho.assets.createDirectory(workspacePath, dirPath);
+      await window.litho.assets.createDirectory(workspaceName, dirPath);
       await loadEntries();
       setNewFolderOpen(false);
       setNewFolderName('');
@@ -139,7 +139,7 @@ export function AssetsPage({
 
   async function handleDelete(entryPath: string): Promise<void> {
     try {
-      await window.litho.assets.delete(workspacePath, entryPath);
+      await window.litho.assets.delete(workspaceName, entryPath);
       await loadEntries();
       setSelected((prev) => {
         const next = new Set(prev);
@@ -158,7 +158,7 @@ export function AssetsPage({
     setSelected(new Set());
     for (const p of paths) {
       try {
-        await window.litho.assets.delete(workspacePath, p);
+        await window.litho.assets.delete(workspaceName, p);
       } catch (err) {
         toast.error(`Failed to delete "${p}": ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -171,7 +171,7 @@ export function AssetsPage({
     const fileName = assetPath.split('/').pop() ?? '';
     const newPath = `${folderPath}/${fileName}`;
     try {
-      await window.litho.assets.rename(workspacePath, assetPath, newPath);
+      await window.litho.assets.rename(workspaceName, assetPath, newPath);
       await loadEntries();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to move asset');
@@ -186,7 +186,7 @@ export function AssetsPage({
       : '';
     const newPath = parentDir ? `${parentDir}/${fileName}` : fileName;
     try {
-      await window.litho.assets.rename(workspacePath, assetPath, newPath);
+      await window.litho.assets.rename(workspaceName, assetPath, newPath);
       await loadEntries();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to move asset');
@@ -205,7 +205,7 @@ export function AssetsPage({
       : '';
     const newPath = parentDir ? `${parentDir}/${newName}` : newName;
     try {
-      await window.litho.assets.rename(workspacePath, renameTarget.path, newPath);
+      await window.litho.assets.rename(workspaceName, renameTarget.path, newPath);
       await loadEntries();
       setRenameTarget(null);
       setRenameValue('');

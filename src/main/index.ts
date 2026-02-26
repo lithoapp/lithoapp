@@ -1,9 +1,9 @@
-import { accessSync, constants, existsSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
 import { invalidateManifestCache, slugify } from '@kareemaly/litho-workspace-server';
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } from 'electron';
+import { getActiveWorkspace, setActiveWorkspace } from './active-workspace-store';
 import {
   createAssetDirectory,
   deleteAsset,
@@ -25,8 +25,8 @@ import {
   exportPageResult,
   listDocuments,
   listPages,
-  listWorkspaces,
   readDocumentConfig,
+  listWorkspaces as rendererListWorkspaces,
 } from './renderer';
 import { initSentry } from './sentry';
 import {
@@ -50,16 +50,9 @@ import {
   setUserProfile,
   type Theme,
 } from './telemetry-store';
-import { getDocumentCountByPath, readWorkspaceConfigByPath } from './workspace-data';
+import { getDocumentCount, listWorkspaces, readWorkspaceConfig } from './workspace-data';
 import { WorkspaceManager } from './workspace-manager';
-import {
-  addWorkspace,
-  getActiveWorkspacePath,
-  getWorkspaces,
-  removeWorkspace,
-  setActiveWorkspacePath,
-  touchWorkspace,
-} from './workspace-store';
+import { resolveWorkspacePath } from './workspace-paths';
 
 initSentry();
 
@@ -141,184 +134,143 @@ ipcMain.handle('export:start', async (_event, request) => {
 ipcMain.handle('export:getProgress', () => exportManager.getProgress());
 
 // Workspace IPC handlers
-ipcMain.handle('workspace:list', () => getWorkspaces());
+ipcMain.handle('workspace:list', async () => {
+  const slugs = await listWorkspaces();
+  return Promise.all(
+    slugs.map(async (slug) => {
+      const [config, documentCount] = await Promise.all([
+        readWorkspaceConfig(slug).catch(() => ({ name: slug })),
+        getDocumentCount(slug).catch(() => 0),
+      ]);
+      return { slug, name: config.name, documentCount };
+    }),
+  );
+});
+
 ipcMain.handle('workspace:getActive', () => workspaceManager.getInfo());
 
-ipcMain.handle('workspace:create', async (_event, parentDir: string, name: string) => {
+ipcMain.handle('workspace:create', async (_event, name: string) => {
   const slug = slugify(name) || 'untitled';
-  const targetPath = join(parentDir, slug);
+  const targetPath = resolveWorkspacePath(slug);
 
   if (existsSync(targetPath)) {
-    throw new Error(
-      `A project already exists at "${targetPath}". Choose a different name or location.`,
-    );
-  }
-
-  if (!existsSync(parentDir)) {
-    throw new Error(`The folder "${parentDir}" does not exist. Choose a different location.`);
+    throw new Error(`A project named "${slug}" already exists. Choose a different name.`);
   }
 
   try {
-    accessSync(parentDir, constants.W_OK);
-  } catch {
-    throw new Error(
-      `You don't have permission to create files in "${parentDir}". Choose a different location.`,
-    );
-  }
-
-  try {
-    const root = await workspaceManager.createAndStart(targetPath, name);
-    addWorkspace({ path: root, name, lastOpened: new Date().toISOString() });
-    setActiveWorkspacePath(root);
-    return root;
+    const createdSlug = await workspaceManager.createAndStart(name);
+    setActiveWorkspace(createdSlug);
+    return createdSlug;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes('ENOSPC') || message.includes('no space')) {
       throw new Error('Your disk is full. Free up some space and try again.');
     }
-    if (message.includes('EACCES') || message.includes('EPERM')) {
-      throw new Error(
-        `You don't have permission to create files in "${parentDir}". Choose a different location.`,
-      );
-    }
     throw new Error(`Could not create project: ${message}`);
   }
 });
 
-ipcMain.handle('workspace:open', async () => {
-  if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-    title: 'Open Workspace',
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-
-  const dirPath = result.filePaths[0];
-  if (!existsSync(join(dirPath, 'litho.json'))) {
-    throw new Error('Selected directory is not a Litho workspace (missing litho.json)');
-  }
-
-  const config = await readWorkspaceConfigByPath(dirPath);
-  const name = config.name;
-
-  addWorkspace({ path: dirPath, name, lastOpened: new Date().toISOString() });
-  setActiveWorkspacePath(dirPath);
-  await workspaceManager.startWorkspace(dirPath, name);
-  return dirPath;
-});
-
-ipcMain.handle('workspace:select', async (_event, workspacePath: string) => {
-  const workspaces = getWorkspaces();
-  const entry = workspaces.find((w) => w.path === workspacePath);
-  if (!entry) throw new Error('Workspace not in registry');
-
-  touchWorkspace(workspacePath);
-  setActiveWorkspacePath(workspacePath);
-  await workspaceManager.switchWorkspace(workspacePath, entry.name);
-});
-
-ipcMain.handle('workspace:remove', async (_event, workspacePath: string) => {
-  const info = workspaceManager.getInfo();
-  if (info.workspacePath === workspacePath) {
-    await workspaceManager.stop();
-    setActiveWorkspacePath(null);
-  }
-  removeWorkspace(workspacePath);
+ipcMain.handle('workspace:select', async (_event, workspaceName: string) => {
+  setActiveWorkspace(workspaceName);
+  await workspaceManager.switchWorkspace(workspaceName);
 });
 
 ipcMain.handle('workspace:stop', async () => {
-  setActiveWorkspacePath(null);
+  setActiveWorkspace(null);
   await workspaceManager.stop();
 });
 
-ipcMain.handle('workspace:getDefaultLocation', () => join(homedir(), 'litho-workspaces'));
-
 ipcMain.handle('workspace:invalidateManifest', () => invalidateManifestCache());
 
-ipcMain.handle('workspace:getDocumentCount', (_event, workspacePath: string) =>
-  getDocumentCountByPath(workspacePath),
+ipcMain.handle('workspace:getDocumentCount', (_event, workspaceName: string) =>
+  getDocumentCount(workspaceName),
 );
 
-ipcMain.handle('workspace:chooseDirectory', async () => {
-  if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory', 'createDirectory'],
-    title: 'Choose Location for New Workspace',
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-  return result.filePaths[0];
-});
-
 // Snapshot IPC handlers
-ipcMain.handle('snapshot:readDocumentFiles', (_event, workspacePath: string, slug: string) =>
-  readDocumentFiles(workspacePath, slug),
+ipcMain.handle('snapshot:readDocumentFiles', (_event, workspaceName: string, slug: string) =>
+  readDocumentFiles(resolveWorkspacePath(workspaceName), slug),
 );
 ipcMain.handle(
   'snapshot:createDocument',
   (
     _event,
-    workspacePath: string,
+    workspaceName: string,
     slug: string,
     files: Record<string, string>,
     promptExcerpt: string,
     assistantMessageId: string,
-  ) => createDocumentSnapshot(workspacePath, slug, files, promptExcerpt, assistantMessageId, 20),
+  ) =>
+    createDocumentSnapshot(
+      resolveWorkspacePath(workspaceName),
+      slug,
+      files,
+      promptExcerpt,
+      assistantMessageId,
+      20,
+    ),
 );
 ipcMain.handle(
   'snapshot:restoreDocument',
-  (_event, workspacePath: string, slug: string, snapshotId: string) =>
-    restoreDocumentSnapshot(workspacePath, slug, snapshotId),
+  (_event, workspaceName: string, slug: string, snapshotId: string) =>
+    restoreDocumentSnapshot(resolveWorkspacePath(workspaceName), slug, snapshotId),
 );
-ipcMain.handle('snapshot:listDocument', (_event, workspacePath: string, slug: string) =>
-  listDocumentSnapshots(workspacePath, slug),
+ipcMain.handle('snapshot:listDocument', (_event, workspaceName: string, slug: string) =>
+  listDocumentSnapshots(resolveWorkspacePath(workspaceName), slug),
 );
 ipcMain.handle(
   'snapshot:deleteDocument',
-  (_event, workspacePath: string, slug: string, snapshotId: string) =>
-    deleteDocumentSnapshot(workspacePath, slug, snapshotId),
+  (_event, workspaceName: string, slug: string, snapshotId: string) =>
+    deleteDocumentSnapshot(resolveWorkspacePath(workspaceName), slug, snapshotId),
 );
 
-ipcMain.handle('snapshot:readStylesFile', (_event, workspacePath: string) =>
-  readStylesFile(workspacePath),
+ipcMain.handle('snapshot:readStylesFile', (_event, workspaceName: string) =>
+  readStylesFile(resolveWorkspacePath(workspaceName)),
 );
 ipcMain.handle(
   'snapshot:createStyles',
   (
     _event,
-    workspacePath: string,
+    workspaceName: string,
     files: Record<string, string>,
     promptExcerpt: string,
     assistantMessageId: string,
-  ) => createStylesSnapshot(workspacePath, files, promptExcerpt, assistantMessageId, 20),
+  ) =>
+    createStylesSnapshot(
+      resolveWorkspacePath(workspaceName),
+      files,
+      promptExcerpt,
+      assistantMessageId,
+      20,
+    ),
 );
-ipcMain.handle('snapshot:restoreStyles', (_event, workspacePath: string, snapshotId: string) =>
-  restoreStylesSnapshot(workspacePath, snapshotId),
+ipcMain.handle('snapshot:restoreStyles', (_event, workspaceName: string, snapshotId: string) =>
+  restoreStylesSnapshot(resolveWorkspacePath(workspaceName), snapshotId),
 );
-ipcMain.handle('snapshot:listStyles', (_event, workspacePath: string) =>
-  listStylesSnapshots(workspacePath),
+ipcMain.handle('snapshot:listStyles', (_event, workspaceName: string) =>
+  listStylesSnapshots(resolveWorkspacePath(workspaceName)),
 );
-ipcMain.handle('snapshot:deleteStyles', (_event, workspacePath: string, snapshotId: string) =>
-  deleteStylesSnapshot(workspacePath, snapshotId),
+ipcMain.handle('snapshot:deleteStyles', (_event, workspaceName: string, snapshotId: string) =>
+  deleteStylesSnapshot(resolveWorkspacePath(workspaceName), snapshotId),
 );
 
 ipcMain.handle(
   'assets:list',
-  (_event, workspacePath: string, dirPath: string, recursive?: boolean) =>
-    listAssets(workspacePath, dirPath, recursive),
+  (_event, workspaceName: string, dirPath: string, recursive?: boolean) =>
+    listAssets(resolveWorkspacePath(workspaceName), dirPath, recursive),
 );
 ipcMain.handle(
   'assets:upload',
-  (_event, workspacePath: string, dirPath: string, files: { name: string; data: Uint8Array }[]) =>
-    uploadAssets(workspacePath, dirPath, files),
+  (_event, workspaceName: string, dirPath: string, files: { name: string; data: Uint8Array }[]) =>
+    uploadAssets(resolveWorkspacePath(workspaceName), dirPath, files),
 );
-ipcMain.handle('assets:createDirectory', (_event, workspacePath: string, dirPath: string) =>
-  createAssetDirectory(workspacePath, dirPath),
+ipcMain.handle('assets:createDirectory', (_event, workspaceName: string, dirPath: string) =>
+  createAssetDirectory(resolveWorkspacePath(workspaceName), dirPath),
 );
-ipcMain.handle('assets:delete', (_event, workspacePath: string, entryPath: string) =>
-  deleteAsset(workspacePath, entryPath),
+ipcMain.handle('assets:delete', (_event, workspaceName: string, entryPath: string) =>
+  deleteAsset(resolveWorkspacePath(workspaceName), entryPath),
 );
-ipcMain.handle('assets:rename', (_event, workspacePath: string, oldPath: string, newPath: string) =>
-  renameAsset(workspacePath, oldPath, newPath),
+ipcMain.handle('assets:rename', (_event, workspaceName: string, oldPath: string, newPath: string) =>
+  renameAsset(resolveWorkspacePath(workspaceName), oldPath, newPath),
 );
 
 // Renderer
@@ -327,7 +279,7 @@ ipcMain.handle(
   (_event, ws: string, doc: string, page: string, approach?: 'ssr' | 'csr') =>
     buildPage(ws, doc, page, approach),
 );
-ipcMain.handle('renderer:list-workspaces', () => listWorkspaces());
+ipcMain.handle('renderer:list-workspaces', () => rendererListWorkspaces());
 ipcMain.handle('renderer:list-documents', (_event, ws: string) => listDocuments(ws));
 ipcMain.handle('renderer:list-pages', (_event, ws: string, doc: string) => listPages(ws, doc));
 ipcMain.handle('renderer:read-document-config', (_event, ws: string, doc: string) =>
@@ -424,13 +376,9 @@ app.whenReady().then(async () => {
   void opencodeManager.start();
 
   // Restore last active workspace
-  const lastActive = getActiveWorkspacePath();
+  const lastActive = getActiveWorkspace();
   if (lastActive) {
-    const workspaces = getWorkspaces();
-    const entry = workspaces.find((w) => w.path === lastActive);
-    if (entry) {
-      void workspaceManager.startWorkspace(lastActive, entry.name);
-    }
+    void workspaceManager.startWorkspace(lastActive);
   }
 
   app.on('activate', () => {

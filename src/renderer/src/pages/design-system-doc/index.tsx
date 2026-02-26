@@ -24,6 +24,7 @@ import { buildPageDefs } from './utils';
 interface DesignSystemDocPageProps {
   serverUrl: string;
   workspaceName: string | null;
+  workspaceDisplayName: string | null;
   workspacePath: string | null;
   onBack: () => void;
 }
@@ -31,6 +32,7 @@ interface DesignSystemDocPageProps {
 export function DesignSystemDocPage({
   serverUrl,
   workspaceName,
+  workspaceDisplayName,
   workspacePath,
   onBack,
 }: DesignSystemDocPageProps): React.JSX.Element {
@@ -191,7 +193,7 @@ export function DesignSystemDocPage({
                 {designSystem && (
                   <DocViewer
                     designSystem={designSystem}
-                    workspaceName={workspaceName}
+                    workspaceName={workspaceDisplayName}
                     scale={scale}
                     setRef={setRef}
                   />
@@ -206,8 +208,12 @@ export function DesignSystemDocPage({
 
       {/* Right: chat — full height */}
       <ResizablePanel defaultSize={35} minSize={20}>
-        {workspacePath ? (
-          <DesignSystemChat workspacePath={workspacePath} onFileEdit={handleFileEdit} />
+        {workspaceName && workspacePath ? (
+          <DesignSystemChat
+            workspaceName={workspaceName}
+            workspacePath={workspacePath}
+            onFileEdit={handleFileEdit}
+          />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
             <MessageSquare className="size-8" />

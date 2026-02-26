@@ -38,6 +38,7 @@ function App(): React.JSX.Element {
 
   const { info: workspaceInfo, workspaces, refreshWorkspaces } = useWorkspace();
   const serverUrl = workspaceInfo.status === 'running' ? (workspaceInfo.url ?? null) : null;
+  const workspaceName = workspaceInfo.workspaceName ?? null;
   const workspacePath = workspaceInfo.workspacePath ?? null;
   const {
     manifest,
@@ -263,8 +264,8 @@ function App(): React.JSX.Element {
             ready={workspaceInfo.status === 'running'}
             isError={workspaceInfo.status === 'error'}
             onRestart={() => {
-              if (workspaceInfo.workspacePath) {
-                void window.litho.workspace.select(workspaceInfo.workspacePath);
+              if (workspaceName) {
+                void window.litho.workspace.select(workspaceName);
               }
             }}
             onBack={() => setPage('workspaces')}
@@ -295,17 +296,18 @@ function App(): React.JSX.Element {
             onCloseWorkspace={handleCloseWorkspace}
           />
         )}
-        {page === 'assets' && serverUrl && workspacePath && (
+        {page === 'assets' && serverUrl && workspaceName && (
           <AssetsPage
-            workspacePath={workspacePath}
+            workspaceName={workspaceName}
             serverUrl={serverUrl}
             onBack={() => setPage('documents')}
           />
         )}
-        {page === 'document' && serverUrl && activeDoc && (
+        {page === 'document' && serverUrl && activeDoc && workspaceName && (
           <DocumentPage
             doc={activeDoc}
             serverUrl={serverUrl}
+            workspaceName={workspaceName}
             workspacePath={workspacePath ?? ''}
             onBack={() => setPage('documents')}
             onManifestChange={refetchManifest}
@@ -315,7 +317,8 @@ function App(): React.JSX.Element {
         {page === 'design-system-doc' && serverUrl && (
           <DesignSystemDocPage
             serverUrl={serverUrl}
-            workspaceName={manifest?.name ?? null}
+            workspaceName={workspaceName}
+            workspaceDisplayName={manifest?.name ?? null}
             workspacePath={workspacePath}
             onBack={() => setPage('documents')}
           />

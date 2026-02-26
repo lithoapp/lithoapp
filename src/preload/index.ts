@@ -62,16 +62,11 @@ contextBridge.exposeInMainWorld('litho', {
   workspace: {
     list: (): Promise<unknown> => ipcRenderer.invoke('workspace:list'),
     getActive: (): Promise<unknown> => ipcRenderer.invoke('workspace:getActive'),
-    create: (parentDir: string, name: string): Promise<string> =>
-      ipcRenderer.invoke('workspace:create', parentDir, name),
-    open: (): Promise<string | null> => ipcRenderer.invoke('workspace:open'),
-    select: (path: string): Promise<void> => ipcRenderer.invoke('workspace:select', path),
-    remove: (path: string): Promise<void> => ipcRenderer.invoke('workspace:remove', path),
+    create: (name: string): Promise<string> => ipcRenderer.invoke('workspace:create', name),
+    select: (name: string): Promise<void> => ipcRenderer.invoke('workspace:select', name),
     stop: (): Promise<void> => ipcRenderer.invoke('workspace:stop'),
-    chooseDirectory: (): Promise<string | null> => ipcRenderer.invoke('workspace:chooseDirectory'),
-    getDefaultLocation: (): Promise<string> => ipcRenderer.invoke('workspace:getDefaultLocation'),
-    getDocumentCount: (path: string): Promise<number> =>
-      ipcRenderer.invoke('workspace:getDocumentCount', path),
+    getDocumentCount: (name: string): Promise<number> =>
+      ipcRenderer.invoke('workspace:getDocumentCount', name),
     invalidateManifest: (): Promise<void> => ipcRenderer.invoke('workspace:invalidateManifest'),
     onStatusChange: (callback: (data: unknown) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
@@ -85,10 +80,10 @@ contextBridge.exposeInMainWorld('litho', {
     },
   },
   snapshot: {
-    readDocumentFiles: (workspacePath: string, slug: string): Promise<Record<string, string>> =>
-      ipcRenderer.invoke('snapshot:readDocumentFiles', workspacePath, slug),
+    readDocumentFiles: (workspaceName: string, slug: string): Promise<Record<string, string>> =>
+      ipcRenderer.invoke('snapshot:readDocumentFiles', workspaceName, slug),
     createDocument: (
-      workspacePath: string,
+      workspaceName: string,
       slug: string,
       files: Record<string, string>,
       promptExcerpt: string,
@@ -96,40 +91,40 @@ contextBridge.exposeInMainWorld('litho', {
     ): Promise<string> =>
       ipcRenderer.invoke(
         'snapshot:createDocument',
-        workspacePath,
+        workspaceName,
         slug,
         files,
         promptExcerpt,
         assistantMessageId,
       ),
-    restoreDocument: (workspacePath: string, slug: string, snapshotId: string): Promise<void> =>
-      ipcRenderer.invoke('snapshot:restoreDocument', workspacePath, slug, snapshotId),
-    listDocument: (workspacePath: string, slug: string): Promise<unknown> =>
-      ipcRenderer.invoke('snapshot:listDocument', workspacePath, slug),
-    deleteDocument: (workspacePath: string, slug: string, snapshotId: string): Promise<void> =>
-      ipcRenderer.invoke('snapshot:deleteDocument', workspacePath, slug, snapshotId),
+    restoreDocument: (workspaceName: string, slug: string, snapshotId: string): Promise<void> =>
+      ipcRenderer.invoke('snapshot:restoreDocument', workspaceName, slug, snapshotId),
+    listDocument: (workspaceName: string, slug: string): Promise<unknown> =>
+      ipcRenderer.invoke('snapshot:listDocument', workspaceName, slug),
+    deleteDocument: (workspaceName: string, slug: string, snapshotId: string): Promise<void> =>
+      ipcRenderer.invoke('snapshot:deleteDocument', workspaceName, slug, snapshotId),
 
-    readStylesFile: (workspacePath: string): Promise<Record<string, string>> =>
-      ipcRenderer.invoke('snapshot:readStylesFile', workspacePath),
+    readStylesFile: (workspaceName: string): Promise<Record<string, string>> =>
+      ipcRenderer.invoke('snapshot:readStylesFile', workspaceName),
     createStyles: (
-      workspacePath: string,
+      workspaceName: string,
       files: Record<string, string>,
       promptExcerpt: string,
       assistantMessageId: string,
     ): Promise<string> =>
       ipcRenderer.invoke(
         'snapshot:createStyles',
-        workspacePath,
+        workspaceName,
         files,
         promptExcerpt,
         assistantMessageId,
       ),
-    restoreStyles: (workspacePath: string, snapshotId: string): Promise<void> =>
-      ipcRenderer.invoke('snapshot:restoreStyles', workspacePath, snapshotId),
-    listStyles: (workspacePath: string): Promise<unknown> =>
-      ipcRenderer.invoke('snapshot:listStyles', workspacePath),
-    deleteStyles: (workspacePath: string, snapshotId: string): Promise<void> =>
-      ipcRenderer.invoke('snapshot:deleteStyles', workspacePath, snapshotId),
+    restoreStyles: (workspaceName: string, snapshotId: string): Promise<void> =>
+      ipcRenderer.invoke('snapshot:restoreStyles', workspaceName, snapshotId),
+    listStyles: (workspaceName: string): Promise<unknown> =>
+      ipcRenderer.invoke('snapshot:listStyles', workspaceName),
+    deleteStyles: (workspaceName: string, snapshotId: string): Promise<void> =>
+      ipcRenderer.invoke('snapshot:deleteStyles', workspaceName, snapshotId),
   },
   renderer: {
     build: (
@@ -157,18 +152,18 @@ contextBridge.exposeInMainWorld('litho', {
     }): Promise<unknown> => ipcRenderer.invoke('renderer:export', options),
   },
   assets: {
-    list: (workspacePath: string, dirPath: string, recursive?: boolean): Promise<unknown> =>
-      ipcRenderer.invoke('assets:list', workspacePath, dirPath, recursive),
+    list: (workspaceName: string, dirPath: string, recursive?: boolean): Promise<unknown> =>
+      ipcRenderer.invoke('assets:list', workspaceName, dirPath, recursive),
     upload: (
-      workspacePath: string,
+      workspaceName: string,
       dirPath: string,
       files: { name: string; data: Uint8Array }[],
-    ): Promise<void> => ipcRenderer.invoke('assets:upload', workspacePath, dirPath, files),
-    createDirectory: (workspacePath: string, dirPath: string): Promise<void> =>
-      ipcRenderer.invoke('assets:createDirectory', workspacePath, dirPath),
-    delete: (workspacePath: string, entryPath: string): Promise<void> =>
-      ipcRenderer.invoke('assets:delete', workspacePath, entryPath),
-    rename: (workspacePath: string, oldPath: string, newPath: string): Promise<void> =>
-      ipcRenderer.invoke('assets:rename', workspacePath, oldPath, newPath),
+    ): Promise<void> => ipcRenderer.invoke('assets:upload', workspaceName, dirPath, files),
+    createDirectory: (workspaceName: string, dirPath: string): Promise<void> =>
+      ipcRenderer.invoke('assets:createDirectory', workspaceName, dirPath),
+    delete: (workspaceName: string, entryPath: string): Promise<void> =>
+      ipcRenderer.invoke('assets:delete', workspaceName, entryPath),
+    rename: (workspaceName: string, oldPath: string, newPath: string): Promise<void> =>
+      ipcRenderer.invoke('assets:rename', workspaceName, oldPath, newPath),
   },
 });

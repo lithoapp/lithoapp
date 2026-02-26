@@ -10,17 +10,19 @@ import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 
 interface DocumentChatProps {
   doc: ManifestDocument;
+  workspaceName: string;
   workspacePath: string;
   userName?: string;
   onFileEdit?: (filePath: string) => void;
 }
 
-function buildStorageKey(workspacePath: string, slug: string): string {
-  return `litho-doc-session:${workspacePath}:${slug}`;
+function buildStorageKey(workspaceName: string, slug: string): string {
+  return `litho-doc-session:${workspaceName}:${slug}`;
 }
 
 export function DocumentChat({
   doc,
+  workspaceName,
   workspacePath,
   userName,
   onFileEdit,
@@ -35,7 +37,7 @@ export function DocumentChat({
   useEffect(() => {
     void (async () => {
       try {
-        const entries = await window.litho.assets.list(workspacePath, '', false);
+        const entries = await window.litho.assets.list(workspaceName, '', false);
         const dirs = entries.filter((e) => e.type === 'directory').map((e) => e.name);
         const fileCount = entries.filter((e) => e.type === 'file').length;
         const dirList = dirs.length > 0 ? `\nTop-level directories: ${dirs.join(', ')}` : '';
@@ -48,24 +50,24 @@ export function DocumentChat({
         // silent — summary has a safe default
       }
     })();
-  }, [workspacePath]);
+  }, [workspaceName]);
 
   const { sessionId, creating, createError } = useSessionInit({
     client,
-    storageKey: buildStorageKey(workspacePath, doc.slug),
+    storageKey: buildStorageKey(workspaceName, doc.slug),
     sessionTitle: `Document — ${doc.slug}`,
     resetKey,
   });
 
   const handleNewChat = () => {
-    localStorage.removeItem(buildStorageKey(workspacePath, doc.slug));
+    localStorage.removeItem(buildStorageKey(workspaceName, doc.slug));
     setSnapshotIndex({});
     setResetKey((k) => k + 1);
   };
 
   const captureFiles = useCallback(async () => {
-    return window.litho.snapshot.readDocumentFiles(workspacePath, doc.slug);
-  }, [workspacePath, doc.slug]);
+    return window.litho.snapshot.readDocumentFiles(workspaceName, doc.slug);
+  }, [workspaceName, doc.slug]);
 
   const handleTurnSnapshot = useCallback(
     async ({
@@ -79,7 +81,7 @@ export function DocumentChat({
     }) => {
       try {
         const snapshotId = await window.litho.snapshot.createDocument(
-          workspacePath,
+          workspaceName,
           doc.slug,
           files,
           promptExcerpt,
@@ -90,7 +92,7 @@ export function DocumentChat({
         // snapshot failure is non-fatal
       }
     },
-    [workspacePath, doc.slug],
+    [workspaceName, doc.slug],
   );
 
   const handleRevert = useCallback(
@@ -98,13 +100,13 @@ export function DocumentChat({
       const snapshotId = snapshotIndex[assistantMessageId];
       if (!snapshotId) return;
       try {
-        await window.litho.snapshot.restoreDocument(workspacePath, doc.slug, snapshotId);
+        await window.litho.snapshot.restoreDocument(workspaceName, doc.slug, snapshotId);
       } catch (err) {
         console.error('[document-chat] Revert failed:', err);
         toast.error('Failed to revert document');
       }
     },
-    [snapshotIndex, workspacePath, doc.slug],
+    [snapshotIndex, workspaceName, doc.slug],
   );
 
   const { system, kickoff } = promptTemplates.document;

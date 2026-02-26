@@ -13,9 +13,9 @@ import {
   listWorkspaces as wsListWorkspaces,
   readDocumentConfig as wsReadDocumentConfig,
 } from '../workspace-data';
+import { resolveWorkspacePath } from '../workspace-paths';
 import { inlineAssetRefs } from './build-shared';
 import { detectApproach } from './detect-approach';
-import { pageFilePath, workspacePath } from './paths';
 
 export async function buildPage(
   workspace: string,
@@ -26,8 +26,7 @@ export async function buildPage(
   try {
     const totalStart = performance.now();
 
-    const wsPath = workspacePath(workspace);
-    const tsxPath = pageFilePath(workspace, document, page);
+    const wsPath = resolveWorkspacePath(workspace);
     const [pageSource, css, config] = await Promise.all([
       readPageSource(workspace, document, page),
       readStyles(workspace),
@@ -41,10 +40,20 @@ export async function buildPage(
 
     if (resolvedApproach === 'ssr') {
       const { buildPageSsr } = await import('./build-ssr');
-      ({ html, timings: pipelineTimings } = await buildPageSsr(wsPath, tsxPath, css, config.size));
+      ({ html, timings: pipelineTimings } = await buildPageSsr(
+        wsPath,
+        pageSource,
+        css,
+        config.size,
+      ));
     } else {
       const { buildPageCsr } = await import('./build-csr');
-      ({ html, timings: pipelineTimings } = await buildPageCsr(wsPath, tsxPath, css, config.size));
+      ({ html, timings: pipelineTimings } = await buildPageCsr(
+        wsPath,
+        pageSource,
+        css,
+        config.size,
+      ));
     }
 
     const assetStart = performance.now();

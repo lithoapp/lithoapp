@@ -8,15 +8,17 @@ import { useSessionInit } from '@/hooks/use-session-init';
 import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 
 interface DesignSystemChatProps {
+  workspaceName: string;
   workspacePath: string;
   onFileEdit?: (filePath: string) => void;
 }
 
-function buildStorageKey(workspacePath: string): string {
-  return `litho-ds-session:${workspacePath}`;
+function buildStorageKey(workspaceName: string): string {
+  return `litho-ds-session:${workspaceName}`;
 }
 
 export function DesignSystemChat({
+  workspaceName,
   workspacePath,
   onFileEdit,
 }: DesignSystemChatProps): React.JSX.Element {
@@ -36,7 +38,7 @@ export function DesignSystemChat({
   useEffect(() => {
     const fontExts = new Set(['.woff2', '.woff', '.ttf', '.otf']);
     window.litho.assets
-      .list(workspacePath, '', true)
+      .list(workspaceName, '', true)
       .then((entries) => {
         const fonts = entries.filter((e) => e.type === 'file' && fontExts.has(e.ext));
         if (fonts.length === 0) return;
@@ -46,26 +48,24 @@ export function DesignSystemChat({
       .catch(() => {
         // keep empty
       });
-  }, [workspacePath]);
-
-  const workspaceName = workspacePath.split('/').at(-1) ?? workspacePath;
+  }, [workspaceName]);
 
   const { sessionId, creating, createError } = useSessionInit({
     client,
-    storageKey: buildStorageKey(workspacePath),
+    storageKey: buildStorageKey(workspaceName),
     sessionTitle: `Design System — ${workspaceName}`,
     resetKey,
   });
 
   const handleNewChat = () => {
-    localStorage.removeItem(buildStorageKey(workspacePath));
+    localStorage.removeItem(buildStorageKey(workspaceName));
     setSnapshotIndex({});
     setResetKey((k) => k + 1);
   };
 
   const captureFiles = useCallback(async () => {
-    return window.litho.snapshot.readStylesFile(workspacePath);
-  }, [workspacePath]);
+    return window.litho.snapshot.readStylesFile(workspaceName);
+  }, [workspaceName]);
 
   const handleTurnSnapshot = useCallback(
     async ({
@@ -79,7 +79,7 @@ export function DesignSystemChat({
     }) => {
       try {
         const snapshotId = await window.litho.snapshot.createStyles(
-          workspacePath,
+          workspaceName,
           files,
           promptExcerpt,
           assistantMessageId,
@@ -89,7 +89,7 @@ export function DesignSystemChat({
         // snapshot failure is non-fatal
       }
     },
-    [workspacePath],
+    [workspaceName],
   );
 
   const handleRevert = useCallback(
@@ -97,13 +97,13 @@ export function DesignSystemChat({
       const snapshotId = snapshotIndex[assistantMessageId];
       if (!snapshotId) return;
       try {
-        await window.litho.snapshot.restoreStyles(workspacePath, snapshotId);
+        await window.litho.snapshot.restoreStyles(workspaceName, snapshotId);
       } catch (err) {
         console.error('[design-system-chat] Revert failed:', err);
         toast.error('Failed to revert styles');
       }
     },
-    [snapshotIndex, workspacePath],
+    [snapshotIndex, workspaceName],
   );
 
   const { system, kickoff } = promptTemplates['design-system'];

@@ -28,7 +28,7 @@ export interface CsrPipelineTimings {
  */
 export async function buildPageCsr(
   wsPath: string,
-  tsxPath: string,
+  pageSource: string,
   css: string,
   size: PageSize,
 ): Promise<{ html: string; timings: CsrPipelineTimings }> {
@@ -37,7 +37,7 @@ export async function buildPageCsr(
   const bootstrap = [
     `import { createRoot } from 'react-dom/client';`,
     `import { createElement } from 'react';`,
-    `import Page from ${JSON.stringify(tsxPath)};`,
+    `import Page from 'virtual:page-entry';`,
     `createRoot(document.getElementById('root')).render(`,
     `  createElement('div', {`,
     `    style: { width: '${size.width}${cssUnit}', height: '${size.height}${cssUnit}', overflow: 'hidden', boxSizing: 'border-box' }`,
@@ -45,8 +45,23 @@ export async function buildPageCsr(
     `);`,
   ].join('\n');
 
-  const workspaceSources: string[] = [];
+  const workspaceSources: string[] = [pageSource];
   const stripStyleImportsPlugin = createStripStyleImportsPlugin(wsPath, workspaceSources);
+
+  const pageEntryPlugin = {
+    name: 'virtual-page-entry',
+    setup(b: import('esbuild').PluginBuild) {
+      b.onResolve({ filter: /^virtual:page-entry$/ }, () => ({
+        path: 'virtual:page-entry',
+        namespace: 'virtual-page',
+      }));
+      b.onLoad({ filter: /.*/, namespace: 'virtual-page' }, () => ({
+        contents: pageSource.replace(/import\s+['"]@styles\.css['"];?\s*/g, ''),
+        loader: 'tsx' as const,
+        resolveDir: wsPath,
+      }));
+    },
+  };
 
   const esbuildStart = performance.now();
   let jsBundle: string;
@@ -63,7 +78,7 @@ export async function buildPageCsr(
       platform: 'browser',
       jsx: 'automatic',
       nodePaths: [appNodeModules],
-      plugins: [createAssetResolverPlugin(wsPath), stripStyleImportsPlugin],
+      plugins: [pageEntryPlugin, createAssetResolverPlugin(wsPath), stripStyleImportsPlugin],
       loader: assetLoaders,
       define: { 'process.env.NODE_ENV': '"production"' },
     });
@@ -72,7 +87,7 @@ export async function buildPageCsr(
     }
     jsBundle = result.outputFiles[0].text;
   } catch (err: unknown) {
-    throw new Error(formatEsbuildError(err, tsxPath));
+    throw new Error(formatEsbuildError(err, '<page>'));
   }
   const esbuildMs = Math.round(performance.now() - esbuildStart);
 
@@ -83,7 +98,7 @@ export async function buildPageCsr(
   try {
     finalCss = await compileTailwind(css, wsPath, candidates);
   } catch (err: unknown) {
-    throw new Error(formatCssError(err, `${wsPath}/styles.css`));
+    throw new Error(formatCssError(err, 'styles.css'));
   }
   const tailwindMs = Math.round(performance.now() - tailwindStart);
 

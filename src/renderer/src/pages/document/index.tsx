@@ -21,6 +21,7 @@ const VIEWER_PADDING = 40;
 interface DocumentPageProps {
   doc: ManifestDocument;
   serverUrl: string;
+  workspaceName: string;
   workspacePath: string;
   onBack: () => void;
   onManifestChange?: () => void;
@@ -30,6 +31,7 @@ interface DocumentPageProps {
 export function DocumentPage({
   doc,
   serverUrl,
+  workspaceName,
   workspacePath,
   onBack,
   onManifestChange,
@@ -303,6 +305,7 @@ export function DocumentPage({
         <ResizablePanel defaultSize={30} minSize={20}>
           <DocumentChat
             doc={doc}
+            workspaceName={workspaceName}
             workspacePath={workspacePath}
             userName={userName}
             onFileEdit={handleFileEdit}

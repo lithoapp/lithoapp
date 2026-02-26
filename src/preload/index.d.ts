@@ -7,8 +7,7 @@ import type {
 } from '../shared/types';
 import type { OpencodeInfo } from '../shared/types';
 import type { UpdateState } from '../shared/types';
-import type { WorkspaceEntry } from '../shared/types';
-import type { WorkspaceError, WorkspaceServerInfo } from '../shared/types';
+import type { WorkspaceError, WorkspaceInfo, WorkspaceServerInfo } from '../shared/types';
 
 interface LithoAPI {
   preferences: {
@@ -51,43 +50,39 @@ interface LithoAPI {
     onProgress: (callback: (data: ExportProgress) => void) => () => void;
   };
   workspace: {
-    list: () => Promise<WorkspaceEntry[]>;
+    list: () => Promise<WorkspaceInfo[]>;
     getActive: () => Promise<WorkspaceServerInfo>;
-    create: (parentDir: string, name: string) => Promise<string>;
-    open: () => Promise<string | null>;
-    select: (path: string) => Promise<void>;
-    remove: (path: string) => Promise<void>;
+    create: (name: string) => Promise<string>;
+    select: (name: string) => Promise<void>;
     stop: () => Promise<void>;
-    chooseDirectory: () => Promise<string | null>;
-    getDefaultLocation: () => Promise<string>;
-    getDocumentCount: (path: string) => Promise<number>;
+    getDocumentCount: (name: string) => Promise<number>;
     invalidateManifest: () => Promise<void>;
     onStatusChange: (callback: (data: WorkspaceServerInfo) => void) => () => void;
     onError: (callback: (data: WorkspaceError) => void) => () => void;
   };
   snapshot: {
-    readDocumentFiles: (workspacePath: string, slug: string) => Promise<Record<string, string>>;
+    readDocumentFiles: (workspaceName: string, slug: string) => Promise<Record<string, string>>;
     createDocument: (
-      workspacePath: string,
+      workspaceName: string,
       slug: string,
       files: Record<string, string>,
       promptExcerpt: string,
       assistantMessageId: string,
     ) => Promise<string>;
-    restoreDocument: (workspacePath: string, slug: string, snapshotId: string) => Promise<void>;
-    listDocument: (workspacePath: string, slug: string) => Promise<DocumentSnapshot[]>;
-    deleteDocument: (workspacePath: string, slug: string, snapshotId: string) => Promise<void>;
+    restoreDocument: (workspaceName: string, slug: string, snapshotId: string) => Promise<void>;
+    listDocument: (workspaceName: string, slug: string) => Promise<DocumentSnapshot[]>;
+    deleteDocument: (workspaceName: string, slug: string, snapshotId: string) => Promise<void>;
 
-    readStylesFile: (workspacePath: string) => Promise<Record<string, string>>;
+    readStylesFile: (workspaceName: string) => Promise<Record<string, string>>;
     createStyles: (
-      workspacePath: string,
+      workspaceName: string,
       files: Record<string, string>,
       promptExcerpt: string,
       assistantMessageId: string,
     ) => Promise<string>;
-    restoreStyles: (workspacePath: string, snapshotId: string) => Promise<void>;
-    listStyles: (workspacePath: string) => Promise<DocumentSnapshot[]>;
-    deleteStyles: (workspacePath: string, snapshotId: string) => Promise<void>;
+    restoreStyles: (workspaceName: string, snapshotId: string) => Promise<void>;
+    listStyles: (workspaceName: string) => Promise<DocumentSnapshot[]>;
+    deleteStyles: (workspaceName: string, snapshotId: string) => Promise<void>;
   };
   renderer: {
     build: (
@@ -106,15 +101,15 @@ interface LithoAPI {
     export: (options: PageExportOptions) => Promise<RendererResult<void>>;
   };
   assets: {
-    list: (workspacePath: string, dirPath: string, recursive?: boolean) => Promise<AssetEntry[]>;
+    list: (workspaceName: string, dirPath: string, recursive?: boolean) => Promise<AssetEntry[]>;
     upload: (
-      workspacePath: string,
+      workspaceName: string,
       dirPath: string,
       files: { name: string; data: Uint8Array }[],
     ) => Promise<void>;
-    createDirectory: (workspacePath: string, dirPath: string) => Promise<void>;
-    delete: (workspacePath: string, entryPath: string) => Promise<void>;
-    rename: (workspacePath: string, oldPath: string, newPath: string) => Promise<void>;
+    createDirectory: (workspaceName: string, dirPath: string) => Promise<void>;
+    delete: (workspaceName: string, entryPath: string) => Promise<void>;
+    rename: (workspaceName: string, oldPath: string, newPath: string) => Promise<void>;
   };
 }
 

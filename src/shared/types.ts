@@ -26,12 +26,12 @@ export interface WorkspaceError {
   url?: string;
 }
 
-// --- Workspace Store ---
+// --- Workspace Info ---
 
-export interface WorkspaceEntry {
-  path: string;
+export interface WorkspaceInfo {
+  slug: string;
   name: string;
-  lastOpened: string; // ISO 8601
+  documentCount: number;
 }
 
 // --- OpenCode ---

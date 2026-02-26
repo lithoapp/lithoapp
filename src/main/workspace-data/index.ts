@@ -6,7 +6,6 @@
  */
 export {
   getDocumentCount,
-  getDocumentCountByPath,
   listDocuments,
   listPages,
   listWorkspaces,
@@ -14,5 +13,4 @@ export {
   readPageSource,
   readStyles,
   readWorkspaceConfig,
-  readWorkspaceConfigByPath,
 } from './fs-backend';

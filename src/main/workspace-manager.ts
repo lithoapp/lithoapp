@@ -1,9 +1,15 @@
 import { EventEmitter } from 'node:events';
 import { createServer } from 'node:net';
 import type { WorkspaceServer } from '@kareemaly/litho-workspace-server';
-import { createWorkspace, invalidateManifestCache, serve } from '@kareemaly/litho-workspace-server';
+import {
+  createWorkspace,
+  invalidateManifestCache,
+  serve,
+  slugify,
+} from '@kareemaly/litho-workspace-server';
 import type { WorkspaceError, WorkspaceServerInfo, WorkspaceServerStatus } from '../shared/types';
 import { captureException, captureMessage } from './sentry';
+import { resolveWorkspacePath } from './workspace-paths';
 
 export type { WorkspaceError, WorkspaceServerInfo, WorkspaceServerStatus };
 
@@ -28,20 +34,19 @@ async function findAvailablePort(): Promise<number> {
 export class WorkspaceManager extends EventEmitter {
   private server: WorkspaceServer | null = null;
   private _status: WorkspaceServerStatus = 'stopped';
-  private _workspacePath: string | null = null;
   private _workspaceName: string | null = null;
   private healthInterval?: ReturnType<typeof setInterval>;
   private starting = false;
 
-  async startWorkspace(workspacePath: string, name: string): Promise<void> {
+  async startWorkspace(workspaceName: string): Promise<void> {
     if (this.server || this._status === 'running') {
       await this.stop();
     }
 
     if (this.starting) return;
     this.starting = true;
-    this._workspacePath = workspacePath;
-    this._workspaceName = name;
+    this._workspaceName = workspaceName;
+    const workspacePath = resolveWorkspacePath(workspaceName);
     this.setStatus('starting');
     invalidateManifestCache();
 
@@ -53,7 +58,7 @@ export class WorkspaceManager extends EventEmitter {
         onError: (err, context) => {
           captureException(err, {
             tags: { component: 'workspace-server' },
-            extras: { workspacePath, workspaceName: name, port, ...context },
+            extras: { workspacePath, workspaceName, port, ...context },
           });
 
           const errorPayload: WorkspaceError = {
@@ -82,7 +87,7 @@ export class WorkspaceManager extends EventEmitter {
       console.error('[workspace-manager] Failed to start:', err);
       captureException(err, {
         tags: { component: 'workspace-manager' },
-        extras: { workspacePath, workspaceName: name, port },
+        extras: { workspacePath, workspaceName, port },
       });
       this.server = null;
       this.setStatus('error');
@@ -101,12 +106,11 @@ export class WorkspaceManager extends EventEmitter {
       }
       this.server = null;
     }
-    this._workspacePath = null;
     this._workspaceName = null;
     this.setStatus('stopped');
   }
 
-  async switchWorkspace(workspacePath: string, name: string): Promise<void> {
+  async switchWorkspace(workspaceName: string): Promise<void> {
     // Shut down the current server without emitting 'stopped' — go straight
     // to 'starting' so the renderer doesn't bounce back to the workspaces page.
     this.clearHealthCheck();
@@ -121,13 +125,15 @@ export class WorkspaceManager extends EventEmitter {
     // Clear the module-level manifest cache so the new server doesn't
     // return stale data from the previous workspace.
     invalidateManifestCache();
-    await this.startWorkspace(workspacePath, name);
+    await this.startWorkspace(workspaceName);
   }
 
-  async createAndStart(targetPath: string, name: string): Promise<string> {
-    const root = createWorkspace(targetPath, { name });
-    await this.startWorkspace(root, name);
-    return root;
+  async createAndStart(name: string): Promise<string> {
+    const slug = slugify(name) || 'untitled';
+    const targetPath = resolveWorkspacePath(slug);
+    createWorkspace(targetPath, { name });
+    await this.startWorkspace(slug);
+    return slug;
   }
 
   getInfo(): WorkspaceServerInfo {
@@ -135,7 +141,7 @@ export class WorkspaceManager extends EventEmitter {
       status: this._status,
       port: this.server?.port,
       url: this.server?.url,
-      workspacePath: this._workspacePath ?? undefined,
+      workspacePath: this._workspaceName ? resolveWorkspacePath(this._workspaceName) : undefined,
       workspaceName: this._workspaceName ?? undefined,
     };
   }
@@ -181,7 +187,6 @@ export class WorkspaceManager extends EventEmitter {
         captureMessage('Workspace server health check failed', 'error', {
           tags: { component: 'workspace-manager' },
           extras: {
-            workspacePath: this._workspacePath,
             workspaceName: this._workspaceName,
             workspaceUrl,
             error: message,

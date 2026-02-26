@@ -1,5 +1,4 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   type DocumentConfig,
@@ -7,11 +6,10 @@ import {
   type PageSize,
   type WorkspaceConfig,
 } from '../../shared/types';
-
-const WORKSPACES_BASE = join(homedir(), 'litho-workspaces');
+import { resolveWorkspacePath, WORKSPACES_BASE } from '../workspace-paths';
 
 function wsPath(workspace: string): string {
-  return join(WORKSPACES_BASE, workspace);
+  return resolveWorkspacePath(workspace);
 }
 
 function docsDir(workspace: string): string {
@@ -23,6 +21,7 @@ function docDir(workspace: string, document: string): string {
 }
 
 export async function listWorkspaces(): Promise<string[]> {
+  if (!existsSync(WORKSPACES_BASE)) return [];
   return readdirSync(WORKSPACES_BASE, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
@@ -47,19 +46,8 @@ export async function getDocumentCount(workspace: string): Promise<number> {
   return readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).length;
 }
 
-export async function getDocumentCountByPath(workspacePath: string): Promise<number> {
-  const dir = join(workspacePath, 'documents');
-  if (!existsSync(dir)) return 0;
-  return readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).length;
-}
-
 export async function readWorkspaceConfig(workspace: string): Promise<WorkspaceConfig> {
   const configPath = join(wsPath(workspace), 'litho.json');
-  return parseWorkspaceConfig(configPath);
-}
-
-export async function readWorkspaceConfigByPath(workspacePath: string): Promise<WorkspaceConfig> {
-  const configPath = join(workspacePath, 'litho.json');
   return parseWorkspaceConfig(configPath);
 }
 

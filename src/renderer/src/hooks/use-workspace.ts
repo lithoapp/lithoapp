@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type {
-  WorkspaceEntry,
+  WorkspaceInfo,
   WorkspaceServerInfo,
   WorkspaceServerStatus,
 } from '../../../shared/types';
 
-export type { WorkspaceEntry, WorkspaceServerInfo, WorkspaceServerStatus };
+export type { WorkspaceInfo, WorkspaceServerInfo, WorkspaceServerStatus };
 
 export interface UseWorkspaceReturn {
   info: WorkspaceServerInfo;
-  workspaces: WorkspaceEntry[];
+  workspaces: WorkspaceInfo[];
   refreshWorkspaces: () => Promise<void>;
 }
 
 export function useWorkspace(): UseWorkspaceReturn {
   const [info, setInfo] = useState<WorkspaceServerInfo>({ status: 'stopped' });
-  const [workspaces, setWorkspaces] = useState<WorkspaceEntry[]>([]);
+  const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
 
   const refreshWorkspaces = useCallback(async () => {
     try {

@@ -33,18 +33,24 @@ export interface SsrPipelineTimings {
  */
 export async function buildPageSsr(
   wsPath: string,
-  tsxPath: string,
+  pageSource: string,
   css: string,
   size: PageSize,
 ): Promise<{ html: string; timings: SsrPipelineTimings }> {
-  const workspaceSources: string[] = [];
+  const workspaceSources: string[] = [pageSource];
   const stripStyleImportsPlugin = createStripStyleImportsPlugin(wsPath, workspaceSources);
+
+  const entrySource = pageSource.replace(/import\s+['"]@styles\.css['"];?\s*/g, '');
 
   const esbuildStart = performance.now();
   let cjsBundle: string;
   try {
     const result = await build({
-      entryPoints: [tsxPath],
+      stdin: {
+        contents: entrySource,
+        loader: 'tsx',
+        resolveDir: wsPath,
+      },
       bundle: true,
       write: false,
       format: 'cjs',
@@ -61,7 +67,7 @@ export async function buildPageSsr(
     }
     cjsBundle = result.outputFiles[0].text;
   } catch (err: unknown) {
-    throw new Error(formatEsbuildError(err, tsxPath));
+    throw new Error(formatEsbuildError(err, '<page>'));
   }
   const esbuildMs = Math.round(performance.now() - esbuildStart);
 
@@ -78,7 +84,7 @@ export async function buildPageSsr(
     PageComponent = exported as React.ComponentType;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`SSR eval failed for ${tsxPath}: ${message}`);
+    throw new Error(`SSR eval failed: ${message}`);
   }
 
   // Render to static HTML, wrapping in a sized container matching document.json
@@ -102,7 +108,7 @@ export async function buildPageSsr(
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`SSR render failed for ${tsxPath}: ${message}`);
+    throw new Error(`SSR render failed: ${message}`);
   }
   const ssrRenderMs = Math.round(performance.now() - ssrStart);
 
@@ -113,7 +119,7 @@ export async function buildPageSsr(
   try {
     finalCss = await compileTailwind(css, wsPath, candidates);
   } catch (err: unknown) {
-    throw new Error(formatCssError(err, `${wsPath}/styles.css`));
+    throw new Error(formatCssError(err, 'styles.css'));
   }
   const tailwindMs = Math.round(performance.now() - tailwindStart);
 
