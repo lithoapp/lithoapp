@@ -101,7 +101,7 @@ Each page has a fixed size. Content doesn't scroll — if it doesn't fit, it get
 
 ### Files you can read
 
-- `document.json` — page list and document dimensions
+- `documents/{slug}/document.json` — page list and document dimensions
 - `styles.css` — available design tokens
 - Page files in `documents/{slug}/pages/*.tsx`
 - Assets directory — images, logos, fonts
@@ -113,7 +113,7 @@ Each page has a fixed size. Content doesn't scroll — if it doesn't fit, it get
 
 ### Reading strategy
 
-Read `document.json` and `styles.css` to understand structure and available design tokens. Read pages on demand — only the pages relevant to the current task. Do not read every page upfront.
+Read `documents/{slug}/document.json` and `styles.css` to understand structure and available design tokens. Read pages on demand — only the pages relevant to the current task. Do not read every page upfront.
 
 ### Page format
 
@@ -131,6 +131,8 @@ export default function Page() {
   );
 }
 ```
+
+`@styles.css` in imports is a build alias — the actual file to read is `styles.css` (no `@` prefix).
 
 Design token classes come from `styles.css` via the `@theme` block. Common namespaces: `text-primary-*`, `text-neutral-*`, `bg-primary-*`, `font-sans`, `font-display`. Read `styles.css` to see what tokens are actually defined.
 

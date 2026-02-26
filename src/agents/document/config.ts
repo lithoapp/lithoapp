@@ -9,6 +9,7 @@ export const documentConfig = {
     list: 'allow',
     bash: 'deny',
     task: 'deny',
+    todowrite: 'deny',
     webfetch: 'deny',
     websearch: 'deny',
   } as const,
