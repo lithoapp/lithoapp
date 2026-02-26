@@ -20,11 +20,11 @@ function formatBytes(bytes: number): string {
 
 export function PreviewDialog({
   entry,
-  serverUrl,
+  workspaceName,
   onClose,
 }: {
   entry: AssetEntry;
-  serverUrl: string;
+  workspaceName: string;
   onClose: () => void;
 }): React.JSX.Element {
   const [dimensions, setDimensions] = useState<{ w: number; h: number } | null>(null);
@@ -44,7 +44,7 @@ export function PreviewDialog({
 
         <div className="flex items-center justify-center rounded-lg bg-muted p-4">
           <img
-            src={`${serverUrl}/assets/${entry.path}`}
+            src={`litho-asset://${workspaceName}/${entry.path}`}
             alt={entry.name}
             className="max-h-96 max-w-full object-contain"
             onLoad={(e) => {

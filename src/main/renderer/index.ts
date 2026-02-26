@@ -1,7 +1,6 @@
 import type {
   DocumentConfig,
   PageBuildData,
-  PageExportOptions,
   RenderApproach,
   RendererResult,
 } from '../../shared/types';
@@ -142,23 +141,6 @@ export async function listPages(
       error: {
         code: 'LIST_FAILED',
         message: err instanceof Error ? err.message : String(err),
-      },
-    };
-  }
-}
-
-export async function exportPageResult(options: PageExportOptions): Promise<RendererResult<void>> {
-  try {
-    const { exportPage } = await import('./export-page');
-    await exportPage(options);
-    return { ok: true, data: undefined };
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'EXPORT_FAILED',
-        message: err instanceof Error ? err.message : String(err),
-        stage: 'export',
       },
     };
   }

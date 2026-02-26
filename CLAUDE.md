@@ -15,21 +15,21 @@ pnpm format               # Auto-fix lint/format issues
 pnpm typecheck            # Type-check (main + renderer)
 ```
 
-For cross-repo dev workflow, use `make dev` from the architect project (`~/architects/litho`), which builds and links the workspace server before starting the app.
-
 ## Architecture
 
 ### Main Process (`src/main/`)
 
-- `index.ts` — Window creation, 40+ IPC handlers, CORS for localhost
-- `workspace-manager.ts` — Starts/stops workspace server instances (calls `serve()` from `@kareemaly/litho-workspace-server`)
+- `index.ts` — Window creation, IPC handlers, CORS for localhost
+- `renderer/` — Offline build pipeline (TSX + Tailwind → HTML): `build-csr.ts`, `build-ssr.ts`, `build-shared.ts`, `detect-approach.ts`
+- `exporter/` — Export capture & assembly: `export-page.ts` (BrowserWindow → PDF/PNG/JPG buffer), `document-exporter.ts` (multi-page orchestrator), `batch-export.ts` (CLI batch entry point)
+- `workspace-data/` — Filesystem reads for workspaces, documents, pages, styles, design system: `fs-backend.ts`, `design-system-parser.ts`
+- `workspace-paths.ts` — Resolves workspace name → `~/litho-workspaces/<name>`
+- `active-workspace-store.ts` — Tracks the currently active workspace
 - `opencode-manager.ts` — Manages OpenCode AI server lifecycle with crash recovery (exponential backoff)
-- `export-manager.ts` — PDF/PNG/JPG export orchestration
 - `snapshot-manager.ts` — Document/styles version control (rollback snapshots)
 - `assets-manager.ts` — Workspace asset CRUD operations
-- `workspace-store.ts` — Persistent workspace registry at `~/.config/Litho/workspace-registry.json`
 - `auto-updater.ts` — electron-updater for GitHub releases
-- `telemetry-store.ts` — User preferences (telemetry, profile)
+- `telemetry-store.ts` — User preferences (telemetry, profile, theme)
 - `sentry.ts` — Error reporting initialization
 
 ### Preload (`src/preload/`)
@@ -38,10 +38,10 @@ For cross-repo dev workflow, use `make dev` from the architect project (`~/archi
 
 ### Renderer (`src/renderer/`)
 
-- React 19 + Tailwind CSS v4 + 40+ shadcn/ui components (Radix UI)
-- **Pages**: Workspaces (list/create/open), Documents (grid with iframe thumbnails), Document viewer, Settings (OpenCode providers), Admin (updates + process monitoring), Playground, Chat Playground, Assets browser
-- **Hooks**: `useWorkspace()`, `useOpencode()`, `useWorkspaceManifest()` — abstract IPC calls
-- **Lib** (`src/renderer/src/lib/`): SSE message handlers, cost/token extraction, chat types, slugify
+- React 19 + Tailwind CSS v4 + shadcn/ui components (Radix UI)
+- **Pages**: Workspaces, Documents (grid with thumbnails), Document viewer (with chat panel), Design System, Assets browser, Settings, Renderer POC (build/export testing)
+- **Hooks**: `useWorkspace()`, `useOpencode()`, `useDesignSystem()`, `usePageBuild()`, `usePageExport()`, `useDocumentConfig()`, `useChat()` — abstract IPC calls
+- **Lib** (`src/renderer/src/lib/`): SSE message handlers, cost/token extraction, chat types, design system types
 - **Fonts**: Fraunces (display), Inter (sans), JetBrains Mono (mono)
 - **Design**: Dark mode, primary color #e8652b (orange)
 
@@ -55,13 +55,6 @@ Sandbox enabled, context isolation, no nodeIntegration, CSP headers.
 - **Windows**: `.exe` installer (NSIS)
 - **Linux**: `.AppImage`, `.snap`, `.deb`
 - Auto-updates via GitHub Releases (electron-updater), published to `kareemaly/lithoapp`
-
-## Dependency: litho-workspace-server
-
-This app depends on `@kareemaly/litho-workspace-server`. The main process imports `serve()`, `createWorkspace()`, `invalidateManifestCache()`, and `slugify()` to run an in-process Vite server.
-
-- **Development**: Use `make dev` from the architect project to link the local workspace server
-- **Release**: Uses the published npm version specified in `package.json`
 
 ## Workspaces
 

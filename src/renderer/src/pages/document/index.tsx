@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/electron/renderer';
-import { ArrowLeft, Download, Maximize2, Minus, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, Maximize2, Minus, Pencil, Plus } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -7,8 +7,8 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { ManifestDocument } from '@/hooks/use-workspace-manifest';
 import { cn } from '@/lib/utils';
+import type { DocumentInfo } from '../../../../shared/types';
 import { DocumentChat } from './document-chat';
 import { ExportDialog } from './export-dialog';
 
@@ -19,22 +19,20 @@ const SIDEBAR_PADDING = 16;
 const VIEWER_PADDING = 40;
 
 interface DocumentPageProps {
-  doc: ManifestDocument;
-  serverUrl: string;
+  doc: DocumentInfo;
   workspaceName: string;
   workspacePath: string;
   onBack: () => void;
-  onManifestChange?: () => void;
+  onDocumentsChange?: () => void;
   userName?: string;
 }
 
 export function DocumentPage({
   doc,
-  serverUrl,
   workspaceName,
   workspacePath,
   onBack,
-  onManifestChange,
+  onDocumentsChange,
   userName,
 }: DocumentPageProps): React.JSX.Element {
   const [zoom, setZoom] = useState(1);
@@ -42,8 +40,7 @@ export function DocumentPage({
   const [currentPage, setCurrentPage] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [errorPages, setErrorPages] = useState<Set<string>>(new Set());
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [pageHtmlMap, setPageHtmlMap] = useState<Map<string, string>>(new Map());
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -115,34 +112,47 @@ export function DocumentPage({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Forward page iframe errors to Sentry
-  useEffect(() => {
-    function handleMessage(event: MessageEvent): void {
-      if (!event.origin.startsWith('http://localhost')) return;
-      const data = event.data;
-      if (!data || data.type !== 'litho:page-error') return;
+  // Build page HTML lazily: current page first, then remaining pages
+  const buildPages = useCallback(async () => {
+    const pages = doc.pages;
+    if (pages.length === 0) return;
 
-      setErrorPages((prev) => new Set(prev).add(String(data.page)));
-
-      const error = new Error(String(data.message));
-      if (typeof data.stack === 'string') {
-        error.stack = data.stack;
+    // Build current page first for instant display
+    const firstPage = pages[currentPage] ?? pages[0];
+    try {
+      const result = await window.litho.renderer.build(workspaceName, doc.slug, firstPage);
+      if (result.ok) {
+        setPageHtmlMap((prev) => new Map(prev).set(firstPage, result.data.html));
+      } else {
+        console.error(`[document] Build failed for ${firstPage}:`, result.error);
       }
-
-      Sentry.withScope((scope) => {
-        scope.setTag('component', 'page-renderer');
-        scope.setExtras({
-          doc: data.doc,
-          page: data.page,
-          isCompilationError: data.isCompilationError ?? false,
-        });
-        Sentry.captureException(error);
-      });
+    } catch (err) {
+      console.error(`[document] Build failed for ${firstPage}:`, err);
+      Sentry.captureException(err);
     }
 
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+    // Build remaining pages in background
+    for (const pageId of pages) {
+      if (pageId === firstPage) continue;
+      try {
+        const result = await window.litho.renderer.build(workspaceName, doc.slug, pageId);
+        if (result.ok) {
+          setPageHtmlMap((prev) => new Map(prev).set(pageId, result.data.html));
+        } else {
+          console.error(`[document] Build failed for ${pageId}:`, result.error);
+        }
+      } catch (err) {
+        console.error(`[document] Build failed for ${pageId}:`, err);
+        Sentry.captureException(err);
+      }
+    }
+  }, [workspaceName, doc.slug, doc.pages, currentPage]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: build pages on mount and when doc changes
+  useEffect(() => {
+    setPageHtmlMap(new Map());
+    void buildPages();
+  }, [workspaceName, doc.slug, doc.pages]);
 
   const handleZoomIn = useCallback(() => {
     setFitToWidth(false);
@@ -173,21 +183,20 @@ export function DocumentPage({
     }
   }, []);
 
-  // Bump refreshKey on every agent file edit to force iframe reloads
-  // (HMR can't always recover — e.g. new files, compilation errors).
-  // When document.json changes, also refetch the manifest so new/deleted
+  // Rebuild all pages on every agent file edit.
+  // When document.json changes, also refetch the document list so new/deleted
   // pages appear in the sidebar immediately.
-  const onManifestChangeRef = useRef(onManifestChange);
-  onManifestChangeRef.current = onManifestChange;
-  const handleFileEdit = useCallback((filePath: string) => {
-    setRefreshKey((k) => k + 1);
-    setErrorPages(new Set());
-    if (filePath.endsWith('document.json')) {
-      void window.litho.workspace.invalidateManifest().then(() => {
-        onManifestChangeRef.current?.();
-      });
-    }
-  }, []);
+  const onDocumentsChangeRef = useRef(onDocumentsChange);
+  onDocumentsChangeRef.current = onDocumentsChange;
+  const handleFileEdit = useCallback(
+    (filePath: string) => {
+      void buildPages();
+      if (filePath.endsWith('document.json')) {
+        onDocumentsChangeRef.current?.();
+      }
+    },
+    [buildPages],
+  );
 
   const [isMac, setIsMac] = useState(false);
   useEffect(() => {
@@ -220,23 +229,24 @@ export function DocumentPage({
         <PageFrame
           key={pageId}
           ref={(el) => setPageRef(index, el)}
-          pageId={pageId}
           index={index}
-          slug={doc.slug}
-          serverUrl={serverUrl}
+          html={pageHtmlMap.get(pageId)}
           pageWidthPx={pageWidthPx}
           pageHeightPx={pageHeightPx}
           zoom={zoom}
           editMode={editMode}
-          hasError={errorPages.has(pageId)}
-          refreshKey={refreshKey}
         />
       ))}
     </div>
   );
 
   const exportDialog = (
-    <ExportDialog doc={doc} serverUrl={serverUrl} open={exportOpen} onOpenChange={setExportOpen} />
+    <ExportDialog
+      doc={doc}
+      workspaceName={workspaceName}
+      open={exportOpen}
+      onOpenChange={setExportOpen}
+    />
   );
 
   if (editMode) {
@@ -272,10 +282,8 @@ export function DocumentPage({
                     {doc.pages.map((pageId, index) => (
                       <PageThumbnail
                         key={pageId}
-                        pageId={pageId}
                         index={index}
-                        slug={doc.slug}
-                        serverUrl={serverUrl}
+                        html={pageHtmlMap.get(pageId)}
                         pageWidthPx={pageWidthPx}
                         pageHeightPx={pageHeightPx}
                         isActive={currentPage === index}
@@ -434,19 +442,15 @@ function DocumentToolbar({
 // ---------------------------------------------------------------------------
 
 function PageThumbnail({
-  pageId,
   index,
-  slug,
-  serverUrl,
+  html,
   pageWidthPx,
   pageHeightPx,
   isActive,
   onClick,
 }: {
-  pageId: string;
   index: number;
-  slug: string;
-  serverUrl: string;
+  html: string | undefined;
   pageWidthPx: number;
   pageHeightPx: number;
   isActive: boolean;
@@ -469,7 +473,6 @@ function PageThumbnail({
   const thumbWidth = containerWidth || 192 - SIDEBAR_PADDING * 2;
   const scale = thumbWidth / pageWidthPx;
   const thumbHeight = pageHeightPx * scale;
-  const url = `${serverUrl}/${slug}/${pageId}`;
 
   return (
     <button
@@ -491,9 +494,9 @@ function PageThumbnail({
           aspectRatio: containerWidth ? undefined : `${pageWidthPx} / ${pageHeightPx}`,
         }}
       >
-        {containerWidth > 0 && (
+        {containerWidth > 0 && html ? (
           <iframe
-            src={url}
+            srcDoc={html}
             title={`Page ${index + 1}`}
             className="pointer-events-none absolute top-0 left-0 origin-top-left"
             style={{
@@ -503,8 +506,13 @@ function PageThumbnail({
               border: 'none',
             }}
             tabIndex={-1}
+            sandbox="allow-scripts allow-same-origin"
           />
-        )}
+        ) : containerWidth > 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          </div>
+        ) : null}
       </div>
       <span className={cn('text-xs', isActive ? 'text-foreground' : 'text-muted-foreground')}>
         {index + 1}
@@ -520,41 +528,16 @@ function PageThumbnail({
 const PageFrame = forwardRef<
   HTMLDivElement,
   {
-    pageId: string;
     index: number;
-    slug: string;
-    serverUrl: string;
+    html: string | undefined;
     pageWidthPx: number;
     pageHeightPx: number;
     zoom: number;
     editMode?: boolean;
-    hasError?: boolean;
-    refreshKey?: number;
   }
->(function PageFrame(
-  {
-    pageId,
-    index,
-    slug,
-    serverUrl,
-    pageWidthPx,
-    pageHeightPx,
-    zoom,
-    editMode = false,
-    hasError = false,
-    refreshKey = 0,
-  },
-  ref,
-) {
+>(function PageFrame({ index, html, pageWidthPx, pageHeightPx, zoom, editMode = false }, ref) {
   const displayWidth = pageWidthPx * zoom;
   const displayHeight = pageHeightPx * zoom;
-  const base = `${serverUrl}/${slug}/${pageId}`;
-  const params = new URLSearchParams();
-  if (editMode) params.set('edit', '');
-  if (refreshKey > 0) params.set('v', String(refreshKey));
-  const qs = params.toString();
-  const url = qs ? `${base}?${qs}` : base;
-  const interactive = editMode || hasError;
 
   return (
     <div
@@ -563,21 +546,28 @@ const PageFrame = forwardRef<
       className="relative shrink-0 overflow-hidden rounded border bg-white shadow-sm"
       style={{ width: displayWidth, height: displayHeight }}
     >
-      <iframe
-        src={url}
-        title={`Page ${index + 1}`}
-        className={cn(
-          'absolute top-0 left-0 origin-top-left',
-          !interactive && 'pointer-events-none',
-        )}
-        style={{
-          width: pageWidthPx,
-          height: pageHeightPx,
-          transform: `scale(${zoom})`,
-          border: 'none',
-        }}
-        tabIndex={interactive ? 0 : -1}
-      />
+      {html ? (
+        <iframe
+          srcDoc={html}
+          title={`Page ${index + 1}`}
+          className={cn(
+            'absolute top-0 left-0 origin-top-left',
+            !editMode && 'pointer-events-none',
+          )}
+          style={{
+            width: pageWidthPx,
+            height: pageHeightPx,
+            transform: `scale(${zoom})`,
+            border: 'none',
+          }}
+          tabIndex={editMode ? 0 : -1}
+          sandbox="allow-scripts allow-same-origin"
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
     </div>
   );
 });

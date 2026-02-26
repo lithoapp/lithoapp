@@ -13,12 +13,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { WorkspaceInfo, WorkspaceServerInfo } from '@/hooks/use-workspace';
+import type { WorkspaceInfo, WorkspaceState } from '@/hooks/use-workspace';
 import { cn } from '@/lib/utils';
 
 interface WorkspacesPageProps {
   workspaces: WorkspaceInfo[];
-  activeInfo: WorkspaceServerInfo;
+  activeInfo: WorkspaceState;
   onWorkspaceSelected: () => void;
   refreshWorkspaces: () => Promise<void>;
   userName?: string;

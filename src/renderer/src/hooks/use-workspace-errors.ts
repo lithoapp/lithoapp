@@ -1,22 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { WorkspaceError, WorkspaceErrorType } from '../../../shared/types';
+import { useCallback, useState } from 'react';
 
-export type { WorkspaceError };
+export interface WorkspaceError {
+  type: string;
+  message: string;
+  file?: string;
+  route?: string;
+  method?: string;
+  url?: string;
+  stack?: string;
+}
 
 export type WorkspaceErrorSeverity = 'error' | 'warning';
 
-const ERROR_TYPES: Set<WorkspaceErrorType> = new Set(['compilation', 'css']);
-const WARNING_TYPES: Set<WorkspaceErrorType> = new Set(['asset-404']);
-
-export function severityOf(type: WorkspaceErrorType): WorkspaceErrorSeverity {
-  if (ERROR_TYPES.has(type)) return 'error';
-  if (WARNING_TYPES.has(type)) return 'warning';
+export function severityOf(type: string): WorkspaceErrorSeverity {
+  if (type === 'compilation' || type === 'css') return 'error';
+  if (type === 'asset-404') return 'warning';
   return 'error';
-}
-
-/** Dedupe key: type + message to avoid flooding the pill with repeats. */
-function errorKey(err: WorkspaceError): string {
-  return `${err.type}::${err.message}`;
 }
 
 export interface UseWorkspaceErrorsReturn {
@@ -24,35 +23,23 @@ export interface UseWorkspaceErrorsReturn {
   errorCount: number;
   warningCount: number;
   hasIssues: boolean;
-  /** Clear the collected errors (e.g. after sending to agent or navigating). */
   clear: () => void;
 }
 
+/**
+ * Workspace errors were previously emitted by the workspace server.
+ * Now that the server has been removed, this hook provides a stable
+ * no-op interface so the chat UI can still render without changes.
+ */
 export function useWorkspaceErrors(): UseWorkspaceErrorsReturn {
-  const [errors, setErrors] = useState<WorkspaceError[]>([]);
-
-  useEffect(() => {
-    const unsubscribe = window.litho.workspace.onError((data) => {
-      const err = data as WorkspaceError;
-      setErrors((prev) => {
-        const key = errorKey(err);
-        if (prev.some((e) => errorKey(e) === key)) return prev;
-        return [...prev, err];
-      });
-    });
-    return unsubscribe;
-  }, []);
-
-  const clear = useCallback(() => setErrors([]), []);
-
-  const errorCount = errors.filter((e) => severityOf(e.type) === 'error').length;
-  const warningCount = errors.filter((e) => severityOf(e.type) === 'warning').length;
+  const [errors] = useState<WorkspaceError[]>([]);
+  const clear = useCallback(() => {}, []);
 
   return {
     errors,
-    errorCount,
-    warningCount,
-    hasIssues: errors.length > 0,
+    errorCount: 0,
+    warningCount: 0,
+    hasIssues: false,
     clear,
   };
 }

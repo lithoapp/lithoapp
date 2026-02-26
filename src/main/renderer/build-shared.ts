@@ -207,7 +207,8 @@ export function assembleHtml(options: {
 <head>
 <meta charset="utf-8">
 ${linkTags}
-<style>${inlineCss}</style>
+<style>html, body { margin: 0; padding: 0; overflow: hidden; }
+${inlineCss}</style>
 </head>
 <body>
 ${bodyContent}${scriptTag}

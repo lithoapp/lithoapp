@@ -1,29 +1,13 @@
 // Cross-process types shared between main, preload, and renderer.
 
-// --- Workspace Server ---
+// --- Workspace ---
 
-export type WorkspaceServerStatus = 'stopped' | 'starting' | 'running' | 'error';
+export type WorkspaceStatus = 'inactive' | 'active';
 
-export interface WorkspaceServerInfo {
-  status: WorkspaceServerStatus;
-  port?: number;
-  url?: string;
-  workspacePath?: string;
-  workspaceName?: string;
-}
-
-// --- Workspace Errors ---
-
-export type WorkspaceErrorType = 'compilation' | 'api' | 'asset-404' | 'css';
-
-export interface WorkspaceError {
-  type: WorkspaceErrorType;
-  message: string;
-  stack?: string;
-  file?: string;
-  route?: string;
-  method?: string;
-  url?: string;
+export interface WorkspaceState {
+  status: WorkspaceStatus;
+  workspaceName: string | null;
+  workspacePath: string | null;
 }
 
 // --- Workspace Info ---
@@ -68,7 +52,7 @@ export type ExportFormat = 'pdf' | 'png' | 'jpg';
 
 export interface ExportRequest {
   format: ExportFormat;
-  serverUrl: string;
+  workspaceName: string;
   slug: string;
   title: string;
   pages: string[];
@@ -115,7 +99,7 @@ export interface PageSize {
   unit: 'mm' | 'px';
 }
 
-/** Preset page sizes — mirrors PAGE_SIZES from @kareemaly/litho-workspace-server/src/sizes.ts */
+/** Preset page sizes. */
 export const PAGE_SIZES: Record<string, PageSize> = {
   A4: { width: 210, height: 297, unit: 'mm' },
   A3: { width: 297, height: 420, unit: 'mm' },
@@ -186,6 +170,68 @@ export interface PageExportOptions {
   dpi: number;
   jpgQuality: number;
   savePath: string;
+}
+
+// --- Design System ---
+
+export type TokenCategory =
+  | 'color'
+  | 'font-family'
+  | 'font-size'
+  | 'font-weight'
+  | 'tracking'
+  | 'leading'
+  | 'spacing'
+  | 'radius'
+  | 'shadow'
+  | 'gradient'
+  | 'transition'
+  | 'z-index';
+
+export type TokenControl = 'color' | 'text' | 'number' | 'shadow' | 'font-stack';
+
+export interface DesignSystemToken {
+  variable: string;
+  value: string;
+  category: TokenCategory;
+  control: TokenControl;
+  label: string;
+  group: string;
+}
+
+export interface ColorPalette {
+  name: string;
+  shades: DesignSystemToken[];
+}
+
+export interface DesignSystem {
+  colors: {
+    palettes: ColorPalette[];
+  };
+  typography: {
+    families: DesignSystemToken[];
+    sizes: DesignSystemToken[];
+    weights: DesignSystemToken[];
+    tracking: DesignSystemToken[];
+    leading: DesignSystemToken[];
+  };
+  spacing: DesignSystemToken[];
+  radius: DesignSystemToken[];
+  shadows: DesignSystemToken[];
+  gradients: DesignSystemToken[];
+  transitions: DesignSystemToken[];
+  zIndex: DesignSystemToken[];
+  fonts: string[];
+}
+
+// --- Document Info (replaces ManifestDocument) ---
+
+export interface DocumentInfo {
+  slug: string;
+  title: string;
+  size: PageSize;
+  pages: string[];
+  folder?: string;
 }
 
 // --- Snapshots ---

@@ -1,4 +1,3 @@
-import { formatDistanceToNow } from 'date-fns';
 import {
   ChevronLeft,
   FilePlus,
@@ -15,7 +14,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -43,10 +42,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
 import { useDesignSystem } from '@/hooks/use-design-system';
-import type { ManifestDocument, WorkspaceManifest } from '@/hooks/use-workspace-manifest';
 import { cn } from '@/lib/utils';
+import type { DocumentInfo } from '../../../../shared/types';
 
 interface SizePreset {
   name: string;
@@ -122,12 +120,12 @@ const SIZE_CATEGORIES: SizeCategory[] = [
 /** Fixed thumbnail container height in px. */
 const THUMB_HEIGHT = 180;
 
-function groupDocuments(docs: ManifestDocument[]): {
-  ungrouped: ManifestDocument[];
-  folders: Map<string, ManifestDocument[]>;
+function groupDocuments(docs: DocumentInfo[]): {
+  ungrouped: DocumentInfo[];
+  folders: Map<string, DocumentInfo[]>;
 } {
-  const ungrouped: ManifestDocument[] = [];
-  const folders = new Map<string, ManifestDocument[]>();
+  const ungrouped: DocumentInfo[] = [];
+  const folders = new Map<string, DocumentInfo[]>();
   for (const doc of docs) {
     if (!doc.folder) {
       ungrouped.push(doc);
@@ -140,35 +138,14 @@ function groupDocuments(docs: ManifestDocument[]): {
   return { ungrouped, folders };
 }
 
-async function parseApiError(res: Response): Promise<string> {
-  try {
-    const body = (await res.json()) as { error?: string };
-    if (body.error) return body.error;
-  } catch {
-    // Response wasn't JSON
-  }
-  return `Server error (${res.status})`;
-}
-
-async function updateDocFolder(serverUrl: string, slug: string, folder: string): Promise<void> {
-  const res = await fetch(`${serverUrl}/api/documents/${slug}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ folder }),
-  });
-  if (!res.ok) throw new Error(await parseApiError(res));
-}
-
 /** Strip slashes to prevent accidental nesting. */
 function sanitizeFolderName(value: string): string {
   return value.replace(/\//g, '');
 }
 
 interface DocumentsPageProps {
-  manifest: WorkspaceManifest | null;
-  serverUrl: string;
-  loading: boolean;
-  error: string | null;
+  workspaceName: string;
+  documents: DocumentInfo[];
   refetch: () => Promise<void>;
   onSelectDocument: (slug: string) => void;
   onOpenDesignSystem: () => void;
@@ -177,10 +154,8 @@ interface DocumentsPageProps {
 }
 
 export function DocumentsPage({
-  manifest,
-  serverUrl,
-  loading,
-  error,
+  workspaceName,
+  documents: documentsProp,
   refetch,
   onSelectDocument,
   onOpenDesignSystem,
@@ -209,7 +184,7 @@ export function DocumentsPage({
   // These are ephemeral — they disappear on page reload.
   const [localFolderNames, setLocalFolderNames] = useState<Set<string>>(new Set());
 
-  const documents = manifest?.documents ?? [];
+  const documents = documentsProp;
   const { ungrouped, folders: folderMap } = groupDocuments(documents);
   const serverFolderNames = [...folderMap.keys()].sort();
   // Merge server folders with local-only (empty) folders, deduplicated and sorted.
@@ -232,26 +207,23 @@ export function DocumentsPage({
         newSize === 'Custom'
           ? { width: Number(customWidth), height: Number(customHeight), unit: customUnit }
           : newSize;
-      const body: Record<string, unknown> = { title: newTitle.trim(), size };
-      // Auto-assign to current folder when creating from inside one.
-      if (currentFolder) body.folder = currentFolder;
-      const res = await fetch(`${serverUrl}/api/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        setCreateError(await parseApiError(res));
-        return;
-      }
+      await window.litho.document.create(
+        workspaceName,
+        newTitle.trim(),
+        size,
+        currentFolder ?? undefined,
+      );
       await refetch();
       setCreateOpen(false);
       setNewTitle('');
       setNewSize('A4');
       setCreateError(null);
     } catch (err) {
-      console.error('[documents] Create failed:', err);
-      setCreateError('Could not connect to the workspace server.');
+      const message =
+        err instanceof Error
+          ? err.message.replace(/^Error invoking remote method.*?:\s*/i, '')
+          : String(err);
+      setCreateError(message);
     } finally {
       setIsCreating(false);
     }
@@ -267,11 +239,7 @@ export function DocumentsPage({
     setIsDeleting(deleteConfirm);
     setDeleteConfirm(null);
     try {
-      const res = await fetch(`${serverUrl}/api/documents/${deleteConfirm}`, { method: 'DELETE' });
-      if (!res.ok) {
-        toast.error(await parseApiError(res));
-        return;
-      }
+      await window.litho.document.delete(workspaceName, deleteConfirm);
       await refetch();
     } catch (err) {
       console.error('[documents] Delete failed:', err);
@@ -283,7 +251,7 @@ export function DocumentsPage({
 
   async function handleAssignFolder(slug: string, folderName: string): Promise<void> {
     try {
-      await updateDocFolder(serverUrl, slug, folderName);
+      await window.litho.document.updateFolder(workspaceName, slug, folderName);
       await refetch();
     } catch (err) {
       console.error('[documents] Assign folder failed:', err);
@@ -293,7 +261,7 @@ export function DocumentsPage({
 
   async function handleRemoveFromFolder(slug: string): Promise<void> {
     try {
-      await updateDocFolder(serverUrl, slug, '');
+      await window.litho.document.updateFolder(workspaceName, slug, '');
       await refetch();
     } catch (err) {
       console.error('[documents] Remove from folder failed:', err);
@@ -304,7 +272,9 @@ export function DocumentsPage({
   async function handleRenameFolder(oldName: string, newName: string): Promise<void> {
     const docs = folderMap.get(oldName) ?? [];
     try {
-      await Promise.all(docs.map((doc) => updateDocFolder(serverUrl, doc.slug, newName)));
+      await Promise.all(
+        docs.map((doc) => window.litho.document.updateFolder(workspaceName, doc.slug, newName)),
+      );
       await refetch();
       if (currentFolder === oldName) setCurrentFolder(newName);
       setLocalFolderNames((prev) => {
@@ -323,7 +293,9 @@ export function DocumentsPage({
   async function handleDeleteFolder(name: string): Promise<void> {
     const docs = folderMap.get(name) ?? [];
     try {
-      await Promise.all(docs.map((doc) => updateDocFolder(serverUrl, doc.slug, '')));
+      await Promise.all(
+        docs.map((doc) => window.litho.document.updateFolder(workspaceName, doc.slug, '')),
+      );
       await refetch();
       if (currentFolder === name) setCurrentFolder(null);
       setLocalFolderNames((prev) => {
@@ -337,19 +309,6 @@ export function DocumentsPage({
     }
   }
 
-  if (loading && !manifest) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (error && !manifest) {
-    return <p className="text-base text-destructive">Failed to load documents: {error}</p>;
-  }
-
-  const workspaceName = manifest?.name ?? 'Documents';
   const folderDocs = currentFolder ? (folderMap.get(currentFolder) ?? []) : null;
 
   return (
@@ -419,7 +378,7 @@ export function DocumentsPage({
       {/* Utility cards — only at top level */}
       {currentFolder === null && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <DesignSystemCard serverUrl={serverUrl} onClick={onOpenDesignSystem} />
+          <DesignSystemCard workspaceName={workspaceName} onClick={onOpenDesignSystem} />
           <AssetsCard onClick={onOpenAssets} />
         </div>
       )}
@@ -472,7 +431,6 @@ export function DocumentsPage({
                 <DocumentCard
                   key={doc.slug}
                   doc={doc}
-                  serverUrl={serverUrl}
                   isDeleting={isDeleting === doc.slug}
                   onDelete={confirmDelete}
                   onAssignFolder={(slug) => setAssignFolderSlug(slug)}
@@ -486,7 +444,6 @@ export function DocumentsPage({
               <DocumentCard
                 key={doc.slug}
                 doc={doc}
-                serverUrl={serverUrl}
                 isDeleting={isDeleting === doc.slug}
                 onDelete={confirmDelete}
                 onAssignFolder={(slug) => setAssignFolderSlug(slug)}
@@ -706,7 +663,7 @@ export function DocumentsPage({
             <AlertDialogTitle>Delete document?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete &quot;
-              {manifest?.documents.find((d) => d.slug === deleteConfirm)?.title ?? deleteConfirm}
+              {documents.find((d) => d.slug === deleteConfirm)?.title ?? deleteConfirm}
               &quot; and all its pages. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1018,13 +975,13 @@ function FolderCard({
 }
 
 function DesignSystemCard({
-  serverUrl,
+  workspaceName,
   onClick,
 }: {
-  serverUrl: string;
+  workspaceName: string;
   onClick: () => void;
 }): React.JSX.Element {
-  const { designSystem } = useDesignSystem(serverUrl);
+  const { designSystem } = useDesignSystem(workspaceName);
 
   const totalColors = designSystem
     ? designSystem.colors.palettes.reduce((sum, p) => sum + p.shades.length, 0)
@@ -1086,46 +1043,23 @@ function AssetsCard({ onClick }: { onClick: () => void }): React.JSX.Element {
 
 function DocumentCard({
   doc,
-  serverUrl,
   isDeleting,
   onDelete,
   onAssignFolder,
   onRemoveFromFolder,
   onClick,
 }: {
-  doc: ManifestDocument;
-  serverUrl: string;
+  doc: DocumentInfo;
   isDeleting: boolean;
   onDelete: (e: React.MouseEvent, slug: string) => void;
   onAssignFolder: (slug: string) => void;
   onRemoveFromFolder: (slug: string) => void;
   onClick: () => void;
 }): React.JSX.Element {
-  const firstPage = doc.pages[0];
-  const previewUrl = firstPage ? `${serverUrl}/${doc.slug}/${firstPage}` : null;
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(220);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 0) setContainerWidth(w);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // The iframe renders at the full document pixel size, then CSS scale()
-  // shrinks it to fit the card thumbnail. Portrait documents scale to fit
-  // width (cropping the bottom). Landscape documents scale to fill the
-  // thumbnail height (cropping the right side).
-  const iframeWidth = doc.size.width * (doc.size.unit === 'mm' ? 3.7795 : 1); // mm→px at 96dpi
-  const aspect = doc.size.height / doc.size.width;
-  const iframeHeight = iframeWidth * aspect;
-  const isLandscape = doc.size.width > doc.size.height;
-  const scale = isLandscape ? THUMB_HEIGHT / iframeHeight : containerWidth / iframeWidth;
+  const sizeLabel =
+    doc.size.unit === 'mm'
+      ? `${doc.size.width} × ${doc.size.height} mm`
+      : `${doc.size.width} × ${doc.size.height} px`;
 
   return (
     <button
@@ -1136,7 +1070,6 @@ function DocumentCard({
         e.dataTransfer.setData('text/plain', doc.slug);
         e.dataTransfer.effectAllowed = 'move';
 
-        // Custom drag ghost: small dark pill with file icon + title
         const ghost = document.createElement('div');
         ghost.style.cssText =
           'position:absolute;left:-9999px;top:-9999px;display:flex;align-items:center;' +
@@ -1158,28 +1091,20 @@ function DocumentCard({
       onClick={onClick}
     >
       <div
-        ref={containerRef}
-        className="relative overflow-hidden border-b bg-muted/30"
+        className="relative flex flex-col items-center justify-center gap-2 overflow-hidden border-b bg-muted/30"
         style={{ height: THUMB_HEIGHT }}
       >
-        {previewUrl ? (
-          <iframe
-            src={previewUrl}
-            title={`${doc.title} preview`}
-            className="pointer-events-none absolute top-0 left-0 origin-top-left"
-            style={{
-              width: iframeWidth,
-              height: iframeHeight,
-              transform: `scale(${scale})`,
-              border: 'none',
-            }}
-            tabIndex={-1}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <FileText className="h-8 w-8" />
-          </div>
-        )}
+        <div
+          className="flex items-center justify-center rounded-sm border border-muted-foreground/20 bg-background"
+          style={{
+            aspectRatio: `${doc.size.width} / ${doc.size.height}`,
+            height: '60%',
+            maxWidth: '80%',
+          }}
+        >
+          <FileText className="h-6 w-6 text-muted-foreground/40" />
+        </div>
+        <p className="text-xs text-muted-foreground/60">{sizeLabel}</p>
 
         <div className="absolute top-1.5 right-1.5 opacity-0 transition-opacity group-hover:opacity-100">
           <DropdownMenu>
@@ -1229,13 +1154,9 @@ function DocumentCard({
 
       <div className="flex flex-col gap-1 px-4 py-3">
         <p className="truncate text-base font-semibold">{doc.title}</p>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>
-            {doc.pages.length} {doc.pages.length === 1 ? 'page' : 'pages'}
-          </span>
-          <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/50" />
-          <span>{formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}</span>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {doc.pages.length} {doc.pages.length === 1 ? 'page' : 'pages'}
+        </p>
       </div>
     </button>
   );

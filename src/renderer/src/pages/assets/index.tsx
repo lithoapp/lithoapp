@@ -27,15 +27,10 @@ import { PreviewDialog } from './asset-preview-dialog';
 
 interface AssetsPageProps {
   workspaceName: string;
-  serverUrl: string;
   onBack: () => void;
 }
 
-export function AssetsPage({
-  workspaceName,
-  serverUrl,
-  onBack,
-}: AssetsPageProps): React.JSX.Element {
+export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JSX.Element {
   const [currentDir, setCurrentDir] = useState('');
   const [entries, setEntries] = useState<AssetEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -354,7 +349,7 @@ export function AssetsPage({
             <AssetGridItem
               key={entry.path}
               entry={entry}
-              serverUrl={serverUrl}
+              workspaceName={workspaceName}
               isSelected={selected.has(entry.path)}
               anySelected={selected.size > 0}
               onSelect={() => toggleSelect(entry.path)}
@@ -500,7 +495,7 @@ export function AssetsPage({
       {previewEntry && IMAGE_EXTS.has(previewEntry.ext) && (
         <PreviewDialog
           entry={previewEntry}
-          serverUrl={serverUrl}
+          workspaceName={workspaceName}
           onClose={() => setPreviewEntry(null)}
         />
       )}

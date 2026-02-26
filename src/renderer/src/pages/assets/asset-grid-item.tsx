@@ -17,7 +17,7 @@ export { IMAGE_EXTS };
 
 export function AssetGridItem({
   entry,
-  serverUrl,
+  workspaceName,
   isSelected,
   anySelected,
   onSelect,
@@ -29,7 +29,7 @@ export function AssetGridItem({
   onMoveToParent,
 }: {
   entry: AssetEntry;
-  serverUrl: string;
+  workspaceName: string;
   isSelected: boolean;
   anySelected: boolean;
   onSelect: () => void;
@@ -117,7 +117,7 @@ export function AssetGridItem({
       >
         {isImage ? (
           <img
-            src={`${serverUrl}/assets/${entry.path}`}
+            src={`litho-asset://${workspaceName}/${entry.path}`}
             alt={entry.name}
             className="h-full w-full object-contain"
           />

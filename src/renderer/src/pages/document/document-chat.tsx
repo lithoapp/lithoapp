@@ -5,11 +5,11 @@ import { Chat } from '@/components/chat/chat';
 import { Button } from '@/components/ui/button';
 import { useOpencode } from '@/hooks/use-opencode';
 import { useSessionInit } from '@/hooks/use-session-init';
-import type { ManifestDocument } from '@/hooks/use-workspace-manifest';
 import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
+import type { DocumentInfo } from '../../../../shared/types';
 
 interface DocumentChatProps {
-  doc: ManifestDocument;
+  doc: DocumentInfo;
   workspaceName: string;
   workspacePath: string;
   userName?: string;

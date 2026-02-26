@@ -1,8 +1,16 @@
-import { existsSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
-import { invalidateManifestCache, slugify } from '@kareemaly/litho-workspace-server';
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  nativeTheme,
+  protocol,
+  session,
+  shell,
+} from 'electron';
+import type { WorkspaceState } from '../shared/types';
 import { getActiveWorkspace, setActiveWorkspace } from './active-workspace-store';
 import {
   createAssetDirectory,
@@ -18,15 +26,14 @@ import {
   initAutoUpdater,
   installUpdate,
 } from './auto-updater';
-import { ExportManager } from './export-manager';
+import { DocumentExporter, exportPage } from './exporter';
 import { OpencodeManager } from './opencode-manager';
 import {
   buildPage,
-  exportPageResult,
-  listDocuments,
   listPages,
-  readDocumentConfig,
+  listDocuments as rendererListDocuments,
   listWorkspaces as rendererListWorkspaces,
+  readDocumentConfig as rendererReadDocumentConfig,
 } from './renderer';
 import { initSentry } from './sentry';
 import {
@@ -50,16 +57,41 @@ import {
   setUserProfile,
   type Theme,
 } from './telemetry-store';
-import { getDocumentCount, listWorkspaces, readWorkspaceConfig } from './workspace-data';
-import { WorkspaceManager } from './workspace-manager';
+import {
+  createDocument,
+  createNewWorkspace,
+  deleteDocument,
+  getDocumentCount,
+  listDocumentsFull,
+  listWorkspaces,
+  readAssetFile,
+  readDesignSystem,
+  readWorkspaceConfig,
+  updateDesignTokens,
+  updateDocumentFolder,
+} from './workspace-data';
 import { resolveWorkspacePath } from './workspace-paths';
 
 initSentry();
 
-const exportManager = new ExportManager();
+const documentExporter = new DocumentExporter();
 const opencodeManager = new OpencodeManager();
-const workspaceManager = new WorkspaceManager();
 let mainWindow: BrowserWindow | null = null;
+
+function getWorkspaceState(): WorkspaceState {
+  const workspaceName = getActiveWorkspace();
+  return {
+    status: workspaceName ? 'active' : 'inactive',
+    workspaceName,
+    workspacePath: workspaceName ? resolveWorkspacePath(workspaceName) : null,
+  };
+}
+
+function emitWorkspaceChanged(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('workspace:changed', getWorkspaceState());
+  }
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -128,10 +160,10 @@ ipcMain.handle(
 );
 
 ipcMain.handle('export:start', async (_event, request) => {
-  await exportManager.exportDocument(request);
+  await documentExporter.exportDocument(request);
 });
 
-ipcMain.handle('export:getProgress', () => exportManager.getProgress());
+ipcMain.handle('export:getProgress', () => documentExporter.getProgress());
 
 // Workspace IPC handlers
 ipcMain.handle('workspace:list', async () => {
@@ -147,43 +179,47 @@ ipcMain.handle('workspace:list', async () => {
   );
 });
 
-ipcMain.handle('workspace:getActive', () => workspaceManager.getInfo());
+ipcMain.handle('workspace:getActive', () => getWorkspaceState());
 
 ipcMain.handle('workspace:create', async (_event, name: string) => {
-  const slug = slugify(name) || 'untitled';
-  const targetPath = resolveWorkspacePath(slug);
-
-  if (existsSync(targetPath)) {
-    throw new Error(`A project named "${slug}" already exists. Choose a different name.`);
-  }
-
-  try {
-    const createdSlug = await workspaceManager.createAndStart(name);
-    setActiveWorkspace(createdSlug);
-    return createdSlug;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes('ENOSPC') || message.includes('no space')) {
-      throw new Error('Your disk is full. Free up some space and try again.');
-    }
-    throw new Error(`Could not create project: ${message}`);
-  }
+  const slug = await createNewWorkspace(name);
+  setActiveWorkspace(slug);
+  emitWorkspaceChanged();
+  return slug;
 });
 
-ipcMain.handle('workspace:select', async (_event, workspaceName: string) => {
+ipcMain.handle('workspace:select', (_event, workspaceName: string) => {
   setActiveWorkspace(workspaceName);
-  await workspaceManager.switchWorkspace(workspaceName);
+  emitWorkspaceChanged();
 });
 
-ipcMain.handle('workspace:stop', async () => {
+ipcMain.handle('workspace:stop', () => {
   setActiveWorkspace(null);
-  await workspaceManager.stop();
+  emitWorkspaceChanged();
 });
-
-ipcMain.handle('workspace:invalidateManifest', () => invalidateManifestCache());
 
 ipcMain.handle('workspace:getDocumentCount', (_event, workspaceName: string) =>
   getDocumentCount(workspaceName),
+);
+
+// Document CRUD IPC handlers
+ipcMain.handle('document:list', (_event, ws: string) => listDocumentsFull(ws));
+ipcMain.handle(
+  'document:create',
+  (_event, ws: string, title: string, size: string, folder?: string) =>
+    createDocument(ws, title, size, folder),
+);
+ipcMain.handle('document:delete', (_event, ws: string, doc: string) => deleteDocument(ws, doc));
+ipcMain.handle('document:updateFolder', (_event, ws: string, doc: string, folder: string) =>
+  updateDocumentFolder(ws, doc, folder),
+);
+
+// Design System IPC handlers
+ipcMain.handle('designSystem:read', (_event, ws: string) => readDesignSystem(ws));
+ipcMain.handle(
+  'designSystem:updateTokens',
+  (_event, ws: string, updates: Array<{ variable: string; value: string }>) =>
+    updateDesignTokens(ws, updates),
 );
 
 // Snapshot IPC handlers
@@ -280,12 +316,12 @@ ipcMain.handle(
     buildPage(ws, doc, page, approach),
 );
 ipcMain.handle('renderer:list-workspaces', () => rendererListWorkspaces());
-ipcMain.handle('renderer:list-documents', (_event, ws: string) => listDocuments(ws));
+ipcMain.handle('renderer:list-documents', (_event, ws: string) => rendererListDocuments(ws));
 ipcMain.handle('renderer:list-pages', (_event, ws: string, doc: string) => listPages(ws, doc));
 ipcMain.handle('renderer:read-document-config', (_event, ws: string, doc: string) =>
-  readDocumentConfig(ws, doc),
+  rendererReadDocumentConfig(ws, doc),
 );
-ipcMain.handle('renderer:export', (_event, options) => exportPageResult(options));
+ipcMain.handle('renderer:export', (_event, options) => exportPage(options));
 
 // Forward opencode status changes to renderer
 opencodeManager.on('status-change', (data) => {
@@ -295,23 +331,9 @@ opencodeManager.on('status-change', (data) => {
 });
 
 // Forward export progress to renderer
-exportManager.on('progress', (data) => {
+documentExporter.on('progress', (data) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('export:progress', data);
-  }
-});
-
-// Forward workspace status changes to renderer
-workspaceManager.on('status-change', (data) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('workspace:status-change', data);
-  }
-});
-
-// Forward workspace errors to renderer
-workspaceManager.on('error', (data) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('workspace:error', data);
   }
 });
 
@@ -326,7 +348,7 @@ nativeTheme.on('updated', () => {
 
 app.whenReady().then(async () => {
   if (process.argv.includes('--batch-export')) {
-    const { runBatchExport } = await import('./batch-export');
+    const { runBatchExport } = await import('./exporter/batch-export');
     try {
       await runBatchExport();
     } catch (err) {
@@ -343,13 +365,26 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window);
   });
 
+  // Register litho-asset:// protocol for serving workspace assets
+  protocol.handle('litho-asset', async (request) => {
+    try {
+      const url = new URL(request.url);
+      const workspaceName = url.hostname;
+      const assetPath = decodeURIComponent(url.pathname.slice(1));
+      const { data, mimeType } = await readAssetFile(workspaceName, assetPath);
+      return new Response(new Uint8Array(data), { headers: { 'Content-Type': mimeType } });
+    } catch {
+      return new Response('Not Found', { status: 404 });
+    }
+  });
+
   createWindow();
   if (mainWindow) {
     initAutoUpdater(mainWindow);
   }
   setTimeout(() => checkForUpdates(), 30_000);
 
-  // Inject CORS headers for local server responses (opencode + workspace)
+  // Inject CORS headers for OpenCode server responses
   session.defaultSession.webRequest.onHeadersReceived(
     { urls: ['http://127.0.0.1:*/*', 'http://localhost:*/*'] },
     (details, callback) => {
@@ -375,12 +410,6 @@ app.whenReady().then(async () => {
   // Start the opencode server
   void opencodeManager.start();
 
-  // Restore last active workspace
-  const lastActive = getActiveWorkspace();
-  if (lastActive) {
-    void workspaceManager.startWorkspace(lastActive);
-  }
-
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -394,7 +423,8 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', (event) => {
   event.preventDefault();
-  void Promise.all([opencodeManager.stop(), workspaceManager.stop()])
+  void opencodeManager
+    .stop()
     .catch(() => {})
     .finally(() => app.exit());
 });

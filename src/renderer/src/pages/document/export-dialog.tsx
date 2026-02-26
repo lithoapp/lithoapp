@@ -15,12 +15,11 @@ import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { ManifestDocument } from '@/hooks/use-workspace-manifest';
-import type { ExportFormat, ExportProgress } from '../../../../shared/types';
+import type { DocumentInfo, ExportFormat, ExportProgress } from '../../../../shared/types';
 
 interface ExportDialogProps {
-  doc: ManifestDocument;
-  serverUrl: string;
+  doc: DocumentInfo;
+  workspaceName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -29,7 +28,7 @@ const DPI_OPTIONS = [72, 150, 300] as const;
 
 export function ExportDialog({
   doc,
-  serverUrl,
+  workspaceName,
   open,
   onOpenChange,
 }: ExportDialogProps): React.JSX.Element {
@@ -125,7 +124,7 @@ export function ExportDialog({
     try {
       await window.litho.export.start({
         format,
-        serverUrl,
+        workspaceName,
         slug: doc.slug,
         title: doc.title,
         pages,
@@ -137,7 +136,7 @@ export function ExportDialog({
     } catch {
       // Error is handled via progress event
     }
-  }, [format, doc, serverUrl, isImage, selectedPages, dpi, jpgQuality]);
+  }, [format, doc, workspaceName, isImage, selectedPages, dpi, jpgQuality]);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -224,7 +223,7 @@ function ConfigurationView({
   canExport,
   onExport,
 }: {
-  doc: ManifestDocument;
+  doc: DocumentInfo;
   format: ExportFormat;
   onFormatChange: (f: ExportFormat) => void;
   isMmBased: boolean;
@@ -335,7 +334,7 @@ function ImageOptions({
   dpi,
   onDpiChange,
 }: {
-  doc: ManifestDocument;
+  doc: DocumentInfo;
   selectedPages: Set<string>;
   allSelected: boolean;
   someSelected: boolean;

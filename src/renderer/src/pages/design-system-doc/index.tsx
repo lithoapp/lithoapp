@@ -22,21 +22,17 @@ import { PageThumbnail } from './page-shell';
 import { buildPageDefs } from './utils';
 
 interface DesignSystemDocPageProps {
-  serverUrl: string;
-  workspaceName: string | null;
-  workspaceDisplayName: string | null;
+  workspaceName: string;
   workspacePath: string | null;
   onBack: () => void;
 }
 
 export function DesignSystemDocPage({
-  serverUrl,
   workspaceName,
-  workspaceDisplayName,
   workspacePath,
   onBack,
 }: DesignSystemDocPageProps): React.JSX.Element {
-  const { designSystem, loading, error, refetch } = useDesignSystem(serverUrl);
+  const { designSystem, loading, error, refetch } = useDesignSystem(workspaceName);
   const viewerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -193,7 +189,7 @@ export function DesignSystemDocPage({
                 {designSystem && (
                   <DocViewer
                     designSystem={designSystem}
-                    workspaceName={workspaceDisplayName}
+                    workspaceName={workspaceName}
                     scale={scale}
                     setRef={setRef}
                   />
@@ -233,7 +229,7 @@ function DocViewer({
   setRef,
 }: {
   designSystem: DesignSystem;
-  workspaceName: string | null;
+  workspaceName: string;
   scale: number;
   setRef: (id: string, el: HTMLElement | null) => void;
 }): React.JSX.Element {

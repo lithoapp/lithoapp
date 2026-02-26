@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@kareemaly/litho-workspace-server': link:../litho-workspace-server
-
 importers:
 
   .:
@@ -32,9 +29,6 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.71.2(react@19.2.4))
-      '@kareemaly/litho-workspace-server':
-        specifier: link:../litho-workspace-server
-        version: link:../litho-workspace-server
       '@opencode-ai/sdk':
         specifier: ^1.2.6
         version: 1.2.10

@@ -1,4 +1,12 @@
-import type { AssetEntry, DocumentSnapshot, ExportProgress, ExportRequest } from '../shared/types';
+import type {
+  AssetEntry,
+  DesignSystem,
+  DocumentInfo,
+  DocumentSnapshot,
+  ExportProgress,
+  ExportRequest,
+  PageSize,
+} from '../shared/types';
 import type {
   DocumentConfig,
   PageBuildData,
@@ -7,7 +15,7 @@ import type {
 } from '../shared/types';
 import type { OpencodeInfo } from '../shared/types';
 import type { UpdateState } from '../shared/types';
-import type { WorkspaceError, WorkspaceInfo, WorkspaceServerInfo } from '../shared/types';
+import type { WorkspaceInfo, WorkspaceState } from '../shared/types';
 
 interface LithoAPI {
   preferences: {
@@ -51,14 +59,30 @@ interface LithoAPI {
   };
   workspace: {
     list: () => Promise<WorkspaceInfo[]>;
-    getActive: () => Promise<WorkspaceServerInfo>;
+    getActive: () => Promise<WorkspaceState>;
     create: (name: string) => Promise<string>;
     select: (name: string) => Promise<void>;
     stop: () => Promise<void>;
     getDocumentCount: (name: string) => Promise<number>;
-    invalidateManifest: () => Promise<void>;
-    onStatusChange: (callback: (data: WorkspaceServerInfo) => void) => () => void;
-    onError: (callback: (data: WorkspaceError) => void) => () => void;
+    onChanged: (callback: (data: WorkspaceState) => void) => () => void;
+  };
+  document: {
+    list: (workspaceName: string) => Promise<DocumentInfo[]>;
+    create: (
+      workspaceName: string,
+      title: string,
+      size: string | PageSize,
+      folder?: string,
+    ) => Promise<string>;
+    delete: (workspaceName: string, slug: string) => Promise<void>;
+    updateFolder: (workspaceName: string, slug: string, folder: string) => Promise<void>;
+  };
+  designSystem: {
+    read: (workspaceName: string) => Promise<DesignSystem>;
+    updateTokens: (
+      workspaceName: string,
+      updates: Array<{ variable: string; value: string }>,
+    ) => Promise<void>;
   };
   snapshot: {
     readDocumentFiles: (workspaceName: string, slug: string) => Promise<Record<string, string>>;

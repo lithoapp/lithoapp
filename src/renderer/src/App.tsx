@@ -4,8 +4,8 @@ import { toast } from 'sonner';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/hooks/use-workspace';
-import { useWorkspaceManifest } from '@/hooks/use-workspace-manifest';
 import { cn } from '@/lib/utils';
+import type { DocumentInfo } from '../../shared/types';
 import { AssetsPage } from './pages/assets';
 import { DesignSystemDocPage } from './pages/design-system-doc';
 import { DocumentPage } from './pages/document';
@@ -23,29 +23,46 @@ type Page =
   | 'design-system-doc'
   | 'assets'
   | 'settings'
+  | 'renderer-poc'
   | 'workspace-loading'
-  | 'workspace-closing'
-  | 'renderer-poc';
+  | 'workspace-closing';
 
 function App(): React.JSX.Element {
   const [version, setVersion] = useState('');
   const [page, setPage] = useState<Page>('workspaces');
   const [activeDocSlug, setActiveDocSlug] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [userProfile, setUserProfile] = useState<{
     name: string | null;
     email: string | null;
   } | null>(null);
 
   const { info: workspaceInfo, workspaces, refreshWorkspaces } = useWorkspace();
-  const serverUrl = workspaceInfo.status === 'running' ? (workspaceInfo.url ?? null) : null;
-  const workspaceName = workspaceInfo.workspaceName ?? null;
-  const workspacePath = workspaceInfo.workspacePath ?? null;
-  const {
-    manifest,
-    loading: manifestLoading,
-    error: manifestError,
-    refetch: refetchManifest,
-  } = useWorkspaceManifest(serverUrl, workspaceInfo.workspacePath);
+  const workspaceName = workspaceInfo.workspaceName;
+  const workspacePath = workspaceInfo.workspacePath;
+
+  const loadDocuments = useCallback(async () => {
+    if (!workspaceName) {
+      setDocuments([]);
+      return;
+    }
+    try {
+      const docs = await window.litho.document.list(workspaceName);
+      setDocuments(docs);
+    } catch (err) {
+      console.error('[app] Failed to load documents:', err);
+      toast.error('Failed to load documents');
+    }
+  }, [workspaceName]);
+
+  // Load documents when workspace becomes active
+  useEffect(() => {
+    if (workspaceInfo.status === 'active') {
+      loadDocuments();
+    } else {
+      setDocuments([]);
+    }
+  }, [workspaceInfo.status, loadDocuments]);
 
   useEffect(() => {
     void (async () => {
@@ -90,16 +107,16 @@ function App(): React.JSX.Element {
     [],
   );
 
-  // Guard: redirect away from workspace pages if the server is no longer running
+  // Guard: redirect away from workspace pages if workspace is no longer active
   useEffect(() => {
-    const onWorkspacePage = ['documents', 'document', 'design-system-doc', 'assets'].includes(page);
-    if (onWorkspacePage && workspaceInfo.status === 'error') {
-      setPage('workspace-loading');
-    } else if (
-      onWorkspacePage &&
-      workspaceInfo.status !== 'running' &&
-      workspaceInfo.status !== 'starting'
-    ) {
+    const onWorkspacePage = [
+      'documents',
+      'document',
+      'design-system-doc',
+      'assets',
+      'renderer-poc',
+    ].includes(page);
+    if (onWorkspacePage && workspaceInfo.status === 'inactive') {
       setPage('workspaces');
     }
   }, [page, workspaceInfo.status]);
@@ -116,7 +133,7 @@ function App(): React.JSX.Element {
   }, [refreshWorkspaces]);
 
   const activeDoc = activeDocSlug
-    ? (manifest?.documents.find((d) => d.slug === activeDocSlug) ?? null)
+    ? (documents.find((d) => d.slug === activeDocSlug) ?? null)
     : null;
 
   // Still loading user profile — render minimal drag region to avoid flash
@@ -169,10 +186,10 @@ function App(): React.JSX.Element {
       >
         <span className="text-sm font-semibold">Litho</span>
         {version && <span className="ml-2 text-xs text-muted-foreground">v{version}</span>}
-        {workspaceInfo.status !== 'stopped' && workspaceInfo.workspaceName && (
+        {workspaceInfo.status === 'active' && workspaceName && (
           <>
             <span className="mx-2 text-xs text-muted-foreground">/</span>
-            <span className="text-sm font-medium">{workspaceInfo.workspaceName}</span>
+            <span className="text-sm font-medium">{workspaceName}</span>
           </>
         )}
 
@@ -180,13 +197,12 @@ function App(): React.JSX.Element {
           className="ml-auto flex items-center gap-1"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
-          {workspaceInfo.status !== 'stopped' ? (
+          {workspaceInfo.status === 'active' ? (
             <>
               <Button
                 variant={page === 'documents' || page === 'document' ? 'secondary' : 'ghost'}
                 size="icon-sm"
                 onClick={() => setPage('documents')}
-                disabled={workspaceInfo.status !== 'running'}
               >
                 <Files className="h-3.5 w-3.5" />
               </Button>
@@ -194,7 +210,6 @@ function App(): React.JSX.Element {
                 variant={page === 'design-system-doc' ? 'secondary' : 'ghost'}
                 size="icon-sm"
                 onClick={() => setPage('design-system-doc')}
-                disabled={workspaceInfo.status !== 'running'}
               >
                 <Palette className="h-3.5 w-3.5" />
               </Button>
@@ -202,9 +217,15 @@ function App(): React.JSX.Element {
                 variant={page === 'assets' ? 'secondary' : 'ghost'}
                 size="icon-sm"
                 onClick={() => setPage('assets')}
-                disabled={workspaceInfo.status !== 'running'}
               >
                 <Images className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={page === 'renderer-poc' ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                onClick={() => setPage('renderer-poc')}
+              >
+                <FlaskConical className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant={page === 'settings' ? 'secondary' : 'ghost'}
@@ -232,13 +253,6 @@ function App(): React.JSX.Element {
               </Button>
             </>
           )}
-          <Button
-            variant={page === 'renderer-poc' ? 'secondary' : 'ghost'}
-            size="icon-sm"
-            onClick={() => setPage('renderer-poc')}
-          >
-            <FlaskConical className="h-3.5 w-3.5" />
-          </Button>
           <div className="mx-1 h-4 w-px bg-border" />
           <ThemeSwitcher />
         </nav>
@@ -261,13 +275,7 @@ function App(): React.JSX.Element {
           <WorkspaceTransitionPage
             mode="loading"
             workspaceName={workspaceInfo.workspaceName}
-            ready={workspaceInfo.status === 'running'}
-            isError={workspaceInfo.status === 'error'}
-            onRestart={() => {
-              if (workspaceName) {
-                void window.litho.workspace.select(workspaceName);
-              }
-            }}
+            ready={workspaceInfo.status === 'active'}
             onBack={() => setPage('workspaces')}
             onComplete={() => setPage('documents')}
           />
@@ -276,17 +284,15 @@ function App(): React.JSX.Element {
           <WorkspaceTransitionPage
             mode="closing"
             workspaceName={workspaceInfo.workspaceName}
-            ready={workspaceInfo.status === 'stopped'}
+            ready={workspaceInfo.status === 'inactive'}
             onComplete={() => setPage('workspaces')}
           />
         )}
-        {page === 'documents' && serverUrl && (
+        {page === 'documents' && workspaceName && (
           <DocumentsPage
-            manifest={manifest}
-            serverUrl={serverUrl}
-            loading={manifestLoading}
-            error={manifestError}
-            refetch={refetchManifest}
+            workspaceName={workspaceName}
+            documents={documents}
+            refetch={loadDocuments}
             onSelectDocument={(slug) => {
               setActiveDocSlug(slug);
               setPage('document');
@@ -296,35 +302,28 @@ function App(): React.JSX.Element {
             onCloseWorkspace={handleCloseWorkspace}
           />
         )}
-        {page === 'assets' && serverUrl && workspaceName && (
-          <AssetsPage
-            workspaceName={workspaceName}
-            serverUrl={serverUrl}
-            onBack={() => setPage('documents')}
-          />
+        {page === 'assets' && workspaceName && (
+          <AssetsPage workspaceName={workspaceName} onBack={() => setPage('documents')} />
         )}
-        {page === 'document' && serverUrl && activeDoc && workspaceName && (
+        {page === 'document' && activeDoc && workspaceName && (
           <DocumentPage
             doc={activeDoc}
-            serverUrl={serverUrl}
             workspaceName={workspaceName}
             workspacePath={workspacePath ?? ''}
             onBack={() => setPage('documents')}
-            onManifestChange={refetchManifest}
+            onDocumentsChange={loadDocuments}
             userName={userProfile.name ?? undefined}
           />
         )}
-        {page === 'design-system-doc' && serverUrl && (
+        {page === 'design-system-doc' && workspaceName && (
           <DesignSystemDocPage
-            serverUrl={serverUrl}
             workspaceName={workspaceName}
-            workspaceDisplayName={manifest?.name ?? null}
             workspacePath={workspacePath}
             onBack={() => setPage('documents')}
           />
         )}
-        {page === 'settings' && <SettingsV2Page />}
         {page === 'renderer-poc' && <RendererPocPage />}
+        {page === 'settings' && <SettingsV2Page />}
       </div>
     </div>
   );

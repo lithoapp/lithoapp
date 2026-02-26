@@ -67,17 +67,33 @@ contextBridge.exposeInMainWorld('litho', {
     stop: (): Promise<void> => ipcRenderer.invoke('workspace:stop'),
     getDocumentCount: (name: string): Promise<number> =>
       ipcRenderer.invoke('workspace:getDocumentCount', name),
-    invalidateManifest: (): Promise<void> => ipcRenderer.invoke('workspace:invalidateManifest'),
-    onStatusChange: (callback: (data: unknown) => void): (() => void) => {
+    onChanged: (callback: (data: unknown) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
-      ipcRenderer.on('workspace:status-change', listener);
-      return () => ipcRenderer.removeListener('workspace:status-change', listener);
+      ipcRenderer.on('workspace:changed', listener);
+      return () => ipcRenderer.removeListener('workspace:changed', listener);
     },
-    onError: (callback: (data: unknown) => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
-      ipcRenderer.on('workspace:error', listener);
-      return () => ipcRenderer.removeListener('workspace:error', listener);
-    },
+  },
+  document: {
+    list: (workspaceName: string): Promise<unknown> =>
+      ipcRenderer.invoke('document:list', workspaceName),
+    create: (
+      workspaceName: string,
+      title: string,
+      size: string,
+      folder?: string,
+    ): Promise<string> => ipcRenderer.invoke('document:create', workspaceName, title, size, folder),
+    delete: (workspaceName: string, slug: string): Promise<void> =>
+      ipcRenderer.invoke('document:delete', workspaceName, slug),
+    updateFolder: (workspaceName: string, slug: string, folder: string): Promise<void> =>
+      ipcRenderer.invoke('document:updateFolder', workspaceName, slug, folder),
+  },
+  designSystem: {
+    read: (workspaceName: string): Promise<unknown> =>
+      ipcRenderer.invoke('designSystem:read', workspaceName),
+    updateTokens: (
+      workspaceName: string,
+      updates: Array<{ variable: string; value: string }>,
+    ): Promise<void> => ipcRenderer.invoke('designSystem:updateTokens', workspaceName, updates),
   },
   snapshot: {
     readDocumentFiles: (workspaceName: string, slug: string): Promise<Record<string, string>> =>

@@ -5,12 +5,20 @@
  * (e.g. from filesystem to database) by replacing `fs-backend.ts`.
  */
 export {
+  createDocument,
+  createNewWorkspace,
+  deleteDocument,
   getDocumentCount,
   listDocuments,
+  listDocumentsFull,
   listPages,
   listWorkspaces,
+  readAssetFile,
+  readDesignSystem,
   readDocumentConfig,
   readPageSource,
   readStyles,
   readWorkspaceConfig,
+  updateDesignTokens,
+  updateDocumentFolder,
 } from './fs-backend';

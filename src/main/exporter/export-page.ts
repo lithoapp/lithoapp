@@ -38,9 +38,10 @@ function log(message: string, ...args: unknown[]): void {
 
 /**
  * Export a single page from an HTML string to PDF, PNG, or JPG.
- * Uses a hidden BrowserWindow with the same capture technique as ExportManager.
+ * Returns the raw buffer. If `savePath` is set, also writes to disk.
+ * Uses a hidden BrowserWindow for capture.
  */
-export async function exportPage(options: PageExportOptions): Promise<void> {
+export async function exportPage(options: PageExportOptions): Promise<Buffer> {
   const { html, approach, format, size, dpi, jpgQuality, savePath } = options;
 
   const cssPxWidth = size.unit === 'mm' ? mmToCssPx(size.width) : size.width;
@@ -150,8 +151,12 @@ export async function exportPage(options: PageExportOptions): Promise<void> {
       buffer = format === 'jpg' ? image.toJPEG(jpgQuality) : image.toPNG();
     }
 
-    await fs.writeFile(savePath, buffer);
-    log(`Exported ${format.toUpperCase()} to ${savePath} (${buffer.length} bytes)`);
+    if (savePath) {
+      await fs.writeFile(savePath, buffer);
+      log(`Exported ${format.toUpperCase()} to ${savePath} (${buffer.length} bytes)`);
+    }
+
+    return buffer;
   } finally {
     win.destroy();
     await fs.unlink(tmpPath).catch(() => {});

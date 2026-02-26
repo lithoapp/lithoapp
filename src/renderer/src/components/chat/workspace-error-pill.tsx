@@ -1,8 +1,7 @@
 import { AlertCircle, AlertTriangle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { UseWorkspaceErrorsReturn } from '@/hooks/use-workspace-errors';
+import type { UseWorkspaceErrorsReturn, WorkspaceError } from '@/hooks/use-workspace-errors';
 import { severityOf } from '@/hooks/use-workspace-errors';
-import type { WorkspaceError } from '../../../../shared/types';
 
 function formatLabel(errorCount: number, warningCount: number): string {
   const parts: string[] = [];

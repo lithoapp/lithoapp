@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import type {
-  WorkspaceInfo,
-  WorkspaceServerInfo,
-  WorkspaceServerStatus,
-} from '../../../shared/types';
+import type { WorkspaceInfo, WorkspaceState } from '../../../shared/types';
 
-export type { WorkspaceInfo, WorkspaceServerInfo, WorkspaceServerStatus };
+export type { WorkspaceInfo, WorkspaceState };
 
 export interface UseWorkspaceReturn {
-  info: WorkspaceServerInfo;
+  info: WorkspaceState;
   workspaces: WorkspaceInfo[];
   refreshWorkspaces: () => Promise<void>;
 }
 
 export function useWorkspace(): UseWorkspaceReturn {
-  const [info, setInfo] = useState<WorkspaceServerInfo>({ status: 'stopped' });
+  const [info, setInfo] = useState<WorkspaceState>({
+    status: 'inactive',
+    workspaceName: null,
+    workspacePath: null,
+  });
   const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
 
   const refreshWorkspaces = useCallback(async () => {
@@ -38,7 +38,7 @@ export function useWorkspace(): UseWorkspaceReturn {
       });
     refreshWorkspaces();
 
-    const unsubscribe = window.litho.workspace.onStatusChange((data) => {
+    const unsubscribe = window.litho.workspace.onChanged((data) => {
       setInfo(data);
     });
 
