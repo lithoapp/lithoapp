@@ -1,4 +1,10 @@
 import type { AssetEntry, DocumentSnapshot, ExportProgress, ExportRequest } from '../shared/types';
+import type {
+  DocumentConfig,
+  PageBuildData,
+  PageExportOptions,
+  RendererResult,
+} from '../shared/types';
 import type { OpencodeInfo } from '../shared/types';
 import type { UpdateState } from '../shared/types';
 import type { WorkspaceEntry } from '../shared/types';
@@ -82,6 +88,22 @@ interface LithoAPI {
     restoreStyles: (workspacePath: string, snapshotId: string) => Promise<void>;
     listStyles: (workspacePath: string) => Promise<DocumentSnapshot[]>;
     deleteStyles: (workspacePath: string, snapshotId: string) => Promise<void>;
+  };
+  renderer: {
+    build: (
+      workspace: string,
+      document: string,
+      page: string,
+      approach?: 'ssr' | 'csr',
+    ) => Promise<RendererResult<PageBuildData>>;
+    listWorkspaces: () => Promise<RendererResult<string[]>>;
+    listDocuments: (workspace: string) => Promise<RendererResult<string[]>>;
+    listPages: (workspace: string, document: string) => Promise<RendererResult<string[]>>;
+    readDocumentConfig: (
+      workspace: string,
+      document: string,
+    ) => Promise<RendererResult<DocumentConfig>>;
+    export: (options: PageExportOptions) => Promise<RendererResult<void>>;
   };
   assets: {
     list: (workspacePath: string, dirPath: string, recursive?: boolean) => Promise<AssetEntry[]>;

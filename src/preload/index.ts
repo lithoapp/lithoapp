@@ -131,6 +131,31 @@ contextBridge.exposeInMainWorld('litho', {
     deleteStyles: (workspacePath: string, snapshotId: string): Promise<void> =>
       ipcRenderer.invoke('snapshot:deleteStyles', workspacePath, snapshotId),
   },
+  renderer: {
+    build: (
+      workspace: string,
+      document: string,
+      page: string,
+      approach?: 'ssr' | 'csr',
+    ): Promise<unknown> =>
+      ipcRenderer.invoke('renderer:build', workspace, document, page, approach),
+    listWorkspaces: (): Promise<unknown> => ipcRenderer.invoke('renderer:list-workspaces'),
+    listDocuments: (workspace: string): Promise<unknown> =>
+      ipcRenderer.invoke('renderer:list-documents', workspace),
+    listPages: (workspace: string, document: string): Promise<unknown> =>
+      ipcRenderer.invoke('renderer:list-pages', workspace, document),
+    readDocumentConfig: (workspace: string, document: string): Promise<unknown> =>
+      ipcRenderer.invoke('renderer:read-document-config', workspace, document),
+    export: (options: {
+      html: string;
+      approach: 'ssr' | 'csr';
+      format: 'pdf' | 'png' | 'jpg';
+      size: { width: number; height: number; unit: 'mm' | 'px' };
+      dpi: number;
+      jpgQuality: number;
+      savePath: string;
+    }): Promise<unknown> => ipcRenderer.invoke('renderer:export', options),
+  },
   assets: {
     list: (workspacePath: string, dirPath: string, recursive?: boolean): Promise<unknown> =>
       ipcRenderer.invoke('assets:list', workspacePath, dirPath, recursive),

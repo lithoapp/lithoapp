@@ -1,4 +1,4 @@
-import { accessSync, constants, existsSync, readdirSync, readFileSync } from 'node:fs';
+import { accessSync, constants, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
@@ -20,6 +20,14 @@ import {
 } from './auto-updater';
 import { ExportManager } from './export-manager';
 import { OpencodeManager } from './opencode-manager';
+import {
+  buildPage,
+  exportPageResult,
+  listDocuments,
+  listPages,
+  listWorkspaces,
+  readDocumentConfig,
+} from './renderer';
 import { initSentry } from './sentry';
 import {
   createDocumentSnapshot,
@@ -42,6 +50,7 @@ import {
   setUserProfile,
   type Theme,
 } from './telemetry-store';
+import { getDocumentCountByPath, readWorkspaceConfigByPath } from './workspace-data';
 import { WorkspaceManager } from './workspace-manager';
 import {
   addWorkspace,
@@ -185,13 +194,12 @@ ipcMain.handle('workspace:open', async () => {
   if (result.canceled || result.filePaths.length === 0) return null;
 
   const dirPath = result.filePaths[0];
-  const lithoJsonPath = join(dirPath, 'litho.json');
-  if (!existsSync(lithoJsonPath)) {
+  if (!existsSync(join(dirPath, 'litho.json'))) {
     throw new Error('Selected directory is not a Litho workspace (missing litho.json)');
   }
 
-  const config = JSON.parse(readFileSync(lithoJsonPath, 'utf-8'));
-  const name = config.name || 'Untitled Workspace';
+  const config = await readWorkspaceConfigByPath(dirPath);
+  const name = config.name;
 
   addWorkspace({ path: dirPath, name, lastOpened: new Date().toISOString() });
   setActiveWorkspacePath(dirPath);
@@ -227,11 +235,9 @@ ipcMain.handle('workspace:getDefaultLocation', () => join(homedir(), 'litho-work
 
 ipcMain.handle('workspace:invalidateManifest', () => invalidateManifestCache());
 
-ipcMain.handle('workspace:getDocumentCount', (_event, workspacePath: string) => {
-  const docsDir = join(workspacePath, 'documents');
-  if (!existsSync(docsDir)) return 0;
-  return readdirSync(docsDir, { withFileTypes: true }).filter((e) => e.isDirectory()).length;
-});
+ipcMain.handle('workspace:getDocumentCount', (_event, workspacePath: string) =>
+  getDocumentCountByPath(workspacePath),
+);
 
 ipcMain.handle('workspace:chooseDirectory', async () => {
   if (!mainWindow) return null;
@@ -314,6 +320,20 @@ ipcMain.handle('assets:delete', (_event, workspacePath: string, entryPath: strin
 ipcMain.handle('assets:rename', (_event, workspacePath: string, oldPath: string, newPath: string) =>
   renameAsset(workspacePath, oldPath, newPath),
 );
+
+// Renderer
+ipcMain.handle(
+  'renderer:build',
+  (_event, ws: string, doc: string, page: string, approach?: 'ssr' | 'csr') =>
+    buildPage(ws, doc, page, approach),
+);
+ipcMain.handle('renderer:list-workspaces', () => listWorkspaces());
+ipcMain.handle('renderer:list-documents', (_event, ws: string) => listDocuments(ws));
+ipcMain.handle('renderer:list-pages', (_event, ws: string, doc: string) => listPages(ws, doc));
+ipcMain.handle('renderer:read-document-config', (_event, ws: string, doc: string) =>
+  readDocumentConfig(ws, doc),
+);
+ipcMain.handle('renderer:export', (_event, options) => exportPageResult(options));
 
 // Forward opencode status changes to renderer
 opencodeManager.on('status-change', (data) => {
