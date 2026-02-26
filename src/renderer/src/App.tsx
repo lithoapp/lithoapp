@@ -299,6 +299,7 @@ function App(): React.JSX.Element {
             serverUrl={serverUrl}
             workspacePath={workspacePath ?? ''}
             onBack={() => setPage('documents')}
+            onManifestChange={refetchManifest}
             userName={userProfile.name ?? undefined}
           />
         )}

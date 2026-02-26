@@ -74,7 +74,9 @@ export function resolveToolLabel(
   if (docJsonMatch) {
     const slug = docJsonMatch[1];
     const name = currentDocSlug === slug ? 'document' : deslugify(slug);
-    return { label: `Examining ${name} structure`, icon: 'eye' };
+    return tool === 'read'
+      ? { label: `Examining ${name} structure`, icon: 'eye' }
+      : { label: `Editing ${name} structure`, icon: 'pencil' };
   }
 
   // Specific document directory

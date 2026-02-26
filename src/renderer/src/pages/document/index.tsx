@@ -23,6 +23,7 @@ interface DocumentPageProps {
   serverUrl: string;
   workspacePath: string;
   onBack: () => void;
+  onManifestChange?: () => void;
   userName?: string;
 }
 
@@ -31,6 +32,7 @@ export function DocumentPage({
   serverUrl,
   workspacePath,
   onBack,
+  onManifestChange,
   userName,
 }: DocumentPageProps): React.JSX.Element {
   const [zoom, setZoom] = useState(1);
@@ -171,12 +173,19 @@ export function DocumentPage({
 
   // When the agent edits a file after an error, bump refreshKey to force
   // iframe reloads (HMR can't recover from compilation errors).
+  // When document.json changes, refetch the manifest so new/deleted pages
+  // appear in the sidebar immediately.
   const errorPagesRef = useRef(errorPages);
   errorPagesRef.current = errorPages;
-  const handleFileEdit = useCallback(() => {
+  const onManifestChangeRef = useRef(onManifestChange);
+  onManifestChangeRef.current = onManifestChange;
+  const handleFileEdit = useCallback((filePath: string) => {
     if (errorPagesRef.current.size > 0) {
       setRefreshKey((k) => k + 1);
       setErrorPages(new Set());
+    }
+    if (filePath.endsWith('document.json')) {
+      onManifestChangeRef.current?.();
     }
   }, []);
 
