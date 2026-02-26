@@ -2,7 +2,7 @@ import type { AssetEntry, DocumentSnapshot, ExportProgress, ExportRequest } from
 import type { OpencodeInfo } from '../shared/types';
 import type { UpdateState } from '../shared/types';
 import type { WorkspaceEntry } from '../shared/types';
-import type { WorkspaceServerInfo } from '../shared/types';
+import type { WorkspaceError, WorkspaceServerInfo } from '../shared/types';
 
 interface LithoAPI {
   preferences: {
@@ -56,6 +56,7 @@ interface LithoAPI {
     getDefaultLocation: () => Promise<string>;
     getDocumentCount: (path: string) => Promise<number>;
     onStatusChange: (callback: (data: WorkspaceServerInfo) => void) => () => void;
+    onError: (callback: (data: WorkspaceError) => void) => () => void;
   };
   snapshot: {
     readDocumentFiles: (workspacePath: string, slug: string) => Promise<Record<string, string>>;

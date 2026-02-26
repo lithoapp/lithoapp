@@ -334,6 +334,13 @@ workspaceManager.on('status-change', (data) => {
   }
 });
 
+// Forward workspace errors to renderer
+workspaceManager.on('error', (data) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('workspace:error', data);
+  }
+});
+
 // Listen for system theme changes
 nativeTheme.on('updated', () => {
   const theme = getTheme();

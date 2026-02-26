@@ -77,6 +77,11 @@ contextBridge.exposeInMainWorld('litho', {
       ipcRenderer.on('workspace:status-change', listener);
       return () => ipcRenderer.removeListener('workspace:status-change', listener);
     },
+    onError: (callback: (data: unknown) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
+      ipcRenderer.on('workspace:error', listener);
+      return () => ipcRenderer.removeListener('workspace:error', listener);
+    },
   },
   snapshot: {
     readDocumentFiles: (workspacePath: string, slug: string): Promise<Record<string, string>> =>

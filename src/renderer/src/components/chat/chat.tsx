@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ChatMessage } from '@/hooks/use-chat';
 import { useChat } from '@/hooks/use-chat';
+import { useWorkspaceErrors } from '@/hooks/use-workspace-errors';
 import type { OpencodeClient } from '@/lib/opencode-client-types';
 import { ChatCover } from './chat-cover';
 import { ActivityLog } from './message-activity-log';
@@ -31,6 +32,7 @@ import { StatusLine } from './message-status-line';
 import { Timeline } from './message-timeline';
 import { ModelSelector } from './model-selector';
 import { PermissionCard } from './permission-card';
+import { WorkspaceErrorPill } from './workspace-error-pill';
 
 // ---------------------------------------------------------------------------
 // Display modes
@@ -113,6 +115,18 @@ export function Chat({
   const [kickoffSent, setKickoffSent] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
+  const wsErrors = useWorkspaceErrors();
+
+  // Clear workspace errors on file edits — the server will recompile and
+  // re-emit if the issue persists.
+  const handleFileEdit = useCallback(
+    (filePath: string) => {
+      wsErrors.clear();
+      onFileEdit?.(filePath);
+    },
+    [onFileEdit, wsErrors],
+  );
+
   const chat = useChat({
     client,
     baseUrl,
@@ -122,10 +136,16 @@ export function Chat({
     sessionId,
     providerId,
     modelId,
-    onFileEdit,
+    onFileEdit: handleFileEdit,
     captureFiles,
     onTurnSnapshot,
   });
+
+  // Clear workspace errors when navigating to a different document
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional clear on session/doc change
+  useEffect(() => {
+    wsErrors.clear();
+  }, [sessionId, docSlug]);
 
   const handleRevert = useCallback(
     async (msg: ChatMessage) => {
@@ -333,6 +353,9 @@ export function Chat({
           <span className="truncate">{chat.error}</span>
         </div>
       )}
+
+      {/* Workspace error pill */}
+      <WorkspaceErrorPill wsErrors={wsErrors} onSendToAgent={chat.sendMessage} />
 
       {/* Input */}
       <div className="border-t p-2">

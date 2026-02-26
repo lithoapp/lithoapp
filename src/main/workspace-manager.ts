@@ -2,10 +2,10 @@ import { EventEmitter } from 'node:events';
 import { createServer } from 'node:net';
 import type { WorkspaceServer } from '@kareemaly/litho-workspace-server';
 import { createWorkspace, invalidateManifestCache, serve } from '@kareemaly/litho-workspace-server';
-import type { WorkspaceServerInfo, WorkspaceServerStatus } from '../shared/types';
+import type { WorkspaceError, WorkspaceServerInfo, WorkspaceServerStatus } from '../shared/types';
 import { captureException, captureMessage } from './sentry';
 
-export type { WorkspaceServerInfo, WorkspaceServerStatus };
+export type { WorkspaceError, WorkspaceServerInfo, WorkspaceServerStatus };
 
 const HEALTH_CHECK_INTERVAL_MS = 10_000;
 
@@ -55,6 +55,18 @@ export class WorkspaceManager extends EventEmitter {
             tags: { component: 'workspace-server' },
             extras: { workspacePath, workspaceName: name, port, ...context },
           });
+
+          const errorPayload: WorkspaceError = {
+            type: context?.type ?? 'api',
+            message: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
+            file: context?.file,
+            route: context?.route,
+            method: context?.method,
+            url: context?.url,
+          };
+          this.emit('error', errorPayload);
+
           // Manifest failures mean the workspace is invalid — surface immediately
           // instead of waiting for the health check to detect the 500.
           if (context?.route === '/api/manifest' && this._status === 'running') {

@@ -12,6 +12,20 @@ export interface WorkspaceServerInfo {
   workspaceName?: string;
 }
 
+// --- Workspace Errors ---
+
+export type WorkspaceErrorType = 'compilation' | 'api' | 'asset-404' | 'css';
+
+export interface WorkspaceError {
+  type: WorkspaceErrorType;
+  message: string;
+  stack?: string;
+  file?: string;
+  route?: string;
+  method?: string;
+  url?: string;
+}
+
 // --- Workspace Store ---
 
 export interface WorkspaceEntry {

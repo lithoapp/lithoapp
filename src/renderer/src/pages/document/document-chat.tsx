@@ -12,6 +12,7 @@ interface DocumentChatProps {
   doc: ManifestDocument;
   workspacePath: string;
   userName?: string;
+  onFileEdit?: (filePath: string) => void;
 }
 
 function buildStorageKey(workspacePath: string, slug: string): string {
@@ -22,6 +23,7 @@ export function DocumentChat({
   doc,
   workspacePath,
   userName,
+  onFileEdit,
 }: DocumentChatProps): React.JSX.Element {
   const { client, baseUrl, status } = useOpencode();
   const [resetKey, setResetKey] = useState(0);
@@ -187,6 +189,7 @@ export function DocumentChat({
       sessionId={sessionId}
       client={client}
       baseUrl={baseUrl}
+      onFileEdit={onFileEdit}
       onNewChat={handleNewChat}
       kickoffMessage={kickoffMessage}
       snapshotIndex={snapshotIndex}

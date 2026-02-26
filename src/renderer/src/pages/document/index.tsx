@@ -39,6 +39,7 @@ export function DocumentPage({
   const [exportOpen, setExportOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [errorPages, setErrorPages] = useState<Set<string>>(new Set());
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -168,6 +169,17 @@ export function DocumentPage({
     }
   }, []);
 
+  // When the agent edits a file after an error, bump refreshKey to force
+  // iframe reloads (HMR can't recover from compilation errors).
+  const errorPagesRef = useRef(errorPages);
+  errorPagesRef.current = errorPages;
+  const handleFileEdit = useCallback(() => {
+    if (errorPagesRef.current.size > 0) {
+      setRefreshKey((k) => k + 1);
+      setErrorPages(new Set());
+    }
+  }, []);
+
   const [isMac, setIsMac] = useState(false);
   useEffect(() => {
     void window.litho.app.getPlatform().then((p) => setIsMac(p === 'darwin'));
@@ -208,6 +220,7 @@ export function DocumentPage({
           zoom={zoom}
           editMode={editMode}
           hasError={errorPages.has(pageId)}
+          refreshKey={refreshKey}
         />
       ))}
     </div>
@@ -281,7 +294,12 @@ export function DocumentPage({
         <ResizableHandle withHandle />
 
         <ResizablePanel defaultSize={30} minSize={20}>
-          <DocumentChat doc={doc} workspacePath={workspacePath} userName={userName} />
+          <DocumentChat
+            doc={doc}
+            workspacePath={workspacePath}
+            userName={userName}
+            onFileEdit={handleFileEdit}
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
     </TooltipProvider>
@@ -501,6 +519,7 @@ const PageFrame = forwardRef<
     zoom: number;
     editMode?: boolean;
     hasError?: boolean;
+    refreshKey?: number;
   }
 >(function PageFrame(
   {
@@ -513,12 +532,18 @@ const PageFrame = forwardRef<
     zoom,
     editMode = false,
     hasError = false,
+    refreshKey = 0,
   },
   ref,
 ) {
   const displayWidth = pageWidthPx * zoom;
   const displayHeight = pageHeightPx * zoom;
-  const url = editMode ? `${serverUrl}/${slug}/${pageId}?edit` : `${serverUrl}/${slug}/${pageId}`;
+  const base = `${serverUrl}/${slug}/${pageId}`;
+  const params = new URLSearchParams();
+  if (editMode) params.set('edit', '');
+  if (refreshKey > 0) params.set('v', String(refreshKey));
+  const qs = params.toString();
+  const url = qs ? `${base}?${qs}` : base;
   const interactive = editMode || hasError;
 
   return (
