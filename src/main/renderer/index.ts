@@ -5,16 +5,16 @@ import type {
   RenderApproach,
   RendererResult,
 } from '../../shared/types';
-import { inlineAssetRefs } from './build-shared';
-import { detectApproach } from './detect-approach';
 import {
-  listDocuments as fsListDocuments,
-  listPages as fsListPages,
-  listWorkspaces as fsListWorkspaces,
-  readDocumentConfig as fsReadDocumentConfig,
   readPageSource,
   readStyles,
-} from './fs-reader';
+  listDocuments as wsListDocuments,
+  listPages as wsListPages,
+  listWorkspaces as wsListWorkspaces,
+  readDocumentConfig as wsReadDocumentConfig,
+} from '../workspace-data';
+import { inlineAssetRefs } from './build-shared';
+import { detectApproach } from './detect-approach';
 import { pageFilePath, workspacePath } from './paths';
 
 export async function buildPage(
@@ -31,7 +31,7 @@ export async function buildPage(
     const [pageSource, css, config] = await Promise.all([
       readPageSource(workspace, document, page),
       readStyles(workspace),
-      fsReadDocumentConfig(workspace, document),
+      wsReadDocumentConfig(workspace, document),
     ]);
 
     const resolvedApproach = approach ?? detectApproach(pageSource);
@@ -81,7 +81,7 @@ export async function readDocumentConfig(
   document: string,
 ): Promise<RendererResult<DocumentConfig>> {
   try {
-    return { ok: true, data: await fsReadDocumentConfig(workspace, document) };
+    return { ok: true, data: await wsReadDocumentConfig(workspace, document) };
   } catch (err) {
     return {
       ok: false,
@@ -95,7 +95,7 @@ export async function readDocumentConfig(
 
 export async function listWorkspaces(): Promise<RendererResult<string[]>> {
   try {
-    return { ok: true, data: await fsListWorkspaces() };
+    return { ok: true, data: await wsListWorkspaces() };
   } catch (err) {
     return {
       ok: false,
@@ -109,7 +109,7 @@ export async function listWorkspaces(): Promise<RendererResult<string[]>> {
 
 export async function listDocuments(workspace: string): Promise<RendererResult<string[]>> {
   try {
-    return { ok: true, data: await fsListDocuments(workspace) };
+    return { ok: true, data: await wsListDocuments(workspace) };
   } catch (err) {
     return {
       ok: false,
@@ -126,7 +126,7 @@ export async function listPages(
   document: string,
 ): Promise<RendererResult<string[]>> {
   try {
-    return { ok: true, data: await fsListPages(workspace, document) };
+    return { ok: true, data: await wsListPages(workspace, document) };
   } catch (err) {
     return {
       ok: false,
