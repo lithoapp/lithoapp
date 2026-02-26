@@ -1,8 +1,5 @@
 /**
  * Design system CSS parser & serializer.
- *
- * Copied from @kareemaly/litho-workspace-server/src/design-system/
- * so the app no longer depends on the server package for this logic.
  */
 
 import type {
