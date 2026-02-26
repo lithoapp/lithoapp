@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld('litho', {
     getDefaultLocation: (): Promise<string> => ipcRenderer.invoke('workspace:getDefaultLocation'),
     getDocumentCount: (path: string): Promise<number> =>
       ipcRenderer.invoke('workspace:getDocumentCount', path),
+    invalidateManifest: (): Promise<void> => ipcRenderer.invoke('workspace:invalidateManifest'),
     onStatusChange: (callback: (data: unknown) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
       ipcRenderer.on('workspace:status-change', listener);

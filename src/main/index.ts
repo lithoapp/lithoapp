@@ -2,7 +2,7 @@ import { accessSync, constants, existsSync, readdirSync, readFileSync } from 'no
 import { homedir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
-import { slugify } from '@kareemaly/litho-workspace-server';
+import { invalidateManifestCache, slugify } from '@kareemaly/litho-workspace-server';
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } from 'electron';
 import {
   createAssetDirectory,
@@ -224,6 +224,8 @@ ipcMain.handle('workspace:stop', async () => {
 });
 
 ipcMain.handle('workspace:getDefaultLocation', () => join(homedir(), 'litho-workspaces'));
+
+ipcMain.handle('workspace:invalidateManifest', () => invalidateManifestCache());
 
 ipcMain.handle('workspace:getDocumentCount', (_event, workspacePath: string) => {
   const docsDir = join(workspacePath, 'documents');

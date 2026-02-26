@@ -1,6 +1,8 @@
 import { execSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { join } from 'node:path';
 import { createOpencode } from '@opencode-ai/sdk';
+import { app } from 'electron';
 import { agentConfigs } from '../agents/index';
 import type { OpencodeInfo, OpencodeStatus } from '../shared/types';
 import { captureException, captureMessage } from './sentry';
@@ -68,11 +70,20 @@ export class OpencodeManager extends EventEmitter {
 
     try {
       this.abortController = new AbortController();
+
+      const pluginDir = app.isPackaged
+        ? join(process.resourcesPath, 'opencode-plugin')
+        : join(app.getAppPath(), 'resources', 'opencode-plugin');
+      const pluginUrl = `file://${join(pluginDir, 'litho-tools.mjs')}`;
+
       const opencode = await createOpencode({
         port: 0,
         timeout: 15_000,
         signal: this.abortController.signal,
-        config: { agent: agentConfigs },
+        config: {
+          agent: agentConfigs,
+          plugin: [pluginUrl],
+        },
       });
       this.opencode = opencode;
 

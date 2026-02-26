@@ -55,6 +55,7 @@ interface LithoAPI {
     chooseDirectory: () => Promise<string | null>;
     getDefaultLocation: () => Promise<string>;
     getDocumentCount: (path: string) => Promise<number>;
+    invalidateManifest: () => Promise<void>;
     onStatusChange: (callback: (data: WorkspaceServerInfo) => void) => () => void;
     onError: (callback: (data: WorkspaceError) => void) => () => void;
   };

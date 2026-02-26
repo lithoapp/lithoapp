@@ -7,6 +7,8 @@ export const designSystemConfig = {
     glob: 'allow',
     grep: 'allow',
     list: 'allow',
+    createPage: 'deny',
+    deletePage: 'deny',
     bash: 'deny',
     task: 'deny',
     todowrite: 'deny',

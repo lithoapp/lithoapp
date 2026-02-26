@@ -1,7 +1,15 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.4/schema.json",
   "files": {
-    "includes": ["**", "!**/dist", "!**/out", "!**/node_modules", "!.claude", "!**/components/ui"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/out",
+      "!**/node_modules",
+      "!.claude",
+      "!**/components/ui",
+      "!resources/opencode-plugin"
+    ]
   },
   "assist": {
     "actions": {

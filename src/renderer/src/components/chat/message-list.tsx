@@ -1,6 +1,5 @@
 import { RotateCcw } from 'lucide-react';
 import NodeRenderer, { setCustomComponents } from 'markstream-react';
-import { useState } from 'react';
 import 'markstream-react/index.css';
 import {
   AlertDialog,
@@ -161,112 +160,15 @@ export function UserMessageView({
 // Debug view — shows raw parts in arrival order, click to expand
 // ---------------------------------------------------------------------------
 
-const TYPE_COLORS: Record<string, string> = {
-  text: '#22c55e',
-  reasoning: '#a78bfa',
-  tool: '#f59e0b',
-  'step-start': '#6b7280',
-  'step-finish': '#6b7280',
-  snapshot: '#6b7280',
-  patch: '#3b82f6',
-  file: '#3b82f6',
-  agent: '#ec4899',
-  retry: '#ef4444',
-  compaction: '#6b7280',
-  subtask: '#ec4899',
-};
-
-function truncate(s: string, max: number): string {
-  return s.length > max ? `${s.slice(0, max)}…` : s;
-}
-
-function summarizePart(part: Record<string, unknown>): string {
-  const type = part.type as string;
-  switch (type) {
-    case 'text':
-      return truncate((part.text as string) ?? '', 120);
-    case 'reasoning':
-      return truncate((part.text as string) ?? '', 120);
-    case 'tool': {
-      const state = part.state as Record<string, unknown> | undefined;
-      const status = state?.status ?? '?';
-      const title = state?.title ?? '';
-      return `${part.tool} [${String(status)}]${title ? ` — ${String(title)}` : ''}`;
-    }
-    case 'step-start':
-      return part.snapshot ? `snapshot: ${String(part.snapshot).slice(0, 20)}` : '(no snapshot)';
-    case 'step-finish':
-      return `reason: ${String(part.reason ?? '?')} | cost: $${String(part.cost ?? 0)}`;
-    default:
-      return truncate(JSON.stringify(part, null, 0), 120);
-  }
-}
-
-function formatPartDetail(part: Record<string, unknown>): string {
-  const type = part.type as string;
-  switch (type) {
-    case 'text':
-    case 'reasoning':
-      return (part.text as string) ?? '';
-    case 'tool':
-      return JSON.stringify(part.state ?? part, null, 2);
-    default:
-      return JSON.stringify(part, null, 2);
-  }
-}
-
-function PartRow({ part }: { part: Record<string, unknown> }): React.JSX.Element {
-  const [expanded, setExpanded] = useState(false);
-  const type = part.type as string;
-  const color = TYPE_COLORS[type] ?? '#9ca3af';
-
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full gap-2 items-start py-0.5 font-mono text-[11px] leading-relaxed text-left rounded hover:bg-muted/50"
-      >
-        <span
-          className="shrink-0 rounded px-1.5 py-0.5 text-white font-semibold text-[10px]"
-          style={{ backgroundColor: color }}
-        >
-          {type}
-        </span>
-        <span className="text-muted-foreground break-all">
-          {expanded ? '▼' : '▶'} {summarizePart(part)}
-        </span>
-      </button>
-      {expanded && (
-        <pre className="mt-0.5 mb-1 ml-7 overflow-x-auto rounded bg-muted/40 p-2 text-[10px] leading-snug text-foreground/80 whitespace-pre-wrap break-all">
-          {formatPartDetail(part)}
-        </pre>
-      )}
-    </div>
-  );
-}
-
 export function MessageDebug({
   message,
-  isStreaming,
 }: {
   message: ChatMessage;
   isStreaming?: boolean;
 }): React.JSX.Element {
   return (
-    <div className="w-full rounded-lg border border-dashed border-muted-foreground/30 p-2 my-1">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-[10px] font-mono text-muted-foreground">
-          assistant — {message.parts.length} parts
-          {isStreaming ? ' (streaming)' : ''}
-        </span>
-      </div>
-      {message.parts.length === 0 && (
-        <span className="text-[11px] text-muted-foreground italic">no parts yet</span>
-      )}
-      {message.parts.map((part, idx) => (
-        <PartRow key={part.id ?? String(idx)} part={part as unknown as Record<string, unknown>} />
-      ))}
-    </div>
+    <pre className="w-full overflow-x-auto rounded-lg border border-dashed border-muted-foreground/30 p-2 my-1 font-mono text-[10px] leading-snug text-foreground/80 whitespace-pre-wrap break-all">
+      {JSON.stringify(message, null, 2)}
+    </pre>
   );
 }

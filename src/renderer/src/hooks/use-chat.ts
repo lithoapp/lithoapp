@@ -153,6 +153,16 @@ export function useChat({
               tokensRef.current.reasoning += stats.tokens.reasoning;
               setTotalTokens({ ...tokensRef.current });
             }
+            // Treat completed createPage/deletePage as a document.json edit
+            // so the page list refetches automatically
+            if (
+              part.type === 'tool' &&
+              (part.tool === 'createPage' || part.tool === 'deletePage') &&
+              part.state.status === 'completed'
+            ) {
+              fileEditedCountRef.current += 1;
+              onFileEditRef.current?.('document.json');
+            }
             break;
           }
           case 'message.part.removed': {

@@ -7,6 +7,8 @@ export const documentConfig = {
     glob: 'allow',
     grep: 'allow',
     list: 'allow',
+    createPage: 'allow',
+    deletePage: 'allow',
     bash: 'deny',
     task: 'deny',
     todowrite: 'deny',

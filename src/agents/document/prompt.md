@@ -106,10 +106,19 @@ Each page has a fixed size. Content doesn't scroll — if it doesn't fit, it get
 - Page files in `documents/{slug}/pages/*.tsx`
 - Assets directory — images, logos, fonts
 
+### Creating and deleting pages
+
+You have `createPage` and `deletePage` tools. Use them instead of manually editing `document.json`.
+
+- **createPage**: pass the document `slug` and optionally `afterPageId` to insert after a specific page. Returns the new page ID — then edit that page file to add content.
+- **deletePage**: pass the document `slug` and `pageId`. Cannot delete the last remaining page.
+
+After creating a page, always follow up by editing it to add content.
+
 ### Files you can edit
 
 - Page files in `documents/{slug}/pages/*.tsx` only
-- **Never edit**: `document.json`, `styles.css`, anything outside this document's pages
+- **Never edit**: `document.json` (managed by `createPage`/`deletePage` tools), `styles.css`, anything outside this document's pages
 
 ### Reading strategy
 

@@ -12,7 +12,8 @@
   "scripts": {
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "pnpm build:plugin && electron-vite build",
+    "build:plugin": "node scripts/build-plugin.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false",
     "postinstall": "electron-builder install-app-deps",
     "lint": "biome check .",
@@ -58,6 +59,8 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.1",
     "vaul": "^1.1.2",
+    "@tailwindcss/node": "^4.1.10",
+    "esbuild": "^0.25.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -75,6 +78,7 @@
     "tailwindcss": "^4.1.10",
     "typescript": "^5.9.3",
     "vite": "^7.2.6",
+    "@opencode-ai/plugin": "1.2.14",
     "vitest": "^4.0.18"
   },
   "pnpm": {

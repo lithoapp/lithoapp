@@ -171,21 +171,19 @@ export function DocumentPage({
     }
   }, []);
 
-  // When the agent edits a file after an error, bump refreshKey to force
-  // iframe reloads (HMR can't recover from compilation errors).
-  // When document.json changes, refetch the manifest so new/deleted pages
-  // appear in the sidebar immediately.
-  const errorPagesRef = useRef(errorPages);
-  errorPagesRef.current = errorPages;
+  // Bump refreshKey on every agent file edit to force iframe reloads
+  // (HMR can't always recover — e.g. new files, compilation errors).
+  // When document.json changes, also refetch the manifest so new/deleted
+  // pages appear in the sidebar immediately.
   const onManifestChangeRef = useRef(onManifestChange);
   onManifestChangeRef.current = onManifestChange;
   const handleFileEdit = useCallback((filePath: string) => {
-    if (errorPagesRef.current.size > 0) {
-      setRefreshKey((k) => k + 1);
-      setErrorPages(new Set());
-    }
+    setRefreshKey((k) => k + 1);
+    setErrorPages(new Set());
     if (filePath.endsWith('document.json')) {
-      onManifestChangeRef.current?.();
+      void window.litho.workspace.invalidateManifest().then(() => {
+        onManifestChangeRef.current?.();
+      });
     }
   }, []);
 

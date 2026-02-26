@@ -32,6 +32,10 @@ function fallbackLabel(tool: string, path?: string): ToolLabel {
       return { label: name ? `Creating ${name}` : 'Creating a file', icon: 'plus' };
     case 'edit':
       return { label: name ? `Editing ${name}` : 'Editing a file', icon: 'pencil' };
+    case 'createPage':
+      return { label: 'Adding a new page', icon: 'plus' };
+    case 'deletePage':
+      return { label: 'Removing a page', icon: 'error' };
     default:
       return { label: tool, icon: 'terminal' };
   }
