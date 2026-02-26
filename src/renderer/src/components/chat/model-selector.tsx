@@ -1,9 +1,8 @@
 import { ChevronDown, Loader2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
 import type { OpencodeClient } from '@/lib/opencode-client-types';
 
 interface ProviderOption {
@@ -44,19 +43,6 @@ export function ModelSelector({
       .finally(() => setLoading(false));
   }, [client]);
 
-  // Initialize from localStorage on mount
-  const initRef = useRef(false);
-  useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
-    if (!providerId && !modelId) {
-      const prefs = loadChatPrefs();
-      if (prefs.providerId) {
-        onSelect(prefs.providerId, prefs.modelId);
-      }
-    }
-  }, [providerId, modelId, onSelect]);
-
   const connectedProviders = useMemo(
     () => providers.filter((p) => connectedIds.includes(p.id)),
     [providers, connectedIds],
@@ -77,12 +63,10 @@ export function ModelSelector({
 
   const handleProviderChange = (newProviderId: string) => {
     onSelect(newProviderId, '');
-    saveChatPrefs({ providerId: newProviderId, modelId: '' });
   };
 
   const handleModelChange = (newModelId: string) => {
     onSelect(providerId, newModelId);
-    saveChatPrefs({ providerId, modelId: newModelId });
   };
 
   if (loading) {

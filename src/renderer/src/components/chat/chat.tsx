@@ -24,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { ChatMessage } from '@/hooks/use-chat';
 import { useChat } from '@/hooks/use-chat';
 import { useWorkspaceErrors } from '@/hooks/use-workspace-errors';
+import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
 import type { OpencodeClient } from '@/lib/opencode-client-types';
 import { ChatCover } from './chat-cover';
 import { ActivityLog } from './message-activity-log';
@@ -107,13 +108,19 @@ export function Chat({
     promptExcerpt: string;
   }) => void;
 }): React.JSX.Element {
-  const [providerId, setProviderId] = useState('');
-  const [modelId, setModelId] = useState('');
+  const [providerId, setProviderId] = useState(() => loadChatPrefs().providerId);
+  const [modelId, setModelId] = useState(() => loadChatPrefs().modelId);
   const [input, setInput] = useState('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('activity');
   const scrollRef = useRef<HTMLDivElement>(null);
   const [kickoffSent, setKickoffSent] = useState(false);
   const [loaded, setLoaded] = useState(false);
+
+  const handleModelSelect = useCallback((pId: string, mId: string) => {
+    setProviderId(pId);
+    setModelId(mId);
+    saveChatPrefs({ providerId: pId, modelId: mId });
+  }, []);
 
   const wsErrors = useWorkspaceErrors();
 
@@ -213,10 +220,7 @@ export function Chat({
         client={client}
         providerId={providerId}
         modelId={modelId}
-        onModelSelect={(pId, mId) => {
-          setProviderId(pId);
-          setModelId(mId);
-        }}
+        onModelSelect={handleModelSelect}
         onStart={handleKickoff}
       />
     );
@@ -239,10 +243,7 @@ export function Chat({
           client={client}
           providerId={providerId}
           modelId={modelId}
-          onSelect={(pId, mId) => {
-            setProviderId(pId);
-            setModelId(mId);
-          }}
+          onSelect={handleModelSelect}
         />
 
         {onNewChat && (
