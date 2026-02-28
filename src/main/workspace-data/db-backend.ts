@@ -90,7 +90,7 @@ export async function readDocumentConfig(
   }
 
   const pages = db
-    .prepare('SELECT id, description FROM pages WHERE document_id = ? ORDER BY position')
+    .prepare('SELECT id, name, description FROM pages WHERE document_id = ? ORDER BY position')
     .all(document) as PageInfo[];
 
   const size: PageSize = {
@@ -181,13 +181,14 @@ export async function listDocumentsFull(workspace: string): Promise<DocumentInfo
     size_width: number;
     size_height: number;
     size_unit: string;
+    updated_at: string;
   }>;
 
   const result: DocumentInfo[] = [];
 
   for (const doc of docs) {
     const pages = db
-      .prepare('SELECT id, description FROM pages WHERE document_id = ? ORDER BY position')
+      .prepare('SELECT id, name, description FROM pages WHERE document_id = ? ORDER BY position')
       .all(doc.id) as PageInfo[];
 
     result.push({
@@ -200,10 +201,89 @@ export async function listDocumentsFull(workspace: string): Promise<DocumentInfo
       },
       pages,
       folder: doc.folder ?? undefined,
+      updatedAt: doc.updated_at,
     });
   }
 
   return result;
+}
+
+export async function renameDocument(
+  workspace: string,
+  docId: string,
+  newTitle: string,
+): Promise<void> {
+  const db = getWorkspaceDb(workspace);
+  const result = db
+    .prepare("UPDATE documents SET title = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(newTitle, docId);
+  if (result.changes === 0) {
+    throw new Error(`Document "${docId}" not found in workspace "${workspace}"`);
+  }
+}
+
+export async function duplicateDocument(workspace: string, docId: string): Promise<string> {
+  const db = getWorkspaceDb(workspace);
+
+  const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(docId) as
+    | {
+        id: string;
+        title: string;
+        folder: string | null;
+        size_preset: string | null;
+        size_width: number;
+        size_height: number;
+        size_unit: string;
+        position: number;
+      }
+    | undefined;
+
+  if (!doc) {
+    throw new Error(`Document "${docId}" not found in workspace "${workspace}"`);
+  }
+
+  const pages = db
+    .prepare(
+      'SELECT id, name, description, source, position FROM pages WHERE document_id = ? ORDER BY position',
+    )
+    .all(docId) as Array<{
+    id: string;
+    name: string;
+    description: string;
+    source: string;
+    position: number;
+  }>;
+
+  const newDocId = generateId();
+
+  const maxPos = db.prepare('SELECT MAX(position) as maxPos FROM documents').get() as {
+    maxPos: number | null;
+  };
+  const newPosition = (maxPos.maxPos ?? 0) + 1;
+
+  db.prepare(
+    `INSERT INTO documents (id, title, folder, size_preset, size_width, size_height, size_unit, position)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    newDocId,
+    `${doc.title} (copy)`,
+    doc.folder,
+    doc.size_preset,
+    doc.size_width,
+    doc.size_height,
+    doc.size_unit,
+    newPosition,
+  );
+
+  for (const page of pages) {
+    const newPageId = generateId();
+    db.prepare(
+      `INSERT INTO pages (id, document_id, name, description, source, position)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(newPageId, newDocId, page.name, page.description, page.source, page.position);
+  }
+
+  return newDocId;
 }
 
 // ---------------------------------------------------------------------------
@@ -213,7 +293,7 @@ export async function listDocumentsFull(workspace: string): Promise<DocumentInfo
 export async function listPages(workspace: string, document: string): Promise<PageInfo[]> {
   const db = getWorkspaceDb(workspace);
   return db
-    .prepare('SELECT id, description FROM pages WHERE document_id = ? ORDER BY position')
+    .prepare('SELECT id, name, description FROM pages WHERE document_id = ? ORDER BY position')
     .all(document) as PageInfo[];
 }
 

@@ -27,7 +27,6 @@ import { PageAuditBar } from './page-audit-bar';
 const ZOOM_STEP = 0.25;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 3;
-const SIDEBAR_PADDING = 16;
 const VIEWER_PADDING = 40;
 
 interface DocumentPageProps {
@@ -80,19 +79,25 @@ export function DocumentPage({
     return () => observer.disconnect();
   }, [fitToWidth, pageWidthPx]);
 
-  // IntersectionObserver for current page detection
+  // IntersectionObserver for current page detection.
+  // Track ratios across all pages to avoid flicker from partial batch updates.
+  const ratiosRef = useRef<Map<number, number>>(new Map());
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-attach observer when pages or zoom change
   useEffect(() => {
     const root = scrollRef.current;
     if (!root) return;
+    ratiosRef.current.clear();
     const observer = new IntersectionObserver(
       (entries) => {
-        let bestIdx = -1;
-        let bestRatio = 0;
         for (const entry of entries) {
           const idx = Number(entry.target.getAttribute('data-page-index'));
-          if (entry.intersectionRatio > bestRatio) {
-            bestRatio = entry.intersectionRatio;
+          ratiosRef.current.set(idx, entry.intersectionRatio);
+        }
+        let bestIdx = -1;
+        let bestRatio = 0;
+        for (const [idx, ratio] of ratiosRef.current) {
+          if (ratio > bestRatio) {
+            bestRatio = ratio;
             bestIdx = idx;
           }
         }
@@ -122,10 +127,33 @@ export function DocumentPage({
         e.preventDefault();
         setFitToWidth(true);
       }
+
+      // Page navigation — only when focus is not inside an input/textarea/iframe
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'IFRAME') return;
+      if (mod) return;
+
+      if (e.key === 'PageDown' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setCurrentPage((prev) => {
+          const next = Math.min(prev + 1, doc.pages.length - 1);
+          const el = pageRefs.current.get(next);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return next;
+        });
+      } else if (e.key === 'PageUp' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setCurrentPage((prev) => {
+          const next = Math.max(prev - 1, 0);
+          const el = pageRefs.current.get(next);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return next;
+        });
+      }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [doc.pages.length]);
 
   // Build page HTML lazily: current page first, then remaining pages
   const buildPages = useCallback(async () => {
@@ -276,6 +304,8 @@ export function DocumentPage({
   const toolbar = (
     <DocumentToolbar
       docTitle={doc.title}
+      currentPage={currentPage}
+      totalPages={doc.pages.length}
       onBack={onBack}
       zoom={zoom}
       fitToWidth={fitToWidth}
@@ -316,6 +346,16 @@ export function DocumentPage({
     >
       {doc.pages.map((page, index) => (
         <div key={page.id} className="flex flex-col items-center">
+          <div className="flex flex-col gap-0.5 pb-1.5" style={{ width: displayWidth }}>
+            <span className="text-xs font-medium text-muted-foreground/60">
+              {index + 1}. {page.name || 'Untitled'}
+            </span>
+            {page.description && (
+              <span className="truncate text-[11px] text-muted-foreground/40">
+                {page.description}
+              </span>
+            )}
+          </div>
           <PageFrame
             ref={(el) => setPageRef(index, el)}
             index={index}
@@ -374,18 +414,16 @@ export function DocumentPage({
           <div className="flex h-full flex-col">
             {toolbar}
             <div className="flex min-h-0 flex-1">
-              {/* Sidebar */}
-              <div className="w-48 shrink-0 border-r">
+              {/* Sidebar — page list */}
+              <div className="flex w-48 min-h-0 shrink-0 flex-col border-r">
                 <ScrollArea className="h-full">
-                  <div className="flex flex-col gap-2 p-3">
+                  <div className="flex flex-col gap-0.5 p-3">
                     {hasPages ? (
                       doc.pages.map((page, index) => (
-                        <PageThumbnail
+                        <PageListItem
                           key={page.id}
                           index={index}
-                          html={pageHtmlMap.get(page.id)}
-                          pageWidthPx={pageWidthPx}
-                          pageHeightPx={pageHeightPx}
+                          name={page.name}
                           isActive={currentPage === index}
                           hasAuditError={(pageAudits.get(page.id)?.length ?? 0) > 0}
                           onClick={handleThumbnailClick}
@@ -436,6 +474,8 @@ export function DocumentPage({
 
 function DocumentToolbar({
   docTitle,
+  currentPage,
+  totalPages,
   onBack,
   zoom,
   fitToWidth,
@@ -448,6 +488,8 @@ function DocumentToolbar({
   onExport,
 }: {
   docTitle: string;
+  currentPage: number;
+  totalPages: number;
   onBack: () => void;
   zoom: number;
   fitToWidth: boolean;
@@ -465,6 +507,11 @@ function DocumentToolbar({
         <ArrowLeft className="h-4 w-4" />
       </Button>
       <span className="truncate text-base font-semibold">{docTitle}</span>
+      {totalPages > 0 && (
+        <span className="shrink-0 text-xs text-muted-foreground">
+          Page {currentPage + 1} of {totalPages}
+        </span>
+      )}
 
       <div className="ml-auto flex items-center gap-1">
         <Tooltip>
@@ -544,99 +591,70 @@ function DocumentToolbar({
 }
 
 // ---------------------------------------------------------------------------
-// Thumbnails
+// Sidebar page list item
 // ---------------------------------------------------------------------------
 
-function PageThumbnail({
+function PageListItem({
   index,
-  html,
-  pageWidthPx,
-  pageHeightPx,
+  name,
   isActive,
   hasAuditError,
   onClick,
 }: {
   index: number;
-  html: string | undefined;
-  pageWidthPx: number;
-  pageHeightPx: number;
+  name: string;
   isActive: boolean;
   hasAuditError: boolean;
   onClick: (index: number) => void;
 }): React.JSX.Element {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const itemRef = useRef<HTMLButtonElement>(null);
 
+  // Auto-scroll active item into view in the sidebar
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 0) setContainerWidth(w);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const thumbWidth = containerWidth || 192 - SIDEBAR_PADDING * 2;
-  const scale = thumbWidth / pageWidthPx;
-  const thumbHeight = pageHeightPx * scale;
+    if (isActive && itemRef.current) {
+      itemRef.current.scrollIntoView({ block: 'nearest' });
+    }
+  }, [isActive]);
 
   return (
     <button
+      ref={itemRef}
       type="button"
       className={cn(
-        'group flex flex-col items-center gap-1 rounded-lg p-1 text-left transition-colors hover:bg-muted/50',
-        isActive && 'bg-muted',
+        'flex w-full items-center gap-2.5 rounded-md border-l-2 px-2.5 py-1.5 text-left transition-colors hover:bg-muted/50',
+        isActive
+          ? 'border-primary bg-muted'
+          : hasAuditError
+            ? 'border-red-500 bg-red-500/5'
+            : 'border-transparent',
       )}
       onClick={() => onClick(index)}
     >
-      <div
-        ref={containerRef}
-        className={cn(
-          'relative w-full overflow-hidden rounded border bg-white',
-          hasAuditError
-            ? 'border-red-500 ring-1 ring-red-500'
-            : isActive && 'border-primary ring-1 ring-primary',
-        )}
-        style={{
-          height: thumbHeight || 'auto',
-          aspectRatio: containerWidth ? undefined : `${pageWidthPx} / ${pageHeightPx}`,
-        }}
-      >
-        {containerWidth > 0 && html ? (
-          <iframe
-            srcDoc={html}
-            title={`Page ${index + 1}`}
-            className="pointer-events-none absolute top-0 left-0 origin-top-left"
-            style={{
-              width: pageWidthPx,
-              height: pageHeightPx,
-              transform: `scale(${scale})`,
-              border: 'none',
-            }}
-            tabIndex={-1}
-            sandbox="allow-scripts allow-same-origin"
-          />
-        ) : containerWidth > 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-          </div>
-        ) : null}
-        {hasAuditError && (
-          <div className="absolute right-1 bottom-1 rounded-full bg-red-500 p-0.5">
-            <CircleAlert className="h-2.5 w-2.5 text-white" />
-          </div>
-        )}
-      </div>
       <span
         className={cn(
-          'text-xs',
-          hasAuditError ? 'text-red-500' : isActive ? 'text-foreground' : 'text-muted-foreground',
+          'shrink-0 text-xs tabular-nums',
+          isActive
+            ? 'font-semibold text-primary'
+            : hasAuditError
+              ? 'text-red-500'
+              : 'text-muted-foreground',
         )}
       >
         {index + 1}
       </span>
+      <span
+        className={cn(
+          'min-w-0 flex-1 truncate text-xs',
+          isActive
+            ? 'font-medium text-foreground'
+            : name
+              ? 'text-muted-foreground'
+              : 'text-muted-foreground/50 italic',
+        )}
+      >
+        {name || 'Untitled'}
+      </span>
+      {hasAuditError && <CircleAlert className="h-3 w-3 shrink-0 text-red-500" />}
     </button>
   );
 }

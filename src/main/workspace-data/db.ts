@@ -12,7 +12,7 @@ import { resolveWorkspacePath } from '../workspace-paths';
 
 const connections = new Map<string, Database.Database>();
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS documents (
@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE TABLE IF NOT EXISTS pages (
   id TEXT PRIMARY KEY,
   document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  name TEXT NOT NULL DEFAULT '',
   description TEXT NOT NULL DEFAULT '',
   source TEXT NOT NULL DEFAULT '',
   position REAL NOT NULL,
@@ -81,10 +82,19 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_lookup
 function applyMigrations(db: Database.Database): void {
   const currentVersion = db.pragma('user_version', { simple: true }) as number;
 
-  if (currentVersion < SCHEMA_VERSION) {
+  if (currentVersion >= SCHEMA_VERSION) return;
+
+  if (currentVersion === 0) {
+    // Fresh database — run full schema
     db.exec(SCHEMA_SQL);
-    db.pragma(`user_version = ${SCHEMA_VERSION}`);
+  } else {
+    // Incremental migrations
+    if (currentVersion < 2) {
+      db.exec("ALTER TABLE pages ADD COLUMN name TEXT NOT NULL DEFAULT ''");
+    }
   }
+
+  db.pragma(`user_version = ${SCHEMA_VERSION}`);
 }
 
 export function openWorkspaceDb(workspaceName: string): Database.Database {

@@ -131,6 +131,7 @@ export const PAGE_SIZES: Record<string, PageSize> = {
 
 export interface PageInfo {
   id: string;
+  name: string;
   description: string;
 }
 
@@ -237,6 +238,7 @@ export interface DocumentInfo {
   size: PageSize;
   pages: PageInfo[];
   folder?: string;
+  updatedAt?: string;
 }
 
 // --- Snapshots ---

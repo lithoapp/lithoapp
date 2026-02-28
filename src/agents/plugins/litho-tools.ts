@@ -29,7 +29,7 @@ function generateId(): string {
 // ─── listPages ──────────────────────────────────────────────────────────────
 
 const listPages = tool({
-  description: 'List all pages in a document with their IDs and descriptions.',
+  description: 'List all pages in a document with their IDs, names, and descriptions.',
   args: {
     docId: tool.schema.string().describe('Document ID'),
   },
@@ -37,14 +37,14 @@ const listPages = tool({
     const db = openDb(context.directory);
     try {
       const rows = db
-        .prepare('SELECT id, description FROM pages WHERE document_id = ? ORDER BY position')
-        .all(args.docId) as Array<{ id: string; description: string }>;
+        .prepare('SELECT id, name, description FROM pages WHERE document_id = ? ORDER BY position')
+        .all(args.docId) as Array<{ id: string; name: string; description: string }>;
 
       if (rows.length === 0) {
         return '(no pages yet — use createPage to add one)';
       }
 
-      return rows.map((r) => `${r.id}\t${r.description}`).join('\n');
+      return rows.map((r) => `${r.id}\t${r.name}\t${r.description}`).join('\n');
     } finally {
       db.close();
     }
@@ -256,9 +256,14 @@ const editMainCss = tool({
 
 const createPage = tool({
   description:
-    'Create a new page in a document. Requires a short description (5-8 words). Returns the new page ID.',
+    'Create a new page in a document. Requires a name (1-2 words) and a short description (5-8 words). Returns the new page ID.',
   args: {
     docId: tool.schema.string().describe('Document ID'),
+    name: tool.schema
+      .string()
+      .describe(
+        'Short page name (1-2 words, max 30 chars). Examples: "Cover", "Pricing", "Team Bio"',
+      ),
     description: tool.schema
       .string()
       .optional()
@@ -269,6 +274,19 @@ const createPage = tool({
       .describe('Insert after this page ID. Appends to end if omitted.'),
   },
   async execute(args, context) {
+    const trimmedName = args.name.trim();
+    if (trimmedName.length === 0 || trimmedName.length > 30) {
+      throw new Error(
+        `Page name must be 1-30 characters, got ${trimmedName.length}. Provide a short name like "Cover" or "Pricing".`,
+      );
+    }
+    const wordCount = trimmedName.split(/\s+/).length;
+    if (wordCount > 3) {
+      throw new Error(
+        `Page name must be 1-3 words, got ${wordCount}. Use a short label like "Cover" or "Team Bio".`,
+      );
+    }
+
     const db = openDb(context.directory);
     try {
       const pages = db
@@ -302,8 +320,8 @@ const createPage = tool({
       const pageContent = `import '@styles.css'\n\nexport default function Page() {\n  return (\n    <div className="w-full h-full bg-white p-12 flex flex-col">\n    </div>\n  )\n}\n`;
 
       db.prepare(
-        'INSERT INTO pages (id, document_id, description, source, position) VALUES (?, ?, ?, ?, ?)',
-      ).run(newPageId, args.docId, description, pageContent, position);
+        'INSERT INTO pages (id, document_id, name, description, source, position) VALUES (?, ?, ?, ?, ?, ?)',
+      ).run(newPageId, args.docId, trimmedName, description, pageContent, position);
 
       return `Created ${newPageId}`;
     } finally {

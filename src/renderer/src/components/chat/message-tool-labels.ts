@@ -84,7 +84,11 @@ function resolvePageLabel(
   if (!pageId) return undefined;
   if (pages) {
     const index = pages.findIndex((p) => p.id === pageId);
-    if (index !== -1) return String(index + 1);
+    if (index !== -1) {
+      const page = pages[index];
+      const num = index + 1;
+      return page.name ? `${num} (${page.name})` : String(num);
+    }
   }
   return pageId.slice(0, 6);
 }
