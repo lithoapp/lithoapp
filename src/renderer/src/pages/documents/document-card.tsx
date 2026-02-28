@@ -21,9 +21,9 @@ import {
 import type { DocumentInfo } from '../../../../shared/types';
 
 /** Fixed thumbnail container height in px. */
-const THUMB_HEIGHT = 180;
+export const THUMB_HEIGHT = 180;
 
-function formatRelativeTime(isoDate: string): string {
+export function formatRelativeTime(isoDate: string): string {
   const now = Date.now();
   const then = new Date(`${isoDate}Z`).getTime();
   const diffMs = now - then;
@@ -210,7 +210,7 @@ export function DocumentCard({
 // Thumbnail with lazy iframe rendering
 // ---------------------------------------------------------------------------
 
-function CardThumbnail({
+export function CardThumbnail({
   doc,
   workspaceName,
 }: {

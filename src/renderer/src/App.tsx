@@ -1,8 +1,9 @@
 import { Files, FlaskConical, Home, Images, Loader2, Palette, Settings2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
+import { useDesignSystem } from '@/hooks/use-design-system';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { cn } from '@/lib/utils';
 import type { DocumentInfo } from '../../shared/types';
@@ -27,8 +28,34 @@ type Page =
   | 'workspace-loading'
   | 'workspace-closing';
 
+/** Parse a hex color (#rgb or #rrggbb) to [r, g, b] in 0–255. */
+function parseHex(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  if (h.length === 3) {
+    return [
+      Number.parseInt(h[0] + h[0], 16),
+      Number.parseInt(h[1] + h[1], 16),
+      Number.parseInt(h[2] + h[2], 16),
+    ];
+  }
+  return [
+    Number.parseInt(h.slice(0, 2), 16),
+    Number.parseInt(h.slice(2, 4), 16),
+    Number.parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+/** Relative luminance (WCAG). Returns 0 (black) to 1 (white). */
+function relativeLuminance(hex: string): number {
+  const [r, g, b] = parseHex(hex).map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
 function App(): React.JSX.Element {
-  const [version, setVersion] = useState('');
+  const [platform, setPlatform] = useState<string>('');
   const [page, setPage] = useState<Page>('workspaces');
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
@@ -42,15 +69,40 @@ function App(): React.JSX.Element {
   const workspaceName = workspaceInfo.workspaceName;
   const workspacePath = workspaceInfo.workspacePath;
 
+  const { designSystem } = useDesignSystem(workspaceName);
+
+  const titleBarTheme = useMemo(() => {
+    const primaryPalette = designSystem?.colors.palettes.find(
+      (p) => p.name.toLowerCase() === 'primary',
+    );
+    const shade =
+      primaryPalette?.shades.find((s) => s.variable.endsWith('-600')) ??
+      primaryPalette?.shades.find((s) => s.variable.endsWith('-500'));
+    if (!shade?.value.startsWith('#')) return null;
+    const isLight = relativeLuminance(shade.value) > 0.4;
+    return { bg: shade.value, fg: isLight ? '#000000' : '#ffffff' };
+  }, [designSystem]);
+
+  useEffect(() => {
+    void window.litho.app.setTitleBarOverlay(titleBarTheme?.bg ?? '', titleBarTheme?.fg ?? '');
+  }, [titleBarTheme]);
+
+  const [designSystemDoc, setDesignSystemDoc] = useState<DocumentInfo | null>(null);
+
   const loadDocuments = useCallback(async () => {
     if (!workspaceName) {
       setDocuments([]);
+      setDesignSystemDoc(null);
       return;
     }
     setDocumentsLoading(true);
     try {
-      const docs = await window.litho.document.list(workspaceName);
+      const [docs, dsDoc] = await Promise.all([
+        window.litho.document.list(workspaceName),
+        window.litho.workspace.getDesignSystemDocInfo(workspaceName),
+      ]);
       setDocuments(docs);
+      setDesignSystemDoc(dsDoc);
     } catch (err) {
       console.error('[app] Failed to load documents:', err);
       toast.error('Failed to load documents');
@@ -65,19 +117,9 @@ function App(): React.JSX.Element {
       loadDocuments();
     } else {
       setDocuments([]);
+      setDesignSystemDoc(null);
     }
   }, [workspaceInfo.status, loadDocuments]);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        setVersion(await window.litho.app.getVersion());
-      } catch (err) {
-        console.error('[app] Failed to get version:', err);
-        toast.error('Failed to fetch app version');
-      }
-    })();
-  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -88,6 +130,10 @@ function App(): React.JSX.Element {
         setUserProfile({ name: null, email: null });
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    void window.litho.app.getPlatform().then(setPlatform);
   }, []);
 
   const [onboardingPhase, setOnboardingPhase] = useState<
@@ -167,7 +213,10 @@ function App(): React.JSX.Element {
         )}
       >
         <div
-          className="flex h-10 w-full shrink-0 items-center justify-end pr-4"
+          className={cn(
+            'flex h-10 w-full shrink-0 items-center justify-end',
+            platform === 'win32' ? 'pr-[140px]' : 'pr-4',
+          )}
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         >
           <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
@@ -183,79 +232,80 @@ function App(): React.JSX.Element {
     <div className="flex h-screen flex-col">
       {/* Title bar drag region */}
       <div
-        className="flex h-10 shrink-0 items-center border-b border-border pl-[70px] pr-4"
-        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-      >
-        <span className="text-sm font-semibold">Litho</span>
-        {version && <span className="ml-2 text-xs text-muted-foreground">v{version}</span>}
-        {workspaceInfo.status === 'active' && workspaceName && (
-          <>
-            <span className="mx-2 text-xs text-muted-foreground">/</span>
-            <span className="text-sm font-medium">{workspaceName}</span>
-          </>
+        className={cn(
+          'flex h-10 shrink-0 items-center transition-colors duration-300',
+          platform === 'win32' ? 'pl-4 pr-[140px]' : 'pl-[80px] pr-4',
+          !titleBarTheme && 'border-b border-border',
         )}
+        style={
+          {
+            WebkitAppRegion: 'drag',
+            ...(titleBarTheme && { backgroundColor: titleBarTheme.bg, color: titleBarTheme.fg }),
+          } as React.CSSProperties
+        }
+      >
+        <span className="text-sm font-semibold">
+          {workspaceInfo.status === 'active' && workspaceName ? workspaceName : 'Home'}
+        </span>
 
         <nav
           className="ml-auto flex items-center gap-1"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
-          {workspaceInfo.status === 'active' ? (
-            <>
-              <Button
-                variant={page === 'documents' || page === 'document' ? 'secondary' : 'ghost'}
-                size="icon-sm"
-                onClick={() => setPage('documents')}
-              >
-                <Files className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant={page === 'design-system-doc' ? 'secondary' : 'ghost'}
-                size="icon-sm"
-                onClick={() => setPage('design-system-doc')}
-              >
-                <Palette className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant={page === 'assets' ? 'secondary' : 'ghost'}
-                size="icon-sm"
-                onClick={() => setPage('assets')}
-              >
-                <Images className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant={page === 'renderer-poc' ? 'secondary' : 'ghost'}
-                size="icon-sm"
-                onClick={() => setPage('renderer-poc')}
-              >
-                <FlaskConical className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant={page === 'settings' ? 'secondary' : 'ghost'}
-                size="icon-sm"
-                onClick={() => setPage('settings')}
-              >
-                <Settings2 className="h-3.5 w-3.5" />
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant={page === 'workspaces' ? 'secondary' : 'ghost'}
-                size="icon-sm"
-                onClick={() => setPage('workspaces')}
-              >
-                <Home className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant={page === 'settings' ? 'secondary' : 'ghost'}
-                size="icon-sm"
-                onClick={() => setPage('settings')}
-              >
-                <Settings2 className="h-3.5 w-3.5" />
-              </Button>
-            </>
-          )}
-          <div className="mx-1 h-4 w-px bg-border" />
+          {workspaceInfo.status === 'active'
+            ? (
+                [
+                  {
+                    p: ['documents', 'document'] satisfies Page[],
+                    icon: Files,
+                    target: 'documents' as Page,
+                  },
+                  {
+                    p: ['design-system-doc'] satisfies Page[],
+                    icon: Palette,
+                    target: 'design-system-doc' as Page,
+                  },
+                  { p: ['assets'] satisfies Page[], icon: Images, target: 'assets' as Page },
+                  {
+                    p: ['renderer-poc'] satisfies Page[],
+                    icon: FlaskConical,
+                    target: 'renderer-poc' as Page,
+                  },
+                  { p: ['settings'] satisfies Page[], icon: Settings2, target: 'settings' as Page },
+                ] as { p: Page[]; icon: typeof Files; target: Page }[]
+              ).map(({ p, icon: Icon, target }) => {
+                const isActive = p.includes(page);
+                return (
+                  <Button
+                    key={target}
+                    variant={!titleBarTheme && isActive ? 'secondary' : 'ghost'}
+                    size="icon-sm"
+                    className={titleBarTheme && isActive ? 'bg-white/20' : undefined}
+                    onClick={() => setPage(target)}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </Button>
+                );
+              })
+            : (
+                [
+                  { p: ['workspaces'] satisfies Page[], icon: Home, target: 'workspaces' as Page },
+                  { p: ['settings'] satisfies Page[], icon: Settings2, target: 'settings' as Page },
+                ] as { p: Page[]; icon: typeof Home; target: Page }[]
+              ).map(({ p, icon: Icon, target }) => {
+                const isActive = p.includes(page);
+                return (
+                  <Button
+                    key={target}
+                    variant={isActive ? 'secondary' : 'ghost'}
+                    size="icon-sm"
+                    onClick={() => setPage(target)}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </Button>
+                );
+              })}
+          <div className={cn('mx-1 h-4 w-px', titleBarTheme ? 'bg-white/20' : 'bg-border')} />
           <ThemeSwitcher />
         </nav>
       </div>
@@ -294,6 +344,7 @@ function App(): React.JSX.Element {
           <DocumentsPage
             workspaceName={workspaceName}
             documents={documents}
+            designSystemDoc={designSystemDoc}
             isLoading={documentsLoading}
             refetch={loadDocuments}
             onSelectDocument={(docId) => {
@@ -326,7 +377,11 @@ function App(): React.JSX.Element {
           />
         )}
         {page === 'renderer-poc' && <RendererPocPage />}
-        {page === 'settings' && <SettingsV2Page />}
+        {page === 'settings' && (
+          <SettingsV2Page
+            onBack={() => setPage(workspaceInfo.status === 'active' ? 'documents' : 'workspaces')}
+          />
+        )}
       </div>
     </div>
   );

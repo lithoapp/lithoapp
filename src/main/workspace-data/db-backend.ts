@@ -318,6 +318,40 @@ export async function getDesignSystemDocId(workspace: string): Promise<string | 
   return row?.id ?? null;
 }
 
+export async function getDesignSystemDocInfo(workspace: string): Promise<DocumentInfo | null> {
+  const db = getWorkspaceDb(workspace);
+  const doc = db.prepare("SELECT * FROM documents WHERE type = 'design-system' LIMIT 1").get() as
+    | {
+        id: string;
+        title: string;
+        type: string;
+        size_width: number;
+        size_height: number;
+        size_unit: string;
+        updated_at: string;
+      }
+    | undefined;
+
+  if (!doc) return null;
+
+  const pages = db
+    .prepare('SELECT id, name, description FROM pages WHERE document_id = ? ORDER BY position')
+    .all(doc.id) as PageInfo[];
+
+  return {
+    id: doc.id,
+    title: doc.title,
+    type: doc.type as 'normal' | 'design-system',
+    size: {
+      width: doc.size_width,
+      height: doc.size_height,
+      unit: doc.size_unit as 'mm' | 'px',
+    },
+    pages,
+    updatedAt: doc.updated_at,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Page operations
 // ---------------------------------------------------------------------------

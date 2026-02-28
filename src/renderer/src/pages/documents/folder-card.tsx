@@ -46,7 +46,7 @@ export function FolderCard({
     if (slug) onDropDoc(slug);
   }
 
-  const countLabel = `${docCount} ${docCount === 1 ? 'doc' : 'docs'}`;
+  const countLabel = `${docCount} ${docCount === 1 ? 'document' : 'documents'}`;
 
   return (
     <button

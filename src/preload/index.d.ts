@@ -35,6 +35,7 @@ interface LithoAPI {
   app: {
     getVersion: () => Promise<string>;
     getPlatform: () => Promise<string>;
+    setTitleBarOverlay: (color: string, symbolColor: string) => Promise<void>;
   };
   update: {
     check: () => Promise<void>;
@@ -61,6 +62,7 @@ interface LithoAPI {
     stop: () => Promise<void>;
     getDocumentCount: (name: string) => Promise<number>;
     getDesignSystemDocId: (name: string) => Promise<string | null>;
+    getDesignSystemDocInfo: (name: string) => Promise<DocumentInfo | null>;
     onChanged: (callback: (data: WorkspaceState) => void) => () => void;
   };
   document: {

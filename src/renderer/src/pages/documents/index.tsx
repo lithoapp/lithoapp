@@ -31,11 +31,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useDesignSystem } from '@/hooks/use-design-system';
 import { cn } from '@/lib/utils';
 import type { DocumentInfo } from '../../../../shared/types';
 import { ExportDialog } from '../document/export-dialog';
-import { DocumentCard } from './document-card';
+import { CardThumbnail, DocumentCard, formatRelativeTime } from './document-card';
 import { DocumentSkeleton } from './document-skeleton';
 import { FolderCard } from './folder-card';
 import { RenameDocumentDialog } from './rename-document-dialog';
@@ -137,6 +136,7 @@ function sanitizeFolderName(value: string): string {
 interface DocumentsPageProps {
   workspaceName: string;
   documents: DocumentInfo[];
+  designSystemDoc: DocumentInfo | null;
   isLoading: boolean;
   refetch: () => Promise<void>;
   onSelectDocument: (slug: string) => void;
@@ -148,6 +148,7 @@ interface DocumentsPageProps {
 export function DocumentsPage({
   workspaceName,
   documents: documentsProp,
+  designSystemDoc,
   isLoading,
   refetch,
   onSelectDocument,
@@ -412,17 +413,6 @@ export function DocumentsPage({
         </div>
       </div>
 
-      {/* Utility cards — only at top level */}
-      {currentFolder === null && (
-        <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            <DesignSystemCard workspaceName={workspaceName} onClick={onOpenDesignSystem} />
-            <AssetsCard onClick={onOpenAssets} />
-          </div>
-          <hr className="border-border" />
-        </>
-      )}
-
       {/* Loading skeleton */}
       {isLoading && documents.length === 0 ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
@@ -461,8 +451,10 @@ export function DocumentsPage({
         </div>
       ) : (
         <>
-          {currentFolder === null && allFolderNames.length > 0 && (
+          {/* Folders row — Assets card + user folders (top level only) */}
+          {currentFolder === null && (
             <div className="flex flex-wrap gap-3">
+              <AssetsCard onClick={onOpenAssets} />
               {allFolderNames.map((name) => (
                 <FolderCard
                   key={name}
@@ -476,7 +468,16 @@ export function DocumentsPage({
               ))}
             </div>
           )}
+
+          {/* Document grid — Design System card first, then regular docs */}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+            {currentFolder === null && designSystemDoc && (
+              <DesignSystemDocCard
+                doc={designSystemDoc}
+                workspaceName={workspaceName}
+                onClick={onOpenDesignSystem}
+              />
+            )}
             {currentFolder === null ? ungrouped.map(renderDocCard) : folderDocs?.map(renderDocCard)}
           </div>
         </>
@@ -923,50 +924,44 @@ function RenameFolderDialog({
   );
 }
 
-function DesignSystemCard({
+function DesignSystemDocCard({
+  doc,
   workspaceName,
   onClick,
 }: {
+  doc: DocumentInfo;
   workspaceName: string;
   onClick: () => void;
 }): React.JSX.Element {
-  const { designSystem } = useDesignSystem(workspaceName);
+  const pageCountLabel =
+    doc.pages.length === 0
+      ? 'Empty'
+      : `${doc.pages.length} ${doc.pages.length === 1 ? 'page' : 'pages'}`;
 
-  const totalColors = designSystem
-    ? designSystem.colors.palettes.reduce((sum, p) => sum + p.shades.length, 0)
-    : 0;
-  const families = designSystem?.typography.families.length ?? 0;
-  const previewPalette =
-    designSystem?.colors.palettes.find((p) => p.name.toLowerCase() === 'primary') ??
-    designSystem?.colors.palettes[0];
-  const previewShades = previewPalette?.shades.slice(0, 8) ?? [];
+  const metaParts: string[] = [pageCountLabel];
+  if (doc.updatedAt) {
+    metaParts.push(formatRelativeTime(doc.updatedAt));
+  }
 
   return (
     <button
       type="button"
-      className="flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors hover:bg-muted/50"
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-primary/30 bg-card text-left transition-colors hover:border-primary/60"
       onClick={onClick}
     >
-      {previewShades.length > 0 ? (
-        <div className="flex h-9 shrink-0 overflow-hidden rounded-md">
-          {previewShades.map((shade) => (
-            <div
-              key={shade.variable}
-              className="h-full w-3"
-              style={{ backgroundColor: shade.value }}
-            />
-          ))}
+      {/* Thumbnail: live preview of cover page with badge */}
+      <div className="relative">
+        <CardThumbnail doc={doc} workspaceName={workspaceName} />
+        <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-1 backdrop-blur-sm">
+          <Palette className="h-3 w-3 text-white" />
+          <span className="text-xs font-medium text-white">Design System</span>
         </div>
-      ) : (
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
-          <Palette className="h-4.5 w-4.5 text-muted-foreground" />
-        </div>
-      )}
-      <div className="min-w-0">
-        <p className="text-base font-semibold">Design System</p>
-        <p className="text-sm text-muted-foreground">
-          {designSystem ? `${totalColors} colors, ${families} fonts` : 'Colors, fonts, tokens'}
-        </p>
+      </div>
+
+      {/* Metadata */}
+      <div className="flex flex-col gap-1 px-4 py-3">
+        <p className="truncate text-base font-semibold">{doc.title}</p>
+        <p className="truncate text-sm text-muted-foreground">{metaParts.join(' · ')}</p>
       </div>
     </button>
   );
@@ -976,15 +971,13 @@ function AssetsCard({ onClick }: { onClick: () => void }): React.JSX.Element {
   return (
     <button
       type="button"
-      className="flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors hover:bg-muted/50"
+      className="group relative flex cursor-pointer items-center gap-4 rounded-lg border bg-card px-5 py-4 text-left transition-colors hover:border-primary/40"
       onClick={onClick}
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
-        <Images className="h-4.5 w-4.5 text-muted-foreground" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-base font-semibold">Assets</p>
-        <p className="text-sm text-muted-foreground">Images, SVGs, fonts</p>
+      <Images className="h-8 w-8 shrink-0 text-muted-foreground" />
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-base font-semibold">Assets</span>
+        <span className="text-sm text-muted-foreground">Images, SVGs, fonts</span>
       </div>
     </button>
   );

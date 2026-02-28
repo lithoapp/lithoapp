@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('litho', {
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
     getPlatform: (): Promise<string> => ipcRenderer.invoke('app:getPlatform'),
+    setTitleBarOverlay: (color: string, symbolColor: string): Promise<void> =>
+      ipcRenderer.invoke('app:setTitleBarOverlay', color, symbolColor),
   },
   update: {
     check: (): Promise<void> => ipcRenderer.invoke('update:check'),
@@ -69,6 +71,8 @@ contextBridge.exposeInMainWorld('litho', {
       ipcRenderer.invoke('workspace:getDocumentCount', name),
     getDesignSystemDocId: (name: string): Promise<string | null> =>
       ipcRenderer.invoke('workspace:getDesignSystemDocId', name),
+    getDesignSystemDocInfo: (name: string): Promise<unknown> =>
+      ipcRenderer.invoke('workspace:getDesignSystemDocInfo', name),
     onChanged: (callback: (data: unknown) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
       ipcRenderer.on('workspace:changed', listener);

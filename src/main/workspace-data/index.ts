@@ -12,6 +12,7 @@ export {
   deleteDocument,
   duplicateDocument,
   getDesignSystemDocId,
+  getDesignSystemDocInfo,
   getDocumentCount,
   listDocuments,
   listDocumentsFull,

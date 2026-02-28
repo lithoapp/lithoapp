@@ -1,3 +1,4 @@
+import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AboutSection } from './about-section';
@@ -14,13 +15,26 @@ const categories: { id: SettingsCategory; label: string }[] = [
   { id: 'about', label: 'About' },
 ];
 
-export function SettingsV2Page(): React.JSX.Element {
+interface SettingsV2PageProps {
+  onBack: () => void;
+}
+
+export function SettingsV2Page({ onBack }: SettingsV2PageProps): React.JSX.Element {
   const [active, setActive] = useState<SettingsCategory>('profile');
 
   return (
     <div className="flex h-full">
       <aside className="flex w-52 shrink-0 flex-col gap-1 border-r px-3 py-6">
-        <h1 className="mb-4 px-3 font-display text-3xl font-bold tracking-tight">Settings</h1>
+        <div className="mb-4 flex items-center gap-1 px-1">
+          <button
+            type="button"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted"
+            onClick={onBack}
+          >
+            <ChevronLeft className="h-5 w-5 text-muted-foreground" />
+          </button>
+          <h1 className="font-display text-3xl font-bold tracking-tight">Settings</h1>
+        </div>
         {categories.map((cat) => (
           <button
             key={cat.id}

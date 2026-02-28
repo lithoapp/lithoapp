@@ -61,6 +61,7 @@ import {
   deleteDocument,
   duplicateDocument,
   getDesignSystemDocId,
+  getDesignSystemDocInfo,
   getDocumentCount,
   listDocumentsFull,
   listWorkspaces,
@@ -97,8 +98,10 @@ function emitWorkspaceChanged(): void {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 1000,
-    height: 700,
+    width: 1280,
+    height: 820,
+    minWidth: 960,
+    minHeight: 600,
     show: false,
     titleBarStyle: 'hidden',
     titleBarOverlay: true,
@@ -141,6 +144,12 @@ ipcMain.handle('opencode:restart', () => opencodeManager.restart());
 ipcMain.handle('opencode:stop', () => opencodeManager.stop());
 ipcMain.handle('app:getVersion', () => app.getVersion());
 ipcMain.handle('app:getPlatform', () => process.platform);
+ipcMain.handle('app:setTitleBarOverlay', (_event, color: string, symbolColor: string) => {
+  if (!mainWindow) return;
+  if (process.platform === 'win32') {
+    mainWindow.setTitleBarOverlay({ color, symbolColor, height: 40 });
+  }
+});
 ipcMain.handle('update:check', () => checkForUpdates());
 ipcMain.handle('update:download', () => downloadUpdate());
 ipcMain.handle('update:install', () => installUpdate());
@@ -206,6 +215,9 @@ ipcMain.handle('workspace:getDocumentCount', (_event, workspaceName: string) =>
 
 // Document CRUD IPC handlers
 ipcMain.handle('workspace:getDesignSystemDocId', (_event, ws: string) => getDesignSystemDocId(ws));
+ipcMain.handle('workspace:getDesignSystemDocInfo', (_event, ws: string) =>
+  getDesignSystemDocInfo(ws),
+);
 ipcMain.handle('document:list', (_event, ws: string) => listDocumentsFull(ws));
 ipcMain.handle('document:read', (_event, ws: string, docId: string) =>
   readDocumentConfig(ws, docId),
