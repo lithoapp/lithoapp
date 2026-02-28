@@ -50,8 +50,8 @@ export function resolveToolLabel(
         icon: 'error',
       };
 
-    case 'updatePageDescription':
-      return { label: 'Updating page description', icon: 'pencil' };
+    case 'updatePageDetails':
+      return { label: 'Updating page details', icon: 'pencil' };
 
     case 'readMainCss':
       return { label: 'Reading styles', icon: 'eye' };

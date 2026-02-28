@@ -381,18 +381,34 @@ export async function readPageDescription(
   return row.description;
 }
 
-export async function updatePageDescription(
+export async function updatePageDetails(
   workspace: string,
   document: string,
   page: string,
-  description: string,
+  updates: { name?: string; description?: string },
 ): Promise<void> {
+  if (!updates.name && !updates.description) {
+    throw new Error('At least one of name or description must be provided');
+  }
+
   const db = getWorkspaceDb(workspace);
+  const setClauses: string[] = ["updated_at = datetime('now')"];
+  const values: string[] = [];
+
+  if (updates.name !== undefined) {
+    setClauses.push('name = ?');
+    values.push(updates.name);
+  }
+  if (updates.description !== undefined) {
+    setClauses.push('description = ?');
+    values.push(updates.description);
+  }
+
+  values.push(page, document);
+
   const result = db
-    .prepare(
-      "UPDATE pages SET description = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
-    )
-    .run(description, page, document);
+    .prepare(`UPDATE pages SET ${setClauses.join(', ')} WHERE id = ? AND document_id = ?`)
+    .run(...values) as { changes: number };
 
   if (result.changes === 0) {
     throw new Error(`Page "${page}" not found in document "${document}"`);

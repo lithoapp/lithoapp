@@ -354,29 +354,52 @@ const deletePage = tool({
   },
 });
 
-// ─── updatePageDescription ──────────────────────────────────────────────────
+// ─── updatePageDetails ──────────────────────────────────────────────────────
 
-const updatePageDescription = tool({
-  description: "Update a page's description after major content changes. Keep it to 5-8 words.",
+const updatePageDetails = tool({
+  description: "Update a page's name and/or description. Use after major content changes.",
   args: {
     docId: tool.schema.string().describe('Document ID'),
     pageId: tool.schema.string().describe('Page ID'),
-    description: tool.schema.string().describe('New short description (5-8 words)'),
+    name: tool.schema
+      .string()
+      .optional()
+      .describe('New page name (1-2 words like "Cover", "Pricing")'),
+    description: tool.schema.string().optional().describe('New short description (5-8 words)'),
   },
   async execute(args, context) {
+    if (!args.name && !args.description) {
+      throw new Error('At least one of name or description must be provided');
+    }
+
     const db = openDb(context.directory);
     try {
+      const setClauses: string[] = ["updated_at = datetime('now')"];
+      const values: string[] = [];
+
+      if (args.name !== undefined) {
+        setClauses.push('name = ?');
+        values.push(args.name);
+      }
+      if (args.description !== undefined) {
+        setClauses.push('description = ?');
+        values.push(args.description);
+      }
+
+      values.push(args.pageId, args.docId);
+
       const result = db
-        .prepare(
-          "UPDATE pages SET description = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
-        )
-        .run(args.description, args.pageId, args.docId);
+        .prepare(`UPDATE pages SET ${setClauses.join(', ')} WHERE id = ? AND document_id = ?`)
+        .run(...values) as { changes: number };
 
       if (result.changes === 0) {
         throw new Error(`Page "${args.pageId}" not found in document "${args.docId}"`);
       }
 
-      return `Updated description for ${args.pageId}`;
+      const updated = [args.name && 'name', args.description && 'description']
+        .filter(Boolean)
+        .join(' and ');
+      return `Updated ${updated} for ${args.pageId}`;
     } finally {
       db.close();
     }
@@ -396,6 +419,6 @@ export const lithoPlugin: Plugin = async () => ({
     editMainCss,
     createPage,
     deletePage,
-    updatePageDescription,
+    updatePageDetails,
   },
 });

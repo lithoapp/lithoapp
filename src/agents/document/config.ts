@@ -10,7 +10,7 @@ export const documentConfig = {
     readMainCss: 'allow',
     createPage: 'allow',
     deletePage: 'allow',
-    updatePageDescription: 'allow',
+    updatePageDetails: 'allow',
     // Litho tools — denied (design-system only)
     writeMainCss: 'deny',
     editMainCss: 'deny',

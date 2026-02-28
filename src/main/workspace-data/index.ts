@@ -27,6 +27,6 @@ export {
   renameDocument,
   updateDesignTokens,
   updateDocumentFolder,
-  updatePageDescription,
+  updatePageDetails,
   writePageSource,
 } from './db-backend';
