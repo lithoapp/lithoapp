@@ -3,16 +3,11 @@ import {
   FilePlus,
   FileText,
   Folder,
-  FolderInput,
-  FolderMinus,
   FolderPlus,
   Images,
   Loader2,
   LogOut,
-  MoreHorizontal,
   Palette,
-  Pencil,
-  Trash2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -35,16 +30,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useDesignSystem } from '@/hooks/use-design-system';
 import { cn } from '@/lib/utils';
 import type { DocumentInfo } from '../../../../shared/types';
+import { ExportDialog } from '../document/export-dialog';
+import { DocumentCard } from './document-card';
+import { DocumentSkeleton } from './document-skeleton';
+import { FolderCard } from './folder-card';
+import { RenameDocumentDialog } from './rename-document-dialog';
 
 interface SizePreset {
   name: string;
@@ -117,9 +111,6 @@ const SIZE_CATEGORIES: SizeCategory[] = [
   },
 ];
 
-/** Fixed thumbnail container height in px. */
-const THUMB_HEIGHT = 180;
-
 function groupDocuments(docs: DocumentInfo[]): {
   ungrouped: DocumentInfo[];
   folders: Map<string, DocumentInfo[]>;
@@ -146,6 +137,7 @@ function sanitizeFolderName(value: string): string {
 interface DocumentsPageProps {
   workspaceName: string;
   documents: DocumentInfo[];
+  isLoading: boolean;
   refetch: () => Promise<void>;
   onSelectDocument: (slug: string) => void;
   onOpenDesignSystem: () => void;
@@ -156,6 +148,7 @@ interface DocumentsPageProps {
 export function DocumentsPage({
   workspaceName,
   documents: documentsProp,
+  isLoading,
   refetch,
   onSelectDocument,
   onOpenDesignSystem,
@@ -180,15 +173,17 @@ export function DocumentsPage({
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [isBackDragOver, setIsBackDragOver] = useState(false);
-  // Tracks folder names that exist only in local state (no documents yet).
-  // These are ephemeral — they disappear on page reload.
   const [localFolderNames, setLocalFolderNames] = useState<Set<string>>(new Set());
+  const [renameDocId, setRenameDocId] = useState<string | null>(null);
+  const [exportDocId, setExportDocId] = useState<string | null>(null);
 
   const documents = documentsProp;
   const { ungrouped, folders: folderMap } = groupDocuments(documents);
   const serverFolderNames = [...folderMap.keys()].sort();
-  // Merge server folders with local-only (empty) folders, deduplicated and sorted.
   const allFolderNames = [...new Set([...serverFolderNames, ...localFolderNames])].sort();
+
+  const renameDoc = renameDocId ? documents.find((d) => d.id === renameDocId) : null;
+  const exportDoc = exportDocId ? documents.find((d) => d.id === exportDocId) : null;
 
   function handleCreateFolder(): void {
     const name = newFolderName.trim();
@@ -246,6 +241,30 @@ export function DocumentsPage({
       toast.error('Failed to delete document');
     } finally {
       setIsDeleting(null);
+    }
+  }
+
+  async function handleRenameDocument(newDocTitle: string): Promise<void> {
+    if (!renameDocId) return;
+    try {
+      await window.litho.document.rename(workspaceName, renameDocId, newDocTitle);
+      await refetch();
+    } catch (err) {
+      console.error('[documents] Rename failed:', err);
+      toast.error('Failed to rename document');
+    } finally {
+      setRenameDocId(null);
+    }
+  }
+
+  async function handleDuplicate(docId: string): Promise<void> {
+    try {
+      await window.litho.document.duplicate(workspaceName, docId);
+      await refetch();
+      toast.success('Document duplicated');
+    } catch (err) {
+      console.error('[documents] Duplicate failed:', err);
+      toast.error('Failed to duplicate document');
     }
   }
 
@@ -310,6 +329,24 @@ export function DocumentsPage({
   }
 
   const folderDocs = currentFolder ? (folderMap.get(currentFolder) ?? []) : null;
+
+  function renderDocCard(doc: DocumentInfo): React.JSX.Element {
+    return (
+      <DocumentCard
+        key={doc.id}
+        doc={doc}
+        workspaceName={workspaceName}
+        isDeleting={isDeleting === doc.id}
+        onDelete={confirmDelete}
+        onRename={(docId) => setRenameDocId(docId)}
+        onDuplicate={(docId) => void handleDuplicate(docId)}
+        onExport={(docId) => setExportDocId(docId)}
+        onAssignFolder={(slug) => setAssignFolderSlug(slug)}
+        onRemoveFromFolder={(slug) => void handleRemoveFromFolder(slug)}
+        onClick={() => onSelectDocument(doc.id)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -383,8 +420,15 @@ export function DocumentsPage({
         </div>
       )}
 
-      {/* Document grid */}
-      {currentFolder === null && allFolderNames.length === 0 && ungrouped.length === 0 ? (
+      {/* Loading skeleton */}
+      {isLoading && documents.length === 0 ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+          {['s1', 's2', 's3', 's4', 's5', 's6'].map((key) => (
+            <DocumentSkeleton key={key} />
+          ))}
+        </div>
+      ) : /* Empty states */
+      currentFolder === null && allFolderNames.length === 0 && ungrouped.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
           <FileText className="h-10 w-10 text-muted-foreground/40" />
           <div className="flex flex-col gap-1">
@@ -427,30 +471,10 @@ export function DocumentsPage({
                   onDropDoc={(slug) => void handleAssignFolder(slug, name)}
                 />
               ))}
-              {ungrouped.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  doc={doc}
-                  isDeleting={isDeleting === doc.id}
-                  onDelete={confirmDelete}
-                  onAssignFolder={(slug) => setAssignFolderSlug(slug)}
-                  onRemoveFromFolder={(slug) => void handleRemoveFromFolder(slug)}
-                  onClick={() => onSelectDocument(doc.id)}
-                />
-              ))}
+              {ungrouped.map(renderDocCard)}
             </>
           ) : (
-            folderDocs?.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                doc={doc}
-                isDeleting={isDeleting === doc.id}
-                onDelete={confirmDelete}
-                onAssignFolder={(slug) => setAssignFolderSlug(slug)}
-                onRemoveFromFolder={(slug) => void handleRemoveFromFolder(slug)}
-                onClick={() => onSelectDocument(doc.id)}
-              />
-            ))
+            folderDocs?.map(renderDocCard)
           )}
         </div>
       )}
@@ -697,6 +721,26 @@ export function DocumentsPage({
         onClose={() => setRenameFolderOld(null)}
       />
 
+      {/* Rename document dialog */}
+      <RenameDocumentDialog
+        open={renameDocId !== null}
+        currentTitle={renameDoc?.title ?? ''}
+        onRename={(newDocTitle) => void handleRenameDocument(newDocTitle)}
+        onClose={() => setRenameDocId(null)}
+      />
+
+      {/* Export dialog for card-level export */}
+      {exportDoc && (
+        <ExportDialog
+          doc={exportDoc}
+          workspaceName={workspaceName}
+          open={exportDocId !== null}
+          onOpenChange={(open) => {
+            if (!open) setExportDocId(null);
+          }}
+        />
+      )}
+
       {/* Delete folder confirmation */}
       <AlertDialog
         open={deleteFolderName !== null}
@@ -876,104 +920,6 @@ function RenameFolderDialog({
   );
 }
 
-function FolderCard({
-  name,
-  docCount,
-  onClick,
-  onRename,
-  onDelete,
-  onDropDoc,
-}: {
-  name: string;
-  docCount: number;
-  onClick: () => void;
-  onRename: (name: string) => void;
-  onDelete: (name: string) => void;
-  onDropDoc: (slug: string) => void;
-}): React.JSX.Element {
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  function handleDragOver(e: React.DragEvent): void {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setIsDragOver(true);
-  }
-
-  function handleDragLeave(e: React.DragEvent): void {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDragOver(false);
-    }
-  }
-
-  function handleDrop(e: React.DragEvent): void {
-    e.preventDefault();
-    setIsDragOver(false);
-    const slug = e.dataTransfer.getData('text/plain');
-    if (slug) onDropDoc(slug);
-  }
-
-  return (
-    <button
-      type="button"
-      className={`group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-card text-left transition-colors hover:border-primary/40 ${isDragOver ? 'border-primary ring-2 ring-primary/30' : ''}`}
-      onClick={onClick}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      <div
-        className="relative flex items-center justify-center overflow-hidden border-b bg-muted/30"
-        style={{ height: THUMB_HEIGHT }}
-      >
-        <Folder className="h-12 w-12 text-muted-foreground/30" />
-
-        <div className="absolute top-1.5 right-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="secondary"
-                size="icon-sm"
-                className="h-6 w-6 shadow-sm"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRename(name);
-                }}
-              >
-                <Pencil className="mr-2 h-3.5 w-3.5" />
-                Rename
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(name);
-                }}
-              >
-                <Trash2 className="mr-2 h-3.5 w-3.5" />
-                Delete folder
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1 px-4 py-3">
-        <p className="truncate text-base font-semibold">{name}</p>
-        <p className="text-sm text-muted-foreground">
-          {docCount} {docCount === 1 ? 'document' : 'documents'}
-        </p>
-      </div>
-    </button>
-  );
-}
-
 function DesignSystemCard({
   workspaceName,
   onClick,
@@ -1036,129 +982,6 @@ function AssetsCard({ onClick }: { onClick: () => void }): React.JSX.Element {
       <div className="min-w-0">
         <p className="text-base font-semibold">Assets</p>
         <p className="text-sm text-muted-foreground">Images, SVGs, fonts</p>
-      </div>
-    </button>
-  );
-}
-
-function DocumentCard({
-  doc,
-  isDeleting,
-  onDelete,
-  onAssignFolder,
-  onRemoveFromFolder,
-  onClick,
-}: {
-  doc: DocumentInfo;
-  isDeleting: boolean;
-  onDelete: (e: React.MouseEvent, slug: string) => void;
-  onAssignFolder: (slug: string) => void;
-  onRemoveFromFolder: (slug: string) => void;
-  onClick: () => void;
-}): React.JSX.Element {
-  const sizeLabel =
-    doc.size.unit === 'mm'
-      ? `${doc.size.width} × ${doc.size.height} mm`
-      : `${doc.size.width} × ${doc.size.height} px`;
-
-  return (
-    <button
-      type="button"
-      draggable
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-card text-left transition-colors hover:border-primary/40"
-      onDragStart={(e) => {
-        e.dataTransfer.setData('text/plain', doc.id);
-        e.dataTransfer.effectAllowed = 'move';
-
-        const ghost = document.createElement('div');
-        ghost.style.cssText =
-          'position:absolute;left:-9999px;top:-9999px;display:flex;align-items:center;' +
-          'gap:8px;padding:6px 12px;background:#1a1a1a;color:#fff;border-radius:8px;' +
-          'font-size:13px;font-weight:500;max-width:220px;white-space:nowrap;' +
-          'overflow:hidden;text-overflow:ellipsis;box-shadow:0 4px 12px rgba(0,0,0,0.35);' +
-          'pointer-events:none;';
-        ghost.innerHTML =
-          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
-          'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">' +
-          '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>' +
-          '<polyline points="14 2 14 8 20 8"/>' +
-          '</svg>' +
-          `<span style="overflow:hidden;text-overflow:ellipsis">${doc.title}</span>`;
-        document.body.appendChild(ghost);
-        e.dataTransfer.setDragImage(ghost, 14, 16);
-        requestAnimationFrame(() => document.body.removeChild(ghost));
-      }}
-      onClick={onClick}
-    >
-      <div
-        className="relative flex flex-col items-center justify-center gap-2 overflow-hidden border-b bg-muted/30"
-        style={{ height: THUMB_HEIGHT }}
-      >
-        <div
-          className="flex items-center justify-center rounded-sm border border-muted-foreground/20 bg-background"
-          style={{
-            aspectRatio: `${doc.size.width} / ${doc.size.height}`,
-            height: '60%',
-            maxWidth: '80%',
-          }}
-        >
-          <FileText className="h-6 w-6 text-muted-foreground/40" />
-        </div>
-        <p className="text-xs text-muted-foreground/60">{sizeLabel}</p>
-
-        <div className="absolute top-1.5 right-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="secondary"
-                size="icon-sm"
-                className="h-6 w-6 shadow-sm"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => onDelete(e, doc.id)} disabled={isDeleting}>
-                {isDeleting ? (
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-2 h-3.5 w-3.5" />
-                )}
-                Delete
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAssignFolder(doc.id);
-                }}
-              >
-                <FolderInput className="mr-2 h-3.5 w-3.5" />
-                Move to Folder
-              </DropdownMenuItem>
-              {doc.folder && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveFromFolder(doc.id);
-                  }}
-                >
-                  <FolderMinus className="mr-2 h-3.5 w-3.5" />
-                  Move to Top Level
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1 px-4 py-3">
-        <p className="truncate text-base font-semibold">{doc.title}</p>
-        <p className="text-sm text-muted-foreground">
-          {doc.pages.length === 0
-            ? 'Empty'
-            : `${doc.pages.length} ${doc.pages.length === 1 ? 'page' : 'pages'}`}
-        </p>
       </div>
     </button>
   );

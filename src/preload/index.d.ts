@@ -70,6 +70,8 @@ interface LithoAPI {
       folder?: string,
     ) => Promise<string>;
     delete: (workspaceName: string, docId: string) => Promise<void>;
+    rename: (workspaceName: string, docId: string, newTitle: string) => Promise<void>;
+    duplicate: (workspaceName: string, docId: string) => Promise<string>;
     updateFolder: (workspaceName: string, docId: string, folder: string) => Promise<void>;
   };
   designSystem: {

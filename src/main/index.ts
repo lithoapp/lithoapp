@@ -56,12 +56,14 @@ import {
   createDocument,
   createNewWorkspace,
   deleteDocument,
+  duplicateDocument,
   getDocumentCount,
   listDocumentsFull,
   listWorkspaces,
   readAssetFile,
   readDesignSystem,
   readWorkspaceConfig,
+  renameDocument,
   updateDesignTokens,
   updateDocumentFolder,
 } from './workspace-data';
@@ -205,6 +207,12 @@ ipcMain.handle(
     createDocument(ws, title, size, folder),
 );
 ipcMain.handle('document:delete', (_event, ws: string, docId: string) => deleteDocument(ws, docId));
+ipcMain.handle('document:rename', (_event, ws: string, docId: string, newTitle: string) =>
+  renameDocument(ws, docId, newTitle),
+);
+ipcMain.handle('document:duplicate', (_event, ws: string, docId: string) =>
+  duplicateDocument(ws, docId),
+);
 ipcMain.handle('document:updateFolder', (_event, ws: string, docId: string, folder: string) =>
   updateDocumentFolder(ws, docId, folder),
 );

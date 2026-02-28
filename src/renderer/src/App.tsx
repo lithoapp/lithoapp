@@ -32,6 +32,7 @@ function App(): React.JSX.Element {
   const [page, setPage] = useState<Page>('workspaces');
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<{
     name: string | null;
     email: string | null;
@@ -46,12 +47,15 @@ function App(): React.JSX.Element {
       setDocuments([]);
       return;
     }
+    setDocumentsLoading(true);
     try {
       const docs = await window.litho.document.list(workspaceName);
       setDocuments(docs);
     } catch (err) {
       console.error('[app] Failed to load documents:', err);
       toast.error('Failed to load documents');
+    } finally {
+      setDocumentsLoading(false);
     }
   }, [workspaceName]);
 
@@ -290,6 +294,7 @@ function App(): React.JSX.Element {
           <DocumentsPage
             workspaceName={workspaceName}
             documents={documents}
+            isLoading={documentsLoading}
             refetch={loadDocuments}
             onSelectDocument={(docId) => {
               setActiveDocId(docId);

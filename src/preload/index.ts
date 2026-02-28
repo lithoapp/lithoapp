@@ -84,6 +84,10 @@ contextBridge.exposeInMainWorld('litho', {
     ): Promise<string> => ipcRenderer.invoke('document:create', workspaceName, title, size, folder),
     delete: (workspaceName: string, docId: string): Promise<void> =>
       ipcRenderer.invoke('document:delete', workspaceName, docId),
+    rename: (workspaceName: string, docId: string, newTitle: string): Promise<void> =>
+      ipcRenderer.invoke('document:rename', workspaceName, docId, newTitle),
+    duplicate: (workspaceName: string, docId: string): Promise<string> =>
+      ipcRenderer.invoke('document:duplicate', workspaceName, docId),
     updateFolder: (workspaceName: string, docId: string, folder: string): Promise<void> =>
       ipcRenderer.invoke('document:updateFolder', workspaceName, docId, folder),
   },
