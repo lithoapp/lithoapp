@@ -344,8 +344,17 @@ export function Chat({
             rows={1}
           />
           {isBusy ? (
-            <Button size="icon-sm" variant="destructive" onClick={chat.abort}>
-              <Square className="h-3 w-3 fill-current" />
+            <Button
+              size="icon-sm"
+              variant="destructive"
+              onClick={chat.abort}
+              disabled={chat.isAborting}
+            >
+              {chat.isAborting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Square className="h-3 w-3 fill-current" />
+              )}
             </Button>
           ) : (
             <Button size="icon-sm" onClick={handleSend} disabled={!input.trim() || chat.sending}>

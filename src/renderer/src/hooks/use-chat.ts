@@ -40,6 +40,7 @@ export interface UseChatReturn {
   totalCost: number;
   totalTokens: { input: number; output: number; reasoning: number };
   sending: boolean;
+  isAborting: boolean;
   error: string | null;
   sendMessage: (text: string) => Promise<void>;
   abort: () => Promise<void>;
@@ -70,6 +71,7 @@ export function useChat({
   const [pendingPermissions, setPendingPermissions] = useState<PendingPermission[]>([]);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
   const [sending, setSending] = useState(false);
+  const [isAborting, setIsAborting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Cost accumulators stored in refs, synced to state
@@ -294,12 +296,15 @@ export function useChat({
         body.model = { providerID: providerId, modelID: modelId };
       }
 
-      const query = directory.trim() ? { directory: directory.trim() } : undefined;
+      const dir = directory.trim();
+      const query = dir ? { directory: dir } : undefined;
+      const headers = dir ? { 'x-opencode-directory': encodeURIComponent(dir) } : undefined;
       try {
         const result = await client.session.promptAsync({
           path: { id: sessionId },
           body: body as Parameters<typeof client.session.promptAsync>[0]['body'],
           query,
+          headers,
         });
         if (result.error) {
           const errPayload = result.error;
@@ -321,12 +326,18 @@ export function useChat({
 
   const abort = useCallback(async () => {
     if (!client || !sessionId) return;
+    setIsAborting(true);
+    const dir = directory.trim();
+    const query = dir ? { directory: dir } : undefined;
+    const headers = dir ? { 'x-opencode-directory': encodeURIComponent(dir) } : undefined;
     try {
-      await client.session.abort({ path: { id: sessionId } });
+      await client.session.abort({ path: { id: sessionId }, query, headers });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to abort');
+    } finally {
+      setIsAborting(false);
     }
-  }, [client, sessionId]);
+  }, [client, sessionId, directory]);
 
   const replyPermission = useCallback(
     async (permissionId: string, response: 'once' | 'always' | 'reject') => {
@@ -380,6 +391,7 @@ export function useChat({
     totalCost,
     totalTokens,
     sending,
+    isAborting,
     error,
     sendMessage,
     abort,
