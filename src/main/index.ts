@@ -29,6 +29,7 @@ import {
 import { DocumentExporter, exportPage } from './exporter';
 import { OpencodeManager } from './opencode-manager';
 import { buildPage } from './renderer';
+import { compileTailwind, formatCssError } from './renderer/build-shared';
 import { initSentry } from './sentry';
 import {
   createDesignSystemSnapshot,
@@ -46,9 +47,11 @@ import {
   restoreStylesSnapshot,
 } from './snapshot-manager';
 import {
+  getAdvancedToolsEnabled,
   getTelemetryEnabled,
   getTheme,
   getUserProfile,
+  setAdvancedToolsEnabled,
   setTelemetryEnabled,
   setTheme,
   setUserProfile,
@@ -60,6 +63,7 @@ import {
   createNewWorkspace,
   deleteDocument,
   duplicateDocument,
+  exportWorkspaceSource,
   getDesignSystemDocId,
   getDesignSystemDocInfo,
   getDocumentCount,
@@ -132,6 +136,10 @@ function createWindow(): void {
 // IPC handlers
 ipcMain.handle('telemetry:getEnabled', () => getTelemetryEnabled());
 ipcMain.handle('telemetry:setEnabled', (_event, value: boolean) => setTelemetryEnabled(value));
+ipcMain.handle('advancedTools:getEnabled', () => getAdvancedToolsEnabled());
+ipcMain.handle('advancedTools:setEnabled', (_event, value: boolean) =>
+  setAdvancedToolsEnabled(value),
+);
 ipcMain.handle('preferences:getUserProfile', () => getUserProfile());
 ipcMain.handle('preferences:setUserProfile', (_event, name: string, email: string) =>
   setUserProfile(name, email),
@@ -175,6 +183,34 @@ ipcMain.handle('export:start', async (_event, request) => {
 });
 
 ipcMain.handle('export:getProgress', () => documentExporter.getProgress());
+
+ipcMain.handle('advancedTools:exportSource', async () => {
+  if (!mainWindow) return { success: false, error: 'No window available' };
+
+  const workspaceName = getActiveWorkspace();
+  if (!workspaceName) return { success: false, error: 'No active workspace' };
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const defaultName = `${workspaceName}-${timestamp}.zip`;
+
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: defaultName,
+    filters: [{ name: 'ZIP', extensions: ['zip'] }],
+  });
+
+  if (result.canceled || !result.filePath) {
+    return { success: false, error: 'Cancelled' };
+  }
+
+  try {
+    const zipBuffer = await exportWorkspaceSource(workspaceName);
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(result.filePath, zipBuffer);
+    return { success: true, path: result.filePath };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+});
 
 // Workspace IPC handlers
 ipcMain.handle('workspace:list', () => listWorkspaces());
@@ -344,6 +380,21 @@ ipcMain.handle(
     buildPage(ws, doc, page, approach),
 );
 ipcMain.handle('renderer:export', (_event, options) => exportPage(options));
+
+ipcMain.handle(
+  'renderer:validateCss',
+  async (_event, workspace: string): Promise<{ ok: true } | { ok: false; errors: string[] }> => {
+    try {
+      const css = await readStyles(workspace);
+      const wsPath = resolveWorkspacePath(workspace);
+      await compileTailwind(css, wsPath, []);
+      return { ok: true };
+    } catch (err) {
+      const message = formatCssError(err, 'styles.css');
+      return { ok: false, errors: [message] };
+    }
+  },
+);
 
 // Forward opencode status changes to renderer
 opencodeManager.on('status-change', (data) => {

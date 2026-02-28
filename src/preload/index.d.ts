@@ -25,6 +25,11 @@ interface LithoAPI {
     getEnabled: () => Promise<boolean>;
     setEnabled: (value: boolean) => Promise<void>;
   };
+  advancedTools: {
+    getEnabled: () => Promise<boolean>;
+    setEnabled: (value: boolean) => Promise<void>;
+    exportSource: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  };
   opencode: {
     getStatus: () => Promise<OpencodeInfo>;
     start: () => Promise<void>;

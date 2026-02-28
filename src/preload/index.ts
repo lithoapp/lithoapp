@@ -22,6 +22,13 @@ contextBridge.exposeInMainWorld('litho', {
     setEnabled: (value: boolean): Promise<void> =>
       ipcRenderer.invoke('telemetry:setEnabled', value),
   },
+  advancedTools: {
+    getEnabled: (): Promise<boolean> => ipcRenderer.invoke('advancedTools:getEnabled'),
+    setEnabled: (value: boolean): Promise<void> =>
+      ipcRenderer.invoke('advancedTools:setEnabled', value),
+    exportSource: (): Promise<{ success: boolean; path?: string; error?: string }> =>
+      ipcRenderer.invoke('advancedTools:exportSource'),
+  },
   opencode: {
     getStatus: (): Promise<unknown> => ipcRenderer.invoke('opencode:status'),
     start: (): Promise<void> => ipcRenderer.invoke('opencode:start'),

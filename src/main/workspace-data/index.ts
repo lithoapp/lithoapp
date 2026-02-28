@@ -31,3 +31,4 @@ export {
   updateWorkspaceLastOpened,
   writePageSource,
 } from './db-backend';
+export { exportWorkspaceSource } from './export-source';

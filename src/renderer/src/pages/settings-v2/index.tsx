@@ -2,17 +2,19 @@ import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AboutSection } from './about-section';
+import { AdvancedSection } from './advanced-section';
 import { AiProvidersSection } from './ai-providers-section';
 import { PrivacySection } from './privacy-section';
 import { ProfileSection } from './profile-section';
 
-type SettingsCategory = 'profile' | 'ai-providers' | 'privacy' | 'about';
+type SettingsCategory = 'profile' | 'ai-providers' | 'privacy' | 'about' | 'advanced';
 
 const categories: { id: SettingsCategory; label: string }[] = [
   { id: 'profile', label: 'Profile' },
   { id: 'ai-providers', label: 'AI Providers' },
   { id: 'privacy', label: 'Privacy' },
   { id: 'about', label: 'About' },
+  { id: 'advanced', label: 'Advanced' },
 ];
 
 interface SettingsV2PageProps {
@@ -58,6 +60,7 @@ export function SettingsV2Page({ onBack }: SettingsV2PageProps): React.JSX.Eleme
         {active === 'ai-providers' && <AiProvidersSection />}
         {active === 'privacy' && <PrivacySection />}
         {active === 'about' && <AboutSection />}
+        {active === 'advanced' && <AdvancedSection />}
       </main>
     </div>
   );
