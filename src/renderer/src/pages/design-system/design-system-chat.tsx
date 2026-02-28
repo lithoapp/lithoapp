@@ -8,10 +8,17 @@ import { useSessionInit } from '@/hooks/use-session-init';
 import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 import type { DocumentConfig } from '../../../../shared/types';
 
+type SendMessageFn = ((text: string) => void) | null;
+
 interface DesignSystemChatProps {
   workspaceName: string;
   workspacePath: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
+  /** Primary sendMessageRef — populated by Chat so callers can inject messages. */
+  sendMessageRef?: React.RefObject<SendMessageFn>;
+  /** Secondary ref also kept in sync (e.g. DocumentPage's ref for audit fixes). */
+  parentSendMessageRef?: React.RefObject<SendMessageFn>;
+  onBusyChange?: (isBusy: boolean) => void;
 }
 
 function buildStorageKey(workspaceName: string): string {
@@ -22,7 +29,25 @@ export function DesignSystemChat({
   workspaceName,
   workspacePath,
   onToolComplete,
+  sendMessageRef,
+  parentSendMessageRef,
+  onBusyChange,
 }: DesignSystemChatProps): React.JSX.Element {
+  // Create a merged ref that syncs writes to both sendMessageRef and parentSendMessageRef.
+  // Chat writes to this ref's .current in a useEffect.
+  const mergedSendRef = useMemo(() => {
+    let value: SendMessageFn = null;
+    return {
+      get current() {
+        return value;
+      },
+      set current(fn: SendMessageFn) {
+        value = fn;
+        if (sendMessageRef) sendMessageRef.current = fn;
+        if (parentSendMessageRef) parentSendMessageRef.current = fn;
+      },
+    } satisfies React.RefObject<SendMessageFn>;
+  }, [sendMessageRef, parentSendMessageRef]);
   const { client, baseUrl, status } = useOpencode();
   const [resetKey, setResetKey] = useState(0);
   const [snapshotIndex, setSnapshotIndex] = useState<Record<string, string>>({});
@@ -240,6 +265,8 @@ export function DesignSystemChat({
       onRevert={handleRevert}
       captureFiles={captureFiles}
       onTurnSnapshot={handleTurnSnapshot}
+      sendMessageRef={mergedSendRef}
+      onBusyChange={onBusyChange}
       pages={docConfig?.pages}
     />
   );

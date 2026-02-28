@@ -41,6 +41,8 @@ interface DocumentPageProps {
     workspaceName: string;
     workspacePath: string;
     onToolComplete: (tool: string, args: Record<string, unknown>) => void;
+    sendMessageRef: React.RefObject<((text: string) => void) | null>;
+    onBusyChange: (isBusy: boolean) => void;
   }) => React.ReactNode;
   /** Tool names that should trigger a full rebuild of all pages (e.g. CSS changes). */
   rebuildAllOnTools?: string[];
@@ -449,7 +451,13 @@ export function DocumentPage({
   }
 
   const chatPanel = renderChat ? (
-    renderChat({ workspaceName, workspacePath, onToolComplete: handleToolComplete })
+    renderChat({
+      workspaceName,
+      workspacePath,
+      onToolComplete: handleToolComplete,
+      sendMessageRef,
+      onBusyChange: handleBusyChange,
+    })
   ) : (
     <DocumentChat
       doc={doc}

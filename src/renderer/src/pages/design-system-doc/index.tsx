@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/electron/renderer';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
+import { type PostTurnValidator, usePostTurnDiagnostics } from '@/hooks/use-post-turn-diagnostics';
 import type { DocumentConfig, DocumentInfo } from '../../../../shared/types';
 import { DesignSystemChat } from '../design-system/design-system-chat';
 import { DocumentPage } from '../document';
@@ -21,6 +22,51 @@ export function DesignSystemDocPage({
   const [dsDocId, setDsDocId] = useState<string | null>(null);
   const [docConfig, setDocConfig] = useState<DocumentConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAgentBusy, setIsAgentBusy] = useState(false);
+
+  // This ref is populated by DocumentPage → Chat via the renderChat prop.
+  // We pass it to the diagnostics hook so it can inject messages.
+  const sendMessageRef = useRef<((text: string) => void) | null>(null);
+
+  const cssValidator: PostTurnValidator = useMemo(
+    () => ({
+      tools: ['writeMainCss', 'editMainCss'],
+      getDirtyKey: () => 'css',
+      validate: async () => {
+        const result = await window.litho.renderer.validateCss(workspaceName);
+        return result.ok ? [] : result.errors;
+      },
+      formatMessage: (errors) =>
+        `CSS validation found ${errors.length} error(s) in styles.css:\n${errors.map((e) => `- ${e}`).join('\n')}\n\nFix these errors.`,
+    }),
+    [workspaceName],
+  );
+
+  const diagnosticToolComplete = usePostTurnDiagnostics(
+    [cssValidator],
+    sendMessageRef,
+    isAgentBusy,
+  );
+
+  // On the first busy→idle transition (kickoff reply), force-dirty the CSS
+  // validator so we validate existing styles even if no CSS tools were called.
+  const hasCompletedFirstTurnRef = useRef(false);
+  const wasBusyRef = useRef(false);
+
+  const handleBusyChange = useCallback(
+    (busy: boolean) => {
+      const wasBusy = wasBusyRef.current;
+      wasBusyRef.current = busy;
+
+      if (wasBusy && !busy && !hasCompletedFirstTurnRef.current) {
+        hasCompletedFirstTurnRef.current = true;
+        diagnosticToolComplete('writeMainCss', {});
+      }
+
+      setIsAgentBusy(busy);
+    },
+    [diagnosticToolComplete],
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -73,11 +119,26 @@ export function DesignSystemDocPage({
       onBack={onBack}
       rebuildAllOnTools={REBUILD_ALL_ON_TOOLS}
       refetchDocOnPageChange
-      renderChat={({ workspaceName: wsName, workspacePath: wsPath, onToolComplete }) => (
+      renderChat={({
+        workspaceName: wsName,
+        workspacePath: wsPath,
+        onToolComplete,
+        sendMessageRef: parentSendRef,
+        onBusyChange: parentBusyChange,
+      }) => (
         <DesignSystemChat
           workspaceName={wsName}
           workspacePath={wsPath}
-          onToolComplete={onToolComplete}
+          onToolComplete={(tool, args) => {
+            onToolComplete(tool, args);
+            diagnosticToolComplete(tool, args);
+          }}
+          sendMessageRef={sendMessageRef}
+          parentSendMessageRef={parentSendRef}
+          onBusyChange={(busy) => {
+            handleBusyChange(busy);
+            parentBusyChange(busy);
+          }}
         />
       )}
     />

@@ -140,6 +140,7 @@ interface LithoAPI {
       approach?: 'ssr' | 'csr',
     ) => Promise<RendererResult<PageBuildData>>;
     export: (options: PageExportOptions) => Promise<RendererResult<void>>;
+    validateCss: (workspace: string) => Promise<{ ok: true } | { ok: false; errors: string[] }>;
   };
   assets: {
     list: (workspaceName: string, dirPath: string, recursive?: boolean) => Promise<AssetEntry[]>;

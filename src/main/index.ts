@@ -72,6 +72,7 @@ import {
   readAssetFile,
   readDesignSystem,
   readDocumentConfig,
+  readStyles,
   renameDocument,
   updateDesignTokens,
   updateDocumentFolder,
@@ -386,9 +387,18 @@ ipcMain.handle(
   async (_event, workspace: string): Promise<{ ok: true } | { ok: false; errors: string[] }> => {
     try {
       const css = await readStyles(workspace);
+      const errors: string[] = [];
+
+      if (!/@import\s+["']tailwindcss["']/.test(css)) {
+        errors.push(
+          'styles.css is missing `@import "tailwindcss";` — this import is required for Tailwind utilities to work. Add it as the first line.',
+        );
+      }
+
       const wsPath = resolveWorkspacePath(workspace);
       await compileTailwind(css, wsPath, []);
-      return { ok: true };
+
+      return errors.length > 0 ? { ok: false, errors } : { ok: true };
     } catch (err) {
       const message = formatCssError(err, 'styles.css');
       return { ok: false, errors: [message] };

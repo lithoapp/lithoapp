@@ -205,6 +205,8 @@ contextBridge.exposeInMainWorld('litho', {
       jpgQuality: number;
       savePath: string;
     }): Promise<unknown> => ipcRenderer.invoke('renderer:export', options),
+    validateCss: (workspace: string): Promise<{ ok: true } | { ok: false; errors: string[] }> =>
+      ipcRenderer.invoke('renderer:validateCss', workspace),
   },
   assets: {
     list: (workspaceName: string, dirPath: string, recursive?: boolean): Promise<unknown> =>

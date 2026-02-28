@@ -1,4 +1,4 @@
-import { RotateCcw } from 'lucide-react';
+import { AlertTriangle, RotateCcw } from 'lucide-react';
 import NodeRenderer, { setCustomComponents } from 'markstream-react';
 import 'markstream-react/index.css';
 import {
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import type { ChatMessage } from '@/hooks/use-chat';
+import { isDiagnosticMessage, stripDiagnosticPrefix } from '@/hooks/use-post-turn-diagnostics';
 
 // ---------------------------------------------------------------------------
 // Hex color detection — renders inline color pills
@@ -114,6 +115,13 @@ export function UserMessageView({
   snapshotId?: string;
   onRevert?: () => void;
 }): React.JSX.Element {
+  const firstText = message.parts.find((p) => p.type === 'text');
+  const isDiagnostic = firstText?.type === 'text' && isDiagnosticMessage(firstText.text);
+
+  if (isDiagnostic) {
+    return <DiagnosticMessageView message={message} />;
+  }
+
   return (
     <div className="w-full flex flex-col items-end gap-0.5 pt-2">
       <div className="max-w-[80%] rounded-2xl bg-primary px-3.5 py-2 text-primary-foreground">
@@ -152,6 +160,37 @@ export function UserMessageView({
           </AlertDialogContent>
         </AlertDialog>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostic message — system-style bubble for auto-injected validation errors
+// ---------------------------------------------------------------------------
+
+function DiagnosticMessageView({ message }: { message: ChatMessage }): React.JSX.Element {
+  const textParts = message.parts.filter((p) => p.type === 'text');
+  const fullText = textParts.map((p) => (p.type === 'text' ? p.text : '')).join('');
+  const displayText = stripDiagnosticPrefix(fullText);
+
+  // Count errors from the message (each "- " prefixed line is an error)
+  const errorCount = (displayText.match(/^- /gm) ?? []).length;
+  const label =
+    errorCount > 0
+      ? `CSS validation — ${errorCount} error(s) reported to agent`
+      : 'Validation errors reported to agent';
+
+  return (
+    <div className="w-full flex flex-col items-end gap-0.5 pt-2">
+      <div className="max-w-[85%] rounded-xl border border-muted-foreground/20 bg-muted/50 px-3 py-2">
+        <div className="flex items-center gap-1.5 pb-1">
+          <AlertTriangle className="h-3 w-3 shrink-0 text-amber-500" />
+          <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+        </div>
+        <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground/80">
+          {displayText}
+        </p>
+      </div>
     </div>
   );
 }
