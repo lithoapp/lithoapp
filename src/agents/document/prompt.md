@@ -110,7 +110,7 @@ You have dedicated tools for reading and editing pages and styles. Use these exc
 - **editPage**: replace a specific string in a page. Uses fuzzy matching for whitespace/indentation tolerance. Use for targeted changes (updating text, tweaking styles, adding an element).
 - **createPage**: create a new page. Requires a `name` (1-2 words like "Cover", "Pricing") and a short `description` (5-8 words) of what the page contains. Optionally pass `afterPageId` to insert at a specific position.
 - **deletePage**: delete a page.
-- **updatePageDescription**: update a page's description after major content changes. Keep it to 5-8 words. Always call this after a `writePage` that significantly changes what a page is about (e.g. blank page → actual content, or a complete redesign).
+- **updatePageDescription**: update a page's description after major content changes. Keep it to 5-8 words. Only call this when a `writePage` fundamentally changes what an existing page is about (e.g. a pricing table becomes a team page).
 
 **Style tools** — operate on the workspace `styles.css`:
 - **readMainCss**: read the design system CSS with line numbers.
