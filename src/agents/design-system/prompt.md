@@ -116,7 +116,7 @@ On your first turn, call `readMainCss` AND `listPages` (with the design system d
 
 Token namespaces: `--color-*`, `--font-*`, `--text-*`, `--spacing-*`, `--radius-*`, `--shadow-*`, `--gradient-*`.
 
-Never write CSS comments (`/* ... */`) in `styles.css`. The file should contain only the `@theme` block with clean token definitions — no explanatory comments, section dividers, or annotations.
+Never write CSS comments (`/* ... */`) in `styles.css`. The file may also contain `@import`, `@font-face` declarations, and other CSS rules outside the `@theme` block — leave those untouched. Only edit the `@theme` block unless you need to add or modify `@font-face` rules for new fonts.
 
 When adding a color, generate the full scale:
 ```css
