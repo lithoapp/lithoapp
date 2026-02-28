@@ -36,6 +36,16 @@ interface DocumentPageProps {
   onBack: () => void;
   onDocumentsChange?: () => void;
   userName?: string;
+  /** Render a custom chat panel instead of the default DocumentChat. */
+  renderChat?: (props: {
+    workspaceName: string;
+    workspacePath: string;
+    onToolComplete: (tool: string, args: Record<string, unknown>) => void;
+  }) => React.ReactNode;
+  /** Tool names that should trigger a full rebuild of all pages (e.g. CSS changes). */
+  rebuildAllOnTools?: string[];
+  /** When true, refetch doc config via IPC on createPage/deletePage instead of calling onDocumentsChange. */
+  refetchDocOnPageChange?: boolean;
 }
 
 export function DocumentPage({
@@ -45,6 +55,9 @@ export function DocumentPage({
   onBack,
   onDocumentsChange,
   userName,
+  renderChat,
+  rebuildAllOnTools,
+  refetchDocOnPageChange,
 }: DocumentPageProps): React.JSX.Element {
   const [zoom, setZoom] = useState(1);
   const [fitToWidth, setFitToWidth] = useState(true);
@@ -54,6 +67,13 @@ export function DocumentPage({
   const [pageHtmlMap, setPageHtmlMap] = useState<Map<string, string>>(new Map());
   const [pageAudits, setPageAudits] = useState<Map<string, PageAudit[]>>(new Map());
   const [isAgentBusy, setIsAgentBusy] = useState(false);
+  // When refetchDocOnPageChange is true, we manage pages internally so
+  // createPage/deletePage can refresh without going through the parent.
+  const [internalPages, setInternalPages] = useState(doc.pages);
+  useEffect(() => {
+    setInternalPages(doc.pages);
+  }, [doc.pages]);
+  const pages = refetchDocOnPageChange ? internalPages : doc.pages;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -109,7 +129,7 @@ export function DocumentPage({
       observer.observe(el);
     }
     return () => observer.disconnect();
-  }, [doc.pages.length, zoom]);
+  }, [pages.length, zoom]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -136,7 +156,7 @@ export function DocumentPage({
       if (e.key === 'PageDown' || e.key === 'ArrowDown') {
         e.preventDefault();
         setCurrentPage((prev) => {
-          const next = Math.min(prev + 1, doc.pages.length - 1);
+          const next = Math.min(prev + 1, pages.length - 1);
           const el = pageRefs.current.get(next);
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
           return next;
@@ -153,11 +173,10 @@ export function DocumentPage({
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [doc.pages.length]);
+  }, [pages.length]);
 
   // Build page HTML lazily: current page first, then remaining pages
   const buildPages = useCallback(async () => {
-    const pages = doc.pages;
     if (pages.length === 0) return;
 
     // Build current page first for instant display
@@ -189,14 +208,14 @@ export function DocumentPage({
         Sentry.captureException(err);
       }
     }
-  }, [workspaceName, doc.id, doc.pages, currentPage]);
+  }, [workspaceName, doc.id, pages, currentPage]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: build pages on mount and when doc changes
   useEffect(() => {
     setPageHtmlMap(new Map());
     setPageAudits(new Map());
     void buildPages();
-  }, [workspaceName, doc.id, doc.pages]);
+  }, [workspaceName, doc.id, pages]);
 
   const handleZoomIn = useCallback(() => {
     setFitToWidth(false);
@@ -248,14 +267,32 @@ export function DocumentPage({
     [workspaceName, doc.id],
   );
 
+  // Refetch doc config internally (used when refetchDocOnPageChange is true).
+  const refetchDocConfig = useCallback(async () => {
+    try {
+      const config = await window.litho.document.read(workspaceName, doc.id);
+      setInternalPages(config.pages);
+    } catch {
+      // non-fatal
+    }
+  }, [workspaceName, doc.id]);
+
   // Handle completed litho tool calls.
   // writePage/editPage → rebuild the specific page only.
-  // createPage/deletePage → refetch doc list (parent updates doc.pages,
-  //   which triggers the useEffect that rebuilds all pages).
+  // createPage/deletePage → refetch doc list or doc config depending on mode.
+  // rebuildAllOnTools matches → rebuild all pages.
   const onDocumentsChangeRef = useRef(onDocumentsChange);
   onDocumentsChangeRef.current = onDocumentsChange;
+  const rebuildAllOnToolsRef = useRef(rebuildAllOnTools);
+  rebuildAllOnToolsRef.current = rebuildAllOnTools;
   const handleToolComplete = useCallback(
     (tool: string, args: Record<string, unknown>) => {
+      // Check caller-provided tools that require a full rebuild
+      if (rebuildAllOnToolsRef.current?.includes(tool)) {
+        void buildPages();
+        return;
+      }
+
       switch (tool) {
         case 'writePage':
         case 'editPage': {
@@ -265,11 +302,15 @@ export function DocumentPage({
         }
         case 'createPage':
         case 'deletePage':
-          onDocumentsChangeRef.current?.();
+          if (refetchDocOnPageChange) {
+            void refetchDocConfig();
+          } else {
+            onDocumentsChangeRef.current?.();
+          }
           break;
       }
     },
-    [buildPage],
+    [buildPage, buildPages, refetchDocOnPageChange, refetchDocConfig],
   );
 
   const handleIframeLoad = useCallback(
@@ -305,7 +346,7 @@ export function DocumentPage({
     <DocumentToolbar
       docTitle={doc.title}
       currentPage={currentPage}
-      totalPages={doc.pages.length}
+      totalPages={pages.length}
       onBack={onBack}
       zoom={zoom}
       fitToWidth={fitToWidth}
@@ -321,7 +362,7 @@ export function DocumentPage({
 
   const displayWidth = pageWidthPx * zoom;
 
-  const hasPages = doc.pages.length > 0;
+  const hasPages = pages.length > 0;
 
   const emptyPlaceholder = (
     <div
@@ -339,12 +380,12 @@ export function DocumentPage({
     </div>
   );
 
-  const pages = hasPages ? (
+  const pageContent = hasPages ? (
     <div
       className="flex flex-col items-center gap-6 py-6"
       style={{ paddingInline: VIEWER_PADDING }}
     >
-      {doc.pages.map((page, index) => (
+      {pages.map((page, index) => (
         <div key={page.id} className="flex flex-col items-center">
           <div className="flex flex-col gap-0.5 pb-1.5" style={{ width: displayWidth }}>
             <span className="text-xs font-medium text-muted-foreground/60">
@@ -398,7 +439,7 @@ export function DocumentPage({
               ref={scrollRef}
               className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
             >
-              {pages}
+              {pageContent}
             </div>
           </div>
           {exportDialog}
@@ -406,6 +447,20 @@ export function DocumentPage({
       </TooltipProvider>
     );
   }
+
+  const chatPanel = renderChat ? (
+    renderChat({ workspaceName, workspacePath, onToolComplete: handleToolComplete })
+  ) : (
+    <DocumentChat
+      doc={doc}
+      workspaceName={workspaceName}
+      workspacePath={workspacePath}
+      userName={userName}
+      onToolComplete={handleToolComplete}
+      sendMessageRef={sendMessageRef}
+      onBusyChange={handleBusyChange}
+    />
+  );
 
   return (
     <TooltipProvider>
@@ -419,7 +474,7 @@ export function DocumentPage({
                 <ScrollArea className="h-full">
                   <div className="flex flex-col gap-0.5 p-3">
                     {hasPages ? (
-                      doc.pages.map((page, index) => (
+                      pages.map((page, index) => (
                         <PageListItem
                           key={page.id}
                           index={index}
@@ -442,7 +497,7 @@ export function DocumentPage({
                   ref={scrollRef}
                   className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
                 >
-                  {pages}
+                  {pageContent}
                 </div>
               </div>
             </div>
@@ -453,15 +508,7 @@ export function DocumentPage({
         <ResizableHandle withHandle />
 
         <ResizablePanel defaultSize={30} minSize={20}>
-          <DocumentChat
-            doc={doc}
-            workspaceName={workspaceName}
-            workspacePath={workspacePath}
-            userName={userName}
-            onToolComplete={handleToolComplete}
-            sendMessageRef={sendMessageRef}
-            onBusyChange={handleBusyChange}
-          />
+          {chatPanel}
         </ResizablePanel>
       </ResizablePanelGroup>
     </TooltipProvider>
