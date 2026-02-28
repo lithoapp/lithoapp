@@ -1,4 +1,5 @@
-import { FileText, FolderOpen, Loader2, Plus } from 'lucide-react';
+import { formatDistanceToNow, parseISO } from 'date-fns';
+import { Clock, FileText, FolderOpen, Loader2, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -147,7 +148,7 @@ export function WorkspacesPage({
                     )}
                   />
                 )}
-                <span className="min-w-0 truncate text-base font-semibold">{ws.name}</span>
+                <span className="min-w-0 truncate text-base font-semibold">{ws.title}</span>
                 {isActive && (
                   <Badge className="bg-forge/15 text-forge border-forge/30 shrink-0 text-xs">
                     Active
@@ -155,10 +156,14 @@ export function WorkspacesPage({
                 )}
               </div>
 
-              <div className="mt-3 flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="mt-3 flex flex-col gap-1.5 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <FileText className="h-3.5 w-3.5" />
                   {ws.documentCount} {ws.documentCount === 1 ? 'document' : 'documents'}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  Last opened {formatDistanceToNow(parseISO(ws.lastOpenedAt), { addSuffix: true })}
                 </span>
               </div>
             </button>

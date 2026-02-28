@@ -24,10 +24,10 @@ export {
   readPageDescription,
   readPageSource,
   readStyles,
-  readWorkspaceConfig,
   renameDocument,
   updateDesignTokens,
   updateDocumentFolder,
   updatePageDetails,
+  updateWorkspaceLastOpened,
   writePageSource,
 } from './db-backend';

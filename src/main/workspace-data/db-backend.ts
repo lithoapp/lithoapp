@@ -6,6 +6,7 @@ import type {
   DocumentInfo,
   PageInfo,
   PageSize,
+  WorkspaceInfo,
 } from '../../shared/types';
 import { resolveWorkspacePath, WORKSPACES_BASE } from '../workspace-paths';
 import { generateId, getWorkspaceDb } from './db';
@@ -17,24 +18,47 @@ import {
   serializeFullCss,
   slugify,
 } from './design-system-parser';
+import {
+  createWorkspaceEntry,
+  getAllWorkspaceEntries,
+  updateWorkspaceLastOpened as updateRegistryLastOpened,
+} from './registry-db';
 
 // ---------------------------------------------------------------------------
-// Workspace operations (still filesystem-based — workspaces are directories)
+// Workspace operations
 // ---------------------------------------------------------------------------
 
-export async function listWorkspaces(): Promise<string[]> {
+export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
   if (!existsSync(WORKSPACES_BASE)) return [];
-  return readdirSync(WORKSPACES_BASE, { withFileTypes: true })
+
+  const slugs = readdirSync(WORKSPACES_BASE, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
+
+  const registryEntries = getAllWorkspaceEntries();
+
+  const results: WorkspaceInfo[] = [];
+
+  for (const slug of slugs) {
+    const entry = registryEntries.get(slug);
+    const documentCount = await getDocumentCount(slug).catch(() => 0);
+
+    results.push({
+      slug,
+      title: entry?.title ?? slug,
+      documentCount,
+      createdAt: entry?.created_at ?? new Date().toISOString(),
+      lastOpenedAt: entry?.last_opened_at ?? new Date().toISOString(),
+    });
+  }
+
+  results.sort((a, b) => new Date(b.lastOpenedAt).getTime() - new Date(a.lastOpenedAt).getTime());
+
+  return results;
 }
 
-export async function readWorkspaceConfig(workspace: string): Promise<{ name: string }> {
-  return { name: workspace };
-}
-
-export async function createNewWorkspace(name: string): Promise<string> {
-  const slug = slugify(name) || 'untitled';
+export async function createNewWorkspace(title: string): Promise<string> {
+  const slug = slugify(title) || 'untitled';
   const root = resolveWorkspacePath(slug);
 
   if (existsSync(root)) {
@@ -43,16 +67,19 @@ export async function createNewWorkspace(name: string): Promise<string> {
 
   mkdirSync(join(root, 'assets'), { recursive: true });
 
-  // Opening the db creates workspace.db and runs migrations
   const db = getWorkspaceDb(slug);
 
-  // Insert default styles row
   db.prepare('INSERT INTO styles (id, css) VALUES (1, ?)').run(DEFAULT_STYLES_CSS);
 
-  // Insert design system document with default pages
-  insertDesignSystemDocument(db, generateId, slug);
+  insertDesignSystemDocument(db, generateId, title);
+
+  createWorkspaceEntry(slug, title);
 
   return slug;
+}
+
+export function updateWorkspaceLastOpened(slug: string): void {
+  updateRegistryLastOpened(slug);
 }
 
 // ---------------------------------------------------------------------------

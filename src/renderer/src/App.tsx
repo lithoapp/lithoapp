@@ -68,6 +68,7 @@ function App(): React.JSX.Element {
   const { info: workspaceInfo, workspaces, refreshWorkspaces } = useWorkspace();
   const workspaceName = workspaceInfo.workspaceName;
   const workspacePath = workspaceInfo.workspacePath;
+  const workspaceTitle = workspaces.find((ws) => ws.slug === workspaceName)?.title;
 
   const { designSystem } = useDesignSystem(workspaceName);
 
@@ -245,7 +246,7 @@ function App(): React.JSX.Element {
         }
       >
         <span className="text-sm font-semibold">
-          {workspaceInfo.status === 'active' && workspaceName ? workspaceName : 'Home'}
+          {workspaceInfo.status === 'active' && workspaceTitle ? workspaceTitle : 'Home'}
         </span>
 
         <nav
@@ -343,6 +344,7 @@ function App(): React.JSX.Element {
         {page === 'documents' && workspaceName && (
           <DocumentsPage
             workspaceName={workspaceName}
+            workspaceTitle={workspaceTitle ?? workspaceName}
             documents={documents}
             designSystemDoc={designSystemDoc}
             isLoading={documentsLoading}

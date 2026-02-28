@@ -68,10 +68,10 @@ import {
   readAssetFile,
   readDesignSystem,
   readDocumentConfig,
-  readWorkspaceConfig,
   renameDocument,
   updateDesignTokens,
   updateDocumentFolder,
+  updateWorkspaceLastOpened,
 } from './workspace-data';
 import { resolveWorkspacePath } from './workspace-paths';
 
@@ -177,23 +177,12 @@ ipcMain.handle('export:start', async (_event, request) => {
 ipcMain.handle('export:getProgress', () => documentExporter.getProgress());
 
 // Workspace IPC handlers
-ipcMain.handle('workspace:list', async () => {
-  const slugs = await listWorkspaces();
-  return Promise.all(
-    slugs.map(async (slug) => {
-      const [config, documentCount] = await Promise.all([
-        readWorkspaceConfig(slug).catch(() => ({ name: slug })),
-        getDocumentCount(slug).catch(() => 0),
-      ]);
-      return { slug, name: config.name, documentCount };
-    }),
-  );
-});
+ipcMain.handle('workspace:list', () => listWorkspaces());
 
 ipcMain.handle('workspace:getActive', () => getWorkspaceState());
 
-ipcMain.handle('workspace:create', async (_event, name: string) => {
-  const slug = await createNewWorkspace(name);
+ipcMain.handle('workspace:create', async (_event, title: string) => {
+  const slug = await createNewWorkspace(title);
   setActiveWorkspace(slug);
   emitWorkspaceChanged();
   return slug;
@@ -201,6 +190,7 @@ ipcMain.handle('workspace:create', async (_event, name: string) => {
 
 ipcMain.handle('workspace:select', (_event, workspaceName: string) => {
   setActiveWorkspace(workspaceName);
+  updateWorkspaceLastOpened(workspaceName);
   emitWorkspaceChanged();
 });
 

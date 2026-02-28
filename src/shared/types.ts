@@ -14,8 +14,10 @@ export interface WorkspaceState {
 
 export interface WorkspaceInfo {
   slug: string;
-  name: string;
+  title: string;
   documentCount: number;
+  createdAt: string;
+  lastOpenedAt: string;
 }
 
 // --- OpenCode ---

@@ -46,10 +46,10 @@ const PAGE_TEMPLATES: PageTemplate[] = [
 export function insertDesignSystemDocument(
   db: Database.Database,
   generateId: () => string,
-  workspaceName?: string,
+  workspaceTitle: string,
 ): void {
   const docId = generateId();
-  const vars = { workspaceName: workspaceName ?? 'Design System' };
+  const vars = { workspaceName: workspaceTitle };
 
   db.prepare(
     `INSERT INTO documents (id, title, type, size_preset, size_width, size_height, size_unit, position)

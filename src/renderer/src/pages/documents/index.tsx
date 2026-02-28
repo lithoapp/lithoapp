@@ -135,6 +135,7 @@ function sanitizeFolderName(value: string): string {
 
 interface DocumentsPageProps {
   workspaceName: string;
+  workspaceTitle: string;
   documents: DocumentInfo[];
   designSystemDoc: DocumentInfo | null;
   isLoading: boolean;
@@ -147,6 +148,7 @@ interface DocumentsPageProps {
 
 export function DocumentsPage({
   workspaceName,
+  workspaceTitle,
   documents: documentsProp,
   designSystemDoc,
   isLoading,
@@ -388,7 +390,7 @@ export function DocumentsPage({
             </button>
           )}
           <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
-            {currentFolder ?? workspaceName}
+            {currentFolder ?? workspaceTitle}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -420,8 +422,11 @@ export function DocumentsPage({
             <DocumentSkeleton key={key} />
           ))}
         </div>
-      ) : /* Empty states */
-      currentFolder === null && allFolderNames.length === 0 && ungrouped.length === 0 ? (
+      ) : /* Empty state */
+      currentFolder === null &&
+        allFolderNames.length === 0 &&
+        ungrouped.length === 0 &&
+        !designSystemDoc ? (
         <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
           <FileText className="h-10 w-10 text-muted-foreground/40" />
           <div className="flex flex-col gap-1">
