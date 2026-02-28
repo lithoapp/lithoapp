@@ -22,9 +22,9 @@ export class DocumentExporter extends EventEmitter {
       throw new Error('An export is already in progress');
     }
 
-    const { format, workspaceName, slug, pages, size, dpi, jpgQuality, savePath } = request;
+    const { format, workspaceName, docId, pages, size, dpi, jpgQuality, savePath } = request;
 
-    log('Starting export', { format, slug, pageCount: pages.length, size, dpi, savePath });
+    log('Starting export', { format, docId, pageCount: pages.length, size, dpi, savePath });
     this.setProgress({ status: 'exporting', current: 0, total: pages.length });
 
     try {
@@ -35,7 +35,7 @@ export class DocumentExporter extends EventEmitter {
         log(`Building page ${i + 1}/${pages.length}: ${pages[i]}`);
 
         // Build HTML via the offline build pipeline
-        const buildResult = await buildPage(workspaceName, slug, pages[i]);
+        const buildResult = await buildPage(workspaceName, docId, pages[i]);
         if (!buildResult.ok) {
           throw new Error(`Build failed for page ${pages[i]}: ${buildResult.error.message}`);
         }
@@ -67,7 +67,7 @@ export class DocumentExporter extends EventEmitter {
       log('Export failed:', message);
       captureException(err, {
         tags: { component: 'document-exporter' },
-        extras: { slug, format, pageCount: pages.length },
+        extras: { docId, format, pageCount: pages.length },
       });
       this.setProgress({ status: 'error', current: 0, total: pages.length, error: message });
       throw err;

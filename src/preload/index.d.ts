@@ -7,12 +7,7 @@ import type {
   ExportRequest,
   PageSize,
 } from '../shared/types';
-import type {
-  DocumentConfig,
-  PageBuildData,
-  PageExportOptions,
-  RendererResult,
-} from '../shared/types';
+import type { PageBuildData, PageExportOptions, RendererResult } from '../shared/types';
 import type { OpencodeInfo } from '../shared/types';
 import type { UpdateState } from '../shared/types';
 import type { WorkspaceInfo, WorkspaceState } from '../shared/types';
@@ -74,8 +69,8 @@ interface LithoAPI {
       size: string | PageSize,
       folder?: string,
     ) => Promise<string>;
-    delete: (workspaceName: string, slug: string) => Promise<void>;
-    updateFolder: (workspaceName: string, slug: string, folder: string) => Promise<void>;
+    delete: (workspaceName: string, docId: string) => Promise<void>;
+    updateFolder: (workspaceName: string, docId: string, folder: string) => Promise<void>;
   };
   designSystem: {
     read: (workspaceName: string) => Promise<DesignSystem>;
@@ -85,17 +80,17 @@ interface LithoAPI {
     ) => Promise<void>;
   };
   snapshot: {
-    readDocumentFiles: (workspaceName: string, slug: string) => Promise<Record<string, string>>;
+    readDocumentFiles: (workspaceName: string, docId: string) => Promise<Record<string, string>>;
     createDocument: (
       workspaceName: string,
-      slug: string,
+      docId: string,
       files: Record<string, string>,
       promptExcerpt: string,
       assistantMessageId: string,
     ) => Promise<string>;
-    restoreDocument: (workspaceName: string, slug: string, snapshotId: string) => Promise<void>;
-    listDocument: (workspaceName: string, slug: string) => Promise<DocumentSnapshot[]>;
-    deleteDocument: (workspaceName: string, slug: string, snapshotId: string) => Promise<void>;
+    restoreDocument: (workspaceName: string, docId: string, snapshotId: string) => Promise<void>;
+    listDocument: (workspaceName: string, docId: string) => Promise<DocumentSnapshot[]>;
+    deleteDocument: (workspaceName: string, docId: string, snapshotId: string) => Promise<void>;
 
     readStylesFile: (workspaceName: string) => Promise<Record<string, string>>;
     createStyles: (
@@ -115,13 +110,6 @@ interface LithoAPI {
       page: string,
       approach?: 'ssr' | 'csr',
     ) => Promise<RendererResult<PageBuildData>>;
-    listWorkspaces: () => Promise<RendererResult<string[]>>;
-    listDocuments: (workspace: string) => Promise<RendererResult<string[]>>;
-    listPages: (workspace: string, document: string) => Promise<RendererResult<string[]>>;
-    readDocumentConfig: (
-      workspace: string,
-      document: string,
-    ) => Promise<RendererResult<DocumentConfig>>;
     export: (options: PageExportOptions) => Promise<RendererResult<void>>;
   };
   assets: {

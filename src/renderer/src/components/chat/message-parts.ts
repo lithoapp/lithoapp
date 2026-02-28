@@ -1,4 +1,5 @@
 import type { ChatMessage } from '@/lib/opencode-types';
+import type { PageInfo } from '../../../../shared/types';
 import { resolveToolLabel, type ToolIcon } from './message-tool-labels';
 
 export type { ToolIcon };
@@ -30,7 +31,7 @@ export interface Step {
 // Public API
 // ---------------------------------------------------------------------------
 
-export function parseStep(message: ChatMessage): Step {
+export function parseStep(message: ChatMessage, pages?: PageInfo[]): Step {
   const step: Step = {
     reasoning: '',
     tools: [],
@@ -51,7 +52,7 @@ export function parseStep(message: ChatMessage): Step {
       case 'tool': {
         const status: ToolStatus = part.state.status;
         const input = (part.state.input as Record<string, unknown>) ?? {};
-        const label = resolveToolLabel(part.tool, input);
+        const label = resolveToolLabel(part.tool, input, pages);
         step.tools.push({
           id: part.id,
           tool: part.tool,

@@ -1,9 +1,11 @@
 /**
  * Workspace data access layer.
  *
- * All reads go through this module so the storage backend can be swapped
- * (e.g. from filesystem to database) by replacing `fs-backend.ts`.
+ * All reads go through this module so the storage backend can be swapped.
+ * Backend: SQLite via `db-backend.ts`.
  */
+
+export { closeAllDbs, closeWorkspaceDb, generateId, getWorkspaceDb } from './db';
 export {
   createDocument,
   createNewWorkspace,
@@ -16,9 +18,12 @@ export {
   readAssetFile,
   readDesignSystem,
   readDocumentConfig,
+  readPageDescription,
   readPageSource,
   readStyles,
   readWorkspaceConfig,
   updateDesignTokens,
   updateDocumentFolder,
-} from './fs-backend';
+  updatePageDescription,
+  writePageSource,
+} from './db-backend';

@@ -1,40 +1,18 @@
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { Database } from 'bun:sqlite';
+import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { type Plugin, tool } from '@opencode-ai/plugin';
 import { replace } from './replace';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Database helpers ────────────────────────────────────────────────────────
 
-function pagePath(directory: string, slug: string, pageId: string): string {
-  return join(directory, 'documents', slug, 'pages', `${pageId}.tsx`);
-}
-
-function docJsonPath(directory: string, slug: string): string {
-  return join(directory, 'documents', slug, 'document.json');
-}
-
-function stylesPath(directory: string): string {
-  return join(directory, 'styles.css');
-}
-
-async function readDocJson(directory: string, slug: string) {
-  const raw = await readFile(docJsonPath(directory, slug), 'utf-8');
-  return JSON.parse(raw);
-}
-
-async function touchDocTimestamp(directory: string, slug: string) {
-  const path = docJsonPath(directory, slug);
-  const doc = JSON.parse(await readFile(path, 'utf-8'));
-  doc.updatedAt = new Date().toISOString();
-  await writeFile(path, JSON.stringify(doc, null, 2));
-}
-
-function assertPageExists(doc: { pages: string[] }, slug: string, pageId: string) {
-  if (!doc.pages.includes(pageId)) {
-    throw new Error(
-      `Page "${pageId}" not found in ${slug}. Available pages: ${doc.pages.join(', ')}`,
-    );
-  }
+function openDb(directory: string): Database {
+  const dbPath = join(directory, 'workspace.db');
+  const db = new Database(dbPath, { readwrite: true });
+  db.exec('PRAGMA journal_mode = WAL');
+  db.exec('PRAGMA foreign_keys = ON');
+  db.exec('PRAGMA busy_timeout = 5000');
+  return db;
 }
 
 function numberLines(content: string): string {
@@ -44,16 +22,32 @@ function numberLines(content: string): string {
     .join('\n');
 }
 
+function generateId(): string {
+  return randomBytes(9).toString('base64url').slice(0, 12);
+}
+
 // ─── listPages ──────────────────────────────────────────────────────────────
 
 const listPages = tool({
-  description: 'List all page IDs in a document, in order.',
+  description: 'List all pages in a document with their IDs and descriptions.',
   args: {
-    slug: tool.schema.string().describe('Document slug'),
+    docId: tool.schema.string().describe('Document ID'),
   },
   async execute(args, context) {
-    const doc = await readDocJson(context.directory, args.slug);
-    return (doc.pages as string[]).join('\n');
+    const db = openDb(context.directory);
+    try {
+      const rows = db
+        .prepare('SELECT id, description FROM pages WHERE document_id = ? ORDER BY position')
+        .all(args.docId) as Array<{ id: string; description: string }>;
+
+      if (rows.length === 0) {
+        return '(no pages yet — use createPage to add one)';
+      }
+
+      return rows.map((r) => `${r.id}\t${r.description}`).join('\n');
+    } finally {
+      db.close();
+    }
   },
 });
 
@@ -62,8 +56,8 @@ const listPages = tool({
 const readPage = tool({
   description: 'Read the source of a document page. Returns the page content with line numbers.',
   args: {
-    slug: tool.schema.string().describe('Document slug'),
-    pageId: tool.schema.string().describe('Page ID (e.g. "page-1")'),
+    docId: tool.schema.string().describe('Document ID'),
+    pageId: tool.schema.string().describe('Page ID'),
     offset: tool.schema
       .number()
       .optional()
@@ -74,24 +68,32 @@ const readPage = tool({
       .describe('Maximum number of lines to return (default: 2000)'),
   },
   async execute(args, context) {
-    const doc = await readDocJson(context.directory, args.slug);
-    assertPageExists(doc, args.slug, args.pageId);
+    const db = openDb(context.directory);
+    try {
+      const row = db
+        .prepare('SELECT source FROM pages WHERE id = ? AND document_id = ?')
+        .get(args.pageId, args.docId) as { source: string } | undefined;
 
-    const content = await readFile(pagePath(context.directory, args.slug, args.pageId), 'utf-8');
-    const lines = content.split('\n');
+      if (!row) {
+        throw new Error(`Page "${args.pageId}" not found in document "${args.docId}"`);
+      }
 
-    const offset = Math.max(1, args.offset ?? 1);
-    const limit = args.limit ?? 2000;
-    const sliced = lines.slice(offset - 1, offset - 1 + limit);
+      const lines = row.source.split('\n');
+      const offset = Math.max(1, args.offset ?? 1);
+      const limit = args.limit ?? 2000;
+      const sliced = lines.slice(offset - 1, offset - 1 + limit);
 
-    const numbered = sliced.map((line, i) => `${offset + i}: ${line}`).join('\n');
+      const numbered = sliced.map((line, i) => `${offset + i}: ${line}`).join('\n');
 
-    const total = lines.length;
-    const end = offset - 1 + sliced.length;
-    const suffix =
-      end < total ? `\n\n(${total - end} more lines — use offset=${end + 1} to continue)` : '';
+      const total = lines.length;
+      const end = offset - 1 + sliced.length;
+      const suffix =
+        end < total ? `\n\n(${total - end} more lines — use offset=${end + 1} to continue)` : '';
 
-    return numbered + suffix;
+      return numbered + suffix;
+    } finally {
+      db.close();
+    }
   },
 });
 
@@ -101,19 +103,28 @@ const writePage = tool({
   description:
     'Replace the entire content of a document page. Use for full rewrites or major restructuring.',
   args: {
-    slug: tool.schema.string().describe('Document slug'),
-    pageId: tool.schema.string().describe('Page ID (e.g. "page-1")'),
+    docId: tool.schema.string().describe('Document ID'),
+    pageId: tool.schema.string().describe('Page ID'),
     content: tool.schema.string().describe('Full TSX source for the page'),
   },
   async execute(args, context) {
-    const doc = await readDocJson(context.directory, args.slug);
-    assertPageExists(doc, args.slug, args.pageId);
+    const db = openDb(context.directory);
+    try {
+      const result = db
+        .prepare(
+          "UPDATE pages SET source = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
+        )
+        .run(args.content, args.pageId, args.docId);
 
-    await writeFile(pagePath(context.directory, args.slug, args.pageId), args.content);
-    await touchDocTimestamp(context.directory, args.slug);
+      if (result.changes === 0) {
+        throw new Error(`Page "${args.pageId}" not found in document "${args.docId}"`);
+      }
 
-    const lineCount = args.content.split('\n').length;
-    return `Wrote ${args.pageId} in ${args.slug} (${lineCount} lines)`;
+      const lineCount = args.content.split('\n').length;
+      return `Wrote ${args.pageId} (${lineCount} lines)`;
+    } finally {
+      db.close();
+    }
   },
 });
 
@@ -124,8 +135,8 @@ const editPage = tool({
     'Edit a document page by replacing a specific string. ' +
     'Uses fuzzy matching to handle minor whitespace and indentation differences.',
   args: {
-    slug: tool.schema.string().describe('Document slug'),
-    pageId: tool.schema.string().describe('Page ID (e.g. "page-1")'),
+    docId: tool.schema.string().describe('Document ID'),
+    pageId: tool.schema.string().describe('Page ID'),
     oldString: tool.schema.string().describe('The text to replace'),
     newString: tool.schema.string().describe('The replacement text (must differ from oldString)'),
     replaceAll: tool.schema
@@ -134,17 +145,26 @@ const editPage = tool({
       .describe('Replace all occurrences (default: false)'),
   },
   async execute(args, context) {
-    const doc = await readDocJson(context.directory, args.slug);
-    assertPageExists(doc, args.slug, args.pageId);
+    const db = openDb(context.directory);
+    try {
+      const row = db
+        .prepare('SELECT source FROM pages WHERE id = ? AND document_id = ?')
+        .get(args.pageId, args.docId) as { source: string } | undefined;
 
-    const path = pagePath(context.directory, args.slug, args.pageId);
-    const content = await readFile(path, 'utf-8');
-    const updated = replace(content, args.oldString, args.newString, args.replaceAll);
+      if (!row) {
+        throw new Error(`Page "${args.pageId}" not found in document "${args.docId}"`);
+      }
 
-    await writeFile(path, updated);
-    await touchDocTimestamp(context.directory, args.slug);
+      const updated = replace(row.source, args.oldString, args.newString, args.replaceAll);
 
-    return `Edited ${args.pageId} in ${args.slug}`;
+      db.prepare(
+        "UPDATE pages SET source = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
+      ).run(updated, args.pageId, args.docId);
+
+      return `Edited ${args.pageId}`;
+    } finally {
+      db.close();
+    }
   },
 });
 
@@ -155,8 +175,20 @@ const readMainCss = tool({
     'Read the workspace styles.css file. Returns the design system CSS with line numbers.',
   args: {},
   async execute(_args, context) {
-    const content = await readFile(stylesPath(context.directory), 'utf-8');
-    return numberLines(content);
+    const db = openDb(context.directory);
+    try {
+      const row = db.prepare('SELECT css FROM styles WHERE id = 1').get() as
+        | { css: string }
+        | undefined;
+
+      if (!row) {
+        throw new Error('Styles not found');
+      }
+
+      return numberLines(row.css);
+    } finally {
+      db.close();
+    }
   },
 });
 
@@ -168,10 +200,17 @@ const writeMainCss = tool({
     content: tool.schema.string().describe('Full CSS source for styles.css'),
   },
   async execute(args, context) {
-    await writeFile(stylesPath(context.directory), args.content);
+    const db = openDb(context.directory);
+    try {
+      db.prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1").run(
+        args.content,
+      );
 
-    const lineCount = args.content.split('\n').length;
-    return `Wrote styles.css (${lineCount} lines)`;
+      const lineCount = args.content.split('\n').length;
+      return `Wrote styles.css (${lineCount} lines)`;
+    } finally {
+      db.close();
+    }
   },
 });
 
@@ -190,54 +229,86 @@ const editMainCss = tool({
       .describe('Replace all occurrences (default: false)'),
   },
   async execute(args, context) {
-    const path = stylesPath(context.directory);
-    const content = await readFile(path, 'utf-8');
-    const updated = replace(content, args.oldString, args.newString, args.replaceAll);
+    const db = openDb(context.directory);
+    try {
+      const row = db.prepare('SELECT css FROM styles WHERE id = 1').get() as
+        | { css: string }
+        | undefined;
 
-    await writeFile(path, updated);
+      if (!row) {
+        throw new Error('Styles not found');
+      }
 
-    return 'Edited styles.css';
+      const updated = replace(row.css, args.oldString, args.newString, args.replaceAll);
+
+      db.prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1").run(
+        updated,
+      );
+
+      return 'Edited styles.css';
+    } finally {
+      db.close();
+    }
   },
 });
 
 // ─── createPage ─────────────────────────────────────────────────────────────
 
 const createPage = tool({
-  description: 'Create a new page in a document. Returns the new page ID.',
+  description:
+    'Create a new page in a document. Requires a short description (5-8 words). Returns the new page ID.',
   args: {
-    slug: tool.schema.string().describe('Document slug'),
+    docId: tool.schema.string().describe('Document ID'),
+    description: tool.schema
+      .string()
+      .optional()
+      .describe('Short description of the page content (5-8 words)'),
     afterPageId: tool.schema
       .string()
       .optional()
       .describe('Insert after this page ID. Appends to end if omitted.'),
   },
   async execute(args, context) {
-    const path = docJsonPath(context.directory, args.slug);
-    const doc = JSON.parse(await readFile(path, 'utf-8'));
+    const db = openDb(context.directory);
+    try {
+      const pages = db
+        .prepare('SELECT id, position FROM pages WHERE document_id = ? ORDER BY position')
+        .all(args.docId) as Array<{ id: string; position: number }>;
 
-    const maxNum = doc.pages
-      .map((p: string) => parseInt(p.replace('page-', ''), 10))
-      .filter((n: number) => !Number.isNaN(n))
-      .reduce((max: number, n: number) => Math.max(max, n), 0);
-    const newPageId = `page-${maxNum + 1}`;
+      if (pages.length === 0) {
+        // Verify document exists
+        const doc = db.prepare('SELECT id FROM documents WHERE id = ?').get(args.docId);
+        if (!doc) {
+          throw new Error(`Document "${args.docId}" not found`);
+        }
+      }
 
-    if (args.afterPageId) {
-      const idx = doc.pages.indexOf(args.afterPageId);
-      if (idx === -1) throw new Error(`Page "${args.afterPageId}" not found`);
-      doc.pages.splice(idx + 1, 0, newPageId);
-    } else {
-      doc.pages.push(newPageId);
+      let position: number;
+
+      if (args.afterPageId) {
+        const afterIdx = pages.findIndex((p) => p.id === args.afterPageId);
+        if (afterIdx === -1) throw new Error(`Page "${args.afterPageId}" not found`);
+
+        const afterPos = pages[afterIdx].position;
+        const nextPos = afterIdx + 1 < pages.length ? pages[afterIdx + 1].position : afterPos + 2;
+        position = (afterPos + nextPos) / 2;
+      } else {
+        const maxPos = pages.length > 0 ? pages[pages.length - 1].position : 0;
+        position = maxPos + 1;
+      }
+
+      const newPageId = generateId();
+      const description = args.description ?? 'Blank page';
+      const pageContent = `import '@styles.css'\n\nexport default function Page() {\n  return (\n    <div className="w-full h-full bg-white p-12 flex flex-col">\n    </div>\n  )\n}\n`;
+
+      db.prepare(
+        'INSERT INTO pages (id, document_id, description, source, position) VALUES (?, ?, ?, ?, ?)',
+      ).run(newPageId, args.docId, description, pageContent, position);
+
+      return `Created ${newPageId}`;
+    } finally {
+      db.close();
     }
-
-    const pagesDir = join(context.directory, 'documents', args.slug, 'pages');
-    await mkdir(pagesDir, { recursive: true });
-    const pageContent = `import '@styles.css'\n\nexport default function Page() {\n  return (\n    <div className="w-full h-full bg-white p-12 flex flex-col">\n    </div>\n  )\n}\n`;
-    await writeFile(join(pagesDir, `${newPageId}.tsx`), pageContent);
-
-    doc.updatedAt = new Date().toISOString();
-    await writeFile(path, JSON.stringify(doc, null, 2));
-
-    return `Created ${newPageId} in documents/${args.slug}/pages/${newPageId}.tsx`;
   },
 });
 
@@ -246,25 +317,51 @@ const createPage = tool({
 const deletePage = tool({
   description: 'Delete a page from a document.',
   args: {
-    slug: tool.schema.string().describe('Document slug'),
+    docId: tool.schema.string().describe('Document ID'),
     pageId: tool.schema.string().describe('Page ID to delete'),
   },
   async execute(args, context) {
-    const path = docJsonPath(context.directory, args.slug);
-    const doc = JSON.parse(await readFile(path, 'utf-8'));
+    const db = openDb(context.directory);
+    try {
+      const result = db
+        .prepare('DELETE FROM pages WHERE id = ? AND document_id = ?')
+        .run(args.pageId, args.docId);
 
-    const idx = doc.pages.indexOf(args.pageId);
-    if (idx === -1) throw new Error(`Page "${args.pageId}" not found`);
-    if (doc.pages.length === 1) throw new Error('Cannot delete the last page');
+      if (result.changes === 0) throw new Error(`Page "${args.pageId}" not found`);
 
-    doc.pages.splice(idx, 1);
+      return `Deleted ${args.pageId}`;
+    } finally {
+      db.close();
+    }
+  },
+});
 
-    await unlink(pagePath(context.directory, args.slug, args.pageId));
+// ─── updatePageDescription ──────────────────────────────────────────────────
 
-    doc.updatedAt = new Date().toISOString();
-    await writeFile(path, JSON.stringify(doc, null, 2));
+const updatePageDescription = tool({
+  description: "Update a page's description after major content changes. Keep it to 5-8 words.",
+  args: {
+    docId: tool.schema.string().describe('Document ID'),
+    pageId: tool.schema.string().describe('Page ID'),
+    description: tool.schema.string().describe('New short description (5-8 words)'),
+  },
+  async execute(args, context) {
+    const db = openDb(context.directory);
+    try {
+      const result = db
+        .prepare(
+          "UPDATE pages SET description = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
+        )
+        .run(args.description, args.pageId, args.docId);
 
-    return `Deleted ${args.pageId} from ${args.slug}`;
+      if (result.changes === 0) {
+        throw new Error(`Page "${args.pageId}" not found in document "${args.docId}"`);
+      }
+
+      return `Updated description for ${args.pageId}`;
+    } finally {
+      db.close();
+    }
   },
 });
 
@@ -281,5 +378,6 @@ export const lithoPlugin: Plugin = async () => ({
     editMainCss,
     createPage,
     deletePage,
+    updatePageDescription,
   },
 });

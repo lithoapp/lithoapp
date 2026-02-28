@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { ExportFormat } from '../../shared/types';
+import type { ExportFormat, PageSize } from '../../shared/types';
 import { listDocumentsFull } from '../workspace-data';
 import { DocumentExporter } from './document-exporter';
 
@@ -16,10 +16,10 @@ interface ExportJob {
 }
 
 interface BatchDoc {
-  slug: string;
+  id: string;
   title: string;
-  size: { width: number; height: number; unit: string };
-  pages: string[];
+  size: PageSize;
+  pageIds: string[];
 }
 
 function log(message: string): void {
@@ -45,7 +45,7 @@ function parseArgs(): { workspaceName: string; outputPath: string } {
 }
 
 function buildJobs(doc: BatchDoc, outputPath: string): ExportJob[] {
-  const docDir = join(outputPath, doc.slug);
+  const docDir = join(outputPath, doc.id);
   const isMm = doc.size.unit === 'mm';
   const jobs: ExportJob[] = [];
 
@@ -54,8 +54,8 @@ function buildJobs(doc: BatchDoc, outputPath: string): ExportJob[] {
     format: 'pdf',
     dpi: 72,
     subdir: 'pdf',
-    pages: doc.pages,
-    savePath: join(docDir, 'pdf', `${doc.slug}.pdf`),
+    pages: doc.pageIds,
+    savePath: join(docDir, 'pdf', `${doc.id}.pdf`),
   });
 
   // Image formats
@@ -66,7 +66,7 @@ function buildJobs(doc: BatchDoc, outputPath: string): ExportJob[] {
       // mm-based: 3 DPI variants, one file per page
       for (const dpi of MM_DPI_VARIANTS) {
         const subdir = `${format}-${dpi}dpi`;
-        for (const pageId of doc.pages) {
+        for (const pageId of doc.pageIds) {
           jobs.push({
             format,
             dpi,
@@ -79,7 +79,7 @@ function buildJobs(doc: BatchDoc, outputPath: string): ExportJob[] {
     } else {
       // px-based: single variant (native pixels), no DPI suffix
       const subdir = format;
-      for (const pageId of doc.pages) {
+      for (const pageId of doc.pageIds) {
         jobs.push({
           format,
           dpi: 72,
@@ -105,29 +105,34 @@ export async function runBatchExport(): Promise<void> {
   const exporter = new DocumentExporter();
   let completedJobs = 0;
 
-  const docJobs = documents.map((doc) => ({
-    doc,
-    jobs: buildJobs(doc, outputPath),
-  }));
+  const docJobs = documents.map((doc) => {
+    const batchDoc: BatchDoc = {
+      id: doc.id,
+      title: doc.title,
+      size: doc.size,
+      pageIds: doc.pages.map((p) => p.id),
+    };
+    return { doc: batchDoc, jobs: buildJobs(batchDoc, outputPath) };
+  });
   const totalJobs = docJobs.reduce((sum, dj) => sum + dj.jobs.length, 0);
   log(`Total export jobs: ${totalJobs}`);
 
   for (const { doc, jobs } of docJobs) {
     log(
-      `\n--- ${doc.title} (${doc.slug}) | ` +
+      `\n--- ${doc.title} (${doc.id}) | ` +
         `${doc.size.width}x${doc.size.height}${doc.size.unit} | ` +
-        `${doc.pages.length} page(s) ---`,
+        `${doc.pageIds.length} page(s) ---`,
     );
 
     for (const job of jobs) {
-      await mkdir(join(outputPath, doc.slug, job.subdir), { recursive: true });
+      await mkdir(join(outputPath, doc.id, job.subdir), { recursive: true });
 
       log(`[${completedJobs + 1}/${totalJobs}] ${job.format} ${job.subdir}`);
 
       await exporter.exportDocument({
         format: job.format,
         workspaceName,
-        slug: doc.slug,
+        docId: doc.id,
         title: doc.title,
         pages: job.pages,
         size: doc.size,

@@ -25,6 +25,7 @@ import type { ChatMessage } from '@/hooks/use-chat';
 import { useChat } from '@/hooks/use-chat';
 import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
 import type { OpencodeClient } from '@/lib/opencode-client-types';
+import type { PageInfo } from '../../../../shared/types';
 import { ChatCover } from './chat-cover';
 import { ActivityLog } from './message-activity-log';
 import { MessageDebug, UserMessageView } from './message-list';
@@ -41,7 +42,7 @@ type DisplayMode = 'activity' | 'status' | 'timeline' | 'debug';
 
 const ASSISTANT_COMPONENTS: Record<
   DisplayMode,
-  React.ComponentType<{ message: ChatMessage; isStreaming?: boolean }>
+  React.ComponentType<{ message: ChatMessage; isStreaming?: boolean; pages?: PageInfo[] }>
 > = {
   activity: ActivityLog,
   status: StatusLine,
@@ -86,6 +87,7 @@ export function Chat({
   onTurnSnapshot,
   sendMessageRef,
   onBusyChange,
+  pages,
 }: {
   directory: string;
   systemPrompt: string;
@@ -107,6 +109,7 @@ export function Chat({
   }) => void;
   sendMessageRef?: React.RefObject<((text: string) => void) | null>;
   onBusyChange?: (isBusy: boolean) => void;
+  pages?: PageInfo[];
 }): React.JSX.Element {
   const [providerId, setProviderId] = useState(() => loadChatPrefs().providerId);
   const [modelId, setModelId] = useState(() => loadChatPrefs().modelId);
@@ -327,6 +330,7 @@ export function Chat({
                 key={msg.info.id}
                 message={msg}
                 isStreaming={isBusy && isLastAssistant}
+                pages={pages}
               />
             );
           })}

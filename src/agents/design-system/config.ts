@@ -13,6 +13,7 @@ export const designSystemConfig = {
     editPage: 'deny',
     createPage: 'deny',
     deletePage: 'deny',
+    updatePageDescription: 'deny',
     // OpenCode built-in tools — all denied
     read: 'deny',
     edit: 'deny',

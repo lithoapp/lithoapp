@@ -30,7 +30,7 @@ type Page =
 function App(): React.JSX.Element {
   const [version, setVersion] = useState('');
   const [page, setPage] = useState<Page>('workspaces');
-  const [activeDocSlug, setActiveDocSlug] = useState<string | null>(null);
+  const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [userProfile, setUserProfile] = useState<{
     name: string | null;
@@ -132,9 +132,7 @@ function App(): React.JSX.Element {
     }
   }, [refreshWorkspaces]);
 
-  const activeDoc = activeDocSlug
-    ? (documents.find((d) => d.slug === activeDocSlug) ?? null)
-    : null;
+  const activeDoc = activeDocId ? (documents.find((d) => d.id === activeDocId) ?? null) : null;
 
   // Still loading user profile — render minimal drag region to avoid flash
   if (userProfile === null) {
@@ -293,8 +291,8 @@ function App(): React.JSX.Element {
             workspaceName={workspaceName}
             documents={documents}
             refetch={loadDocuments}
-            onSelectDocument={(slug) => {
-              setActiveDocSlug(slug);
+            onSelectDocument={(docId) => {
+              setActiveDocId(docId);
               setPage('document');
             }}
             onOpenDesignSystem={() => setPage('design-system-doc')}

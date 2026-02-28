@@ -33,7 +33,8 @@ export function ExportDialog({
   onOpenChange,
 }: ExportDialogProps): React.JSX.Element {
   const [format, setFormat] = useState<ExportFormat>('pdf');
-  const [selectedPages, setSelectedPages] = useState<Set<string>>(() => new Set(doc.pages));
+  const pageIds = doc.pages.map((p) => p.id);
+  const [selectedPages, setSelectedPages] = useState<Set<string>>(() => new Set(pageIds));
   const [dpi, setDpi] = useState(150);
   const [jpgQuality, setJpgQuality] = useState(90);
   const [exportStatus, setExportStatus] = useState<ExportProgress['status']>('idle');
@@ -51,7 +52,7 @@ export function ExportDialog({
   useEffect(() => {
     if (open) {
       setFormat('pdf');
-      setSelectedPages(new Set(doc.pages));
+      setSelectedPages(new Set(doc.pages.map((p) => p.id)));
       setDpi(150);
       setJpgQuality(90);
       setExportStatus('idle');
@@ -83,7 +84,7 @@ export function ExportDialog({
   const handleSelectAll = useCallback(
     (checked: boolean | 'indeterminate') => {
       if (checked === true) {
-        setSelectedPages(new Set(doc.pages));
+        setSelectedPages(new Set(doc.pages.map((p) => p.id)));
       } else {
         setSelectedPages(new Set());
       }
@@ -109,7 +110,7 @@ export function ExportDialog({
   }, [isImage, selectedPages.size]);
 
   const handleExport = useCallback(async () => {
-    const pages = isImage ? doc.pages.filter((p) => selectedPages.has(p)) : doc.pages;
+    const pages = isImage ? pageIds.filter((id) => selectedPages.has(id)) : pageIds;
     const isZip = isImage && pages.length > 1;
 
     const savePath = await window.litho.export.saveDialog({
@@ -125,7 +126,7 @@ export function ExportDialog({
       await window.litho.export.start({
         format,
         workspaceName,
-        slug: doc.slug,
+        docId: doc.id,
         title: doc.title,
         pages,
         size: doc.size,
@@ -136,7 +137,7 @@ export function ExportDialog({
     } catch {
       // Error is handled via progress event
     }
-  }, [format, doc, workspaceName, isImage, selectedPages, dpi, jpgQuality]);
+  }, [format, doc, workspaceName, isImage, selectedPages, dpi, jpgQuality, pageIds]);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -359,14 +360,14 @@ function ImageOptions({
               Select all
             </Label>
           </div>
-          {doc.pages.map((pageId, index) => (
-            <div key={pageId} className="flex items-center gap-2 py-0.5 pl-4">
+          {doc.pages.map((page, index) => (
+            <div key={page.id} className="flex items-center gap-2 py-0.5 pl-4">
               <Checkbox
-                id={`page-${pageId}`}
-                checked={selectedPages.has(pageId)}
-                onCheckedChange={(checked) => onTogglePage(pageId, checked)}
+                id={`page-${page.id}`}
+                checked={selectedPages.has(page.id)}
+                onCheckedChange={(checked) => onTogglePage(page.id, checked)}
               />
-              <Label htmlFor={`page-${pageId}`} className="text-sm">
+              <Label htmlFor={`page-${page.id}`} className="text-sm">
                 Page {index + 1}
               </Label>
             </div>

@@ -82,10 +82,10 @@ contextBridge.exposeInMainWorld('litho', {
       size: string,
       folder?: string,
     ): Promise<string> => ipcRenderer.invoke('document:create', workspaceName, title, size, folder),
-    delete: (workspaceName: string, slug: string): Promise<void> =>
-      ipcRenderer.invoke('document:delete', workspaceName, slug),
-    updateFolder: (workspaceName: string, slug: string, folder: string): Promise<void> =>
-      ipcRenderer.invoke('document:updateFolder', workspaceName, slug, folder),
+    delete: (workspaceName: string, docId: string): Promise<void> =>
+      ipcRenderer.invoke('document:delete', workspaceName, docId),
+    updateFolder: (workspaceName: string, docId: string, folder: string): Promise<void> =>
+      ipcRenderer.invoke('document:updateFolder', workspaceName, docId, folder),
   },
   designSystem: {
     read: (workspaceName: string): Promise<unknown> =>
@@ -96,11 +96,11 @@ contextBridge.exposeInMainWorld('litho', {
     ): Promise<void> => ipcRenderer.invoke('designSystem:updateTokens', workspaceName, updates),
   },
   snapshot: {
-    readDocumentFiles: (workspaceName: string, slug: string): Promise<Record<string, string>> =>
-      ipcRenderer.invoke('snapshot:readDocumentFiles', workspaceName, slug),
+    readDocumentFiles: (workspaceName: string, docId: string): Promise<Record<string, string>> =>
+      ipcRenderer.invoke('snapshot:readDocumentFiles', workspaceName, docId),
     createDocument: (
       workspaceName: string,
-      slug: string,
+      docId: string,
       files: Record<string, string>,
       promptExcerpt: string,
       assistantMessageId: string,
@@ -108,17 +108,17 @@ contextBridge.exposeInMainWorld('litho', {
       ipcRenderer.invoke(
         'snapshot:createDocument',
         workspaceName,
-        slug,
+        docId,
         files,
         promptExcerpt,
         assistantMessageId,
       ),
-    restoreDocument: (workspaceName: string, slug: string, snapshotId: string): Promise<void> =>
-      ipcRenderer.invoke('snapshot:restoreDocument', workspaceName, slug, snapshotId),
-    listDocument: (workspaceName: string, slug: string): Promise<unknown> =>
-      ipcRenderer.invoke('snapshot:listDocument', workspaceName, slug),
-    deleteDocument: (workspaceName: string, slug: string, snapshotId: string): Promise<void> =>
-      ipcRenderer.invoke('snapshot:deleteDocument', workspaceName, slug, snapshotId),
+    restoreDocument: (workspaceName: string, docId: string, snapshotId: string): Promise<void> =>
+      ipcRenderer.invoke('snapshot:restoreDocument', workspaceName, docId, snapshotId),
+    listDocument: (workspaceName: string, docId: string): Promise<unknown> =>
+      ipcRenderer.invoke('snapshot:listDocument', workspaceName, docId),
+    deleteDocument: (workspaceName: string, docId: string, snapshotId: string): Promise<void> =>
+      ipcRenderer.invoke('snapshot:deleteDocument', workspaceName, docId, snapshotId),
 
     readStylesFile: (workspaceName: string): Promise<Record<string, string>> =>
       ipcRenderer.invoke('snapshot:readStylesFile', workspaceName),
@@ -150,13 +150,6 @@ contextBridge.exposeInMainWorld('litho', {
       approach?: 'ssr' | 'csr',
     ): Promise<unknown> =>
       ipcRenderer.invoke('renderer:build', workspace, document, page, approach),
-    listWorkspaces: (): Promise<unknown> => ipcRenderer.invoke('renderer:list-workspaces'),
-    listDocuments: (workspace: string): Promise<unknown> =>
-      ipcRenderer.invoke('renderer:list-documents', workspace),
-    listPages: (workspace: string, document: string): Promise<unknown> =>
-      ipcRenderer.invoke('renderer:list-pages', workspace, document),
-    readDocumentConfig: (workspace: string, document: string): Promise<unknown> =>
-      ipcRenderer.invoke('renderer:read-document-config', workspace, document),
     export: (options: {
       html: string;
       approach: 'ssr' | 'csr';

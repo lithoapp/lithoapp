@@ -53,7 +53,7 @@ export type ExportFormat = 'pdf' | 'png' | 'jpg';
 export interface ExportRequest {
   format: ExportFormat;
   workspaceName: string;
-  slug: string;
+  docId: string;
   title: string;
   pages: string[];
   size: { width: number; height: number; unit: 'mm' | 'px' };
@@ -129,10 +129,15 @@ export const PAGE_SIZES: Record<string, PageSize> = {
   'Blog Banner': { width: 1200, height: 600, unit: 'px' },
 };
 
+export interface PageInfo {
+  id: string;
+  description: string;
+}
+
 export interface DocumentConfig {
   title: string;
   size: PageSize;
-  pages: string[];
+  pages: PageInfo[];
 }
 
 // --- Renderer ---
@@ -227,10 +232,10 @@ export interface DesignSystem {
 // --- Document Info (replaces ManifestDocument) ---
 
 export interface DocumentInfo {
-  slug: string;
+  id: string;
   title: string;
   size: PageSize;
-  pages: string[];
+  pages: PageInfo[];
   folder?: string;
 }
 
@@ -241,5 +246,5 @@ export interface DocumentSnapshot {
   timestamp: string; // ISO 8601
   promptExcerpt: string; // first 100 chars of user prompt
   assistantMessageId: string;
-  files: Record<string, string>; // relative path → content
+  data: Record<string, string>; // pageId → source (documents) or key → content (styles)
 }

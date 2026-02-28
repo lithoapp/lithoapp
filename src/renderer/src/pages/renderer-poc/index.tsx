@@ -14,7 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { useDocumentConfig } from '@/hooks/use-document-config';
 import { usePageBuild } from '@/hooks/use-page-build';
 import { usePageExport } from '@/hooks/use-page-export';
-import type { RenderApproach, RendererError } from '../../../../shared/types';
+import type { DocumentInfo, RenderApproach, RendererError } from '../../../../shared/types';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -33,7 +33,7 @@ function RendererPocPage(): React.JSX.Element {
   const [approachOption, setApproachOption] = useState<ApproachOption>('auto');
   const [workspaces, setWorkspaces] = useState<string[]>([]);
   const [workspace, setWorkspace] = useState<string | undefined>();
-  const [documents, setDocuments] = useState<string[]>([]);
+  const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [document, setDocument] = useState<string | undefined>();
   const [pages, setPages] = useState<string[]>([]);
   const [page, setPage] = useState<string | undefined>();
@@ -59,11 +59,11 @@ function RendererPocPage(): React.JSX.Element {
   // Load workspaces on mount
   useEffect(() => {
     void (async () => {
-      const result = await window.litho.renderer.listWorkspaces();
-      if (result.ok) {
-        setWorkspaces(result.data);
-      } else {
-        showError(result.error);
+      try {
+        const list = await window.litho.workspace.list();
+        setWorkspaces(list.map((w) => w.slug));
+      } catch {
+        // silent
       }
     })();
   }, []);
@@ -78,11 +78,11 @@ function RendererPocPage(): React.JSX.Element {
     if (!workspace) return;
 
     void (async () => {
-      const result = await window.litho.renderer.listDocuments(workspace);
-      if (result.ok) {
-        setDocuments(result.data);
-      } else {
-        showError(result.error);
+      try {
+        const docs = await window.litho.document.list(workspace);
+        setDocuments(docs);
+      } catch {
+        // silent
       }
     })();
   }, [workspace, reset]);
@@ -94,15 +94,11 @@ function RendererPocPage(): React.JSX.Element {
     reset();
     if (!workspace || !document) return;
 
-    void (async () => {
-      const result = await window.litho.renderer.listPages(workspace, document);
-      if (result.ok) {
-        setPages(result.data);
-      } else {
-        showError(result.error);
-      }
-    })();
-  }, [workspace, document, reset]);
+    const doc = documents.find((d) => d.id === document);
+    if (doc) {
+      setPages(doc.pages.map((p) => p.id));
+    }
+  }, [workspace, document, documents, reset]);
 
   const handleBuild = async (): Promise<void> => {
     if (!workspace || !document || !page) return;
@@ -194,9 +190,9 @@ function RendererPocPage(): React.JSX.Element {
               <SelectValue placeholder="Select document" />
             </SelectTrigger>
             <SelectContent>
-              {documents.map((name) => (
-                <SelectItem key={name} value={name}>
-                  {name}
+              {documents.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.title}
                 </SelectItem>
               ))}
             </SelectContent>

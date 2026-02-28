@@ -7,5 +7,5 @@ await build({
   platform: 'node',
   target: 'esnext',
   outfile: 'resources/opencode-plugin/litho-tools.mjs',
-  external: ['node:fs/promises', 'node:path'],
+  external: ['node:fs/promises', 'node:path', 'node:crypto', 'bun:sqlite'],
 });

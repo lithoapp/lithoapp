@@ -133,42 +133,42 @@ export function DocumentPage({
     if (pages.length === 0) return;
 
     // Build current page first for instant display
-    const firstPage = pages[currentPage] ?? pages[0];
+    const firstPageId = (pages[currentPage] ?? pages[0]).id;
     try {
-      const result = await window.litho.renderer.build(workspaceName, doc.slug, firstPage);
+      const result = await window.litho.renderer.build(workspaceName, doc.id, firstPageId);
       if (result.ok) {
-        setPageHtmlMap((prev) => new Map(prev).set(firstPage, result.data.html));
+        setPageHtmlMap((prev) => new Map(prev).set(firstPageId, result.data.html));
       } else {
-        console.error(`[document] Build failed for ${firstPage}:`, result.error);
+        console.error(`[document] Build failed for ${firstPageId}:`, result.error);
       }
     } catch (err) {
-      console.error(`[document] Build failed for ${firstPage}:`, err);
+      console.error(`[document] Build failed for ${firstPageId}:`, err);
       Sentry.captureException(err);
     }
 
     // Build remaining pages in background
-    for (const pageId of pages) {
-      if (pageId === firstPage) continue;
+    for (const page of pages) {
+      if (page.id === firstPageId) continue;
       try {
-        const result = await window.litho.renderer.build(workspaceName, doc.slug, pageId);
+        const result = await window.litho.renderer.build(workspaceName, doc.id, page.id);
         if (result.ok) {
-          setPageHtmlMap((prev) => new Map(prev).set(pageId, result.data.html));
+          setPageHtmlMap((prev) => new Map(prev).set(page.id, result.data.html));
         } else {
-          console.error(`[document] Build failed for ${pageId}:`, result.error);
+          console.error(`[document] Build failed for ${page.id}:`, result.error);
         }
       } catch (err) {
-        console.error(`[document] Build failed for ${pageId}:`, err);
+        console.error(`[document] Build failed for ${page.id}:`, err);
         Sentry.captureException(err);
       }
     }
-  }, [workspaceName, doc.slug, doc.pages, currentPage]);
+  }, [workspaceName, doc.id, doc.pages, currentPage]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: build pages on mount and when doc changes
   useEffect(() => {
     setPageHtmlMap(new Map());
     setPageAudits(new Map());
     void buildPages();
-  }, [workspaceName, doc.slug, doc.pages]);
+  }, [workspaceName, doc.id, doc.pages]);
 
   const handleZoomIn = useCallback(() => {
     setFitToWidth(false);
@@ -208,7 +208,7 @@ export function DocumentPage({
         return next;
       });
       try {
-        const result = await window.litho.renderer.build(workspaceName, doc.slug, pageId);
+        const result = await window.litho.renderer.build(workspaceName, doc.id, pageId);
         if (result.ok) {
           setPageHtmlMap((prev) => new Map(prev).set(pageId, result.data.html));
         }
@@ -217,7 +217,7 @@ export function DocumentPage({
         Sentry.captureException(err);
       }
     },
-    [workspaceName, doc.slug],
+    [workspaceName, doc.id],
   );
 
   // Handle completed litho tool calls.
@@ -291,25 +291,43 @@ export function DocumentPage({
 
   const displayWidth = pageWidthPx * zoom;
 
-  const pages = (
+  const hasPages = doc.pages.length > 0;
+
+  const emptyPlaceholder = (
+    <div
+      className="flex items-center justify-center py-6"
+      style={{ paddingInline: VIEWER_PADDING }}
+    >
+      <div
+        className="flex items-center justify-center rounded-lg border border-dashed border-muted-foreground/30 bg-background"
+        style={{ width: pageWidthPx * zoom, height: pageHeightPx * zoom }}
+      >
+        <p className="text-center text-sm text-muted-foreground">
+          Start the chat to build &ldquo;{doc.title}&rdquo;
+        </p>
+      </div>
+    </div>
+  );
+
+  const pages = hasPages ? (
     <div
       className="flex flex-col items-center gap-6 py-6"
       style={{ paddingInline: VIEWER_PADDING }}
     >
-      {doc.pages.map((pageId, index) => (
-        <div key={pageId} className="flex flex-col items-center">
+      {doc.pages.map((page, index) => (
+        <div key={page.id} className="flex flex-col items-center">
           <PageFrame
             ref={(el) => setPageRef(index, el)}
             index={index}
-            html={pageHtmlMap.get(pageId)}
+            html={pageHtmlMap.get(page.id)}
             pageWidthPx={pageWidthPx}
             pageHeightPx={pageHeightPx}
             zoom={zoom}
             editMode={editMode}
-            onIframeLoad={(iframe) => handleIframeLoad(pageId, iframe)}
+            onIframeLoad={(iframe) => handleIframeLoad(page.id, iframe)}
           />
           <PageAuditBar
-            audits={pageAudits.get(pageId) ?? []}
+            audits={pageAudits.get(page.id) ?? []}
             displayWidth={displayWidth}
             isAgentBusy={isAgentBusy}
             onFix={handleAuditFix}
@@ -317,6 +335,8 @@ export function DocumentPage({
         </div>
       ))}
     </div>
+  ) : (
+    emptyPlaceholder
   );
 
   const exportDialog = (
@@ -358,18 +378,22 @@ export function DocumentPage({
               <div className="w-48 shrink-0 border-r">
                 <ScrollArea className="h-full">
                   <div className="flex flex-col gap-2 p-3">
-                    {doc.pages.map((pageId, index) => (
-                      <PageThumbnail
-                        key={pageId}
-                        index={index}
-                        html={pageHtmlMap.get(pageId)}
-                        pageWidthPx={pageWidthPx}
-                        pageHeightPx={pageHeightPx}
-                        isActive={currentPage === index}
-                        hasAuditError={(pageAudits.get(pageId)?.length ?? 0) > 0}
-                        onClick={handleThumbnailClick}
-                      />
-                    ))}
+                    {hasPages ? (
+                      doc.pages.map((page, index) => (
+                        <PageThumbnail
+                          key={page.id}
+                          index={index}
+                          html={pageHtmlMap.get(page.id)}
+                          pageWidthPx={pageWidthPx}
+                          pageHeightPx={pageHeightPx}
+                          isActive={currentPage === index}
+                          hasAuditError={(pageAudits.get(page.id)?.length ?? 0) > 0}
+                          onClick={handleThumbnailClick}
+                        />
+                      ))
+                    ) : (
+                      <p className="py-4 text-center text-xs text-muted-foreground">Empty</p>
+                    )}
                   </div>
                 </ScrollArea>
               </div>

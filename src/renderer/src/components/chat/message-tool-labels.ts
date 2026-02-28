@@ -1,3 +1,5 @@
+import type { PageInfo } from '../../../../shared/types';
+
 export type ToolIcon = 'search' | 'eye' | 'pencil' | 'plus' | 'error' | 'terminal';
 
 export interface ToolLabel {
@@ -6,20 +8,16 @@ export interface ToolLabel {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Extract page number from a pageId like "page-3" → "3" */
-function pageNumber(pageId: string): string {
-  return pageId.replace(/^page-/, '');
-}
-
-// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-export function resolveToolLabel(tool: string, input: Record<string, unknown>): ToolLabel {
+export function resolveToolLabel(
+  tool: string,
+  input: Record<string, unknown>,
+  pages?: PageInfo[],
+): ToolLabel {
   const pageId = input.pageId as string | undefined;
+  const pageLabel = resolvePageLabel(pageId, pages);
 
   switch (tool) {
     case 'listPages':
@@ -27,19 +25,19 @@ export function resolveToolLabel(tool: string, input: Record<string, unknown>): 
 
     case 'readPage':
       return {
-        label: pageId ? `Reading page ${pageNumber(pageId)}` : 'Reading a page',
+        label: pageLabel ? `Reading page ${pageLabel}` : 'Reading a page',
         icon: 'eye',
       };
 
     case 'writePage':
       return {
-        label: pageId ? `Writing page ${pageNumber(pageId)}` : 'Writing a page',
+        label: pageLabel ? `Writing page ${pageLabel}` : 'Writing a page',
         icon: 'pencil',
       };
 
     case 'editPage':
       return {
-        label: pageId ? `Editing page ${pageNumber(pageId)}` : 'Editing a page',
+        label: pageLabel ? `Editing page ${pageLabel}` : 'Editing a page',
         icon: 'pencil',
       };
 
@@ -48,9 +46,12 @@ export function resolveToolLabel(tool: string, input: Record<string, unknown>): 
 
     case 'deletePage':
       return {
-        label: pageId ? `Removing page ${pageNumber(pageId)}` : 'Removing a page',
+        label: pageLabel ? `Removing page ${pageLabel}` : 'Removing a page',
         icon: 'error',
       };
+
+    case 'updatePageDescription':
+      return { label: 'Updating page description', icon: 'pencil' };
 
     case 'readMainCss':
       return { label: 'Reading styles', icon: 'eye' };
@@ -70,4 +71,20 @@ export function summarizeStep(labels: string[]): string {
   if (labels.length === 0) return 'Thinking';
   if (labels.length === 1) return labels[0];
   return labels.join(', ');
+}
+
+// ---------------------------------------------------------------------------
+// Internal
+// ---------------------------------------------------------------------------
+
+function resolvePageLabel(
+  pageId: string | undefined,
+  pages: PageInfo[] | undefined,
+): string | undefined {
+  if (!pageId) return undefined;
+  if (pages) {
+    const index = pages.findIndex((p) => p.id === pageId);
+    if (index !== -1) return String(index + 1);
+  }
+  return pageId.slice(0, 6);
 }

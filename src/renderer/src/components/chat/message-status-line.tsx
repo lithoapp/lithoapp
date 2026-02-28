@@ -10,6 +10,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import type { ChatMessage } from '@/hooks/use-chat';
+import type { PageInfo } from '../../../../shared/types';
 import { StreamingMarkdown } from './message-list';
 import { parseStep, type ToolIcon } from './message-parts';
 import { summarizeStep } from './message-tool-labels';
@@ -34,11 +35,13 @@ const ICON_MAP: Record<ToolIcon, React.ElementType> = {
 export function StatusLine({
   message,
   isStreaming,
+  pages,
 }: {
   message: ChatMessage;
   isStreaming?: boolean;
+  pages?: PageInfo[];
 }): React.JSX.Element {
-  const step = parseStep(message);
+  const step = parseStep(message, pages);
   const isActive = step.status === 'active';
   const hasTools = step.tools.length > 0;
   const hasText = Boolean(step.text);

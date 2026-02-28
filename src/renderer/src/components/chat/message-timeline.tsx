@@ -1,5 +1,6 @@
 import { Brain } from 'lucide-react';
 import type { ChatMessage } from '@/hooks/use-chat';
+import type { PageInfo } from '../../../../shared/types';
 import { StreamingMarkdown } from './message-list';
 import { parseStep, type ResolvedTool } from './message-parts';
 
@@ -68,11 +69,13 @@ function TimelineEntry({
 export function Timeline({
   message,
   isStreaming,
+  pages,
 }: {
   message: ChatMessage;
   isStreaming?: boolean;
+  pages?: PageInfo[];
 }): React.JSX.Element {
-  const step = parseStep(message);
+  const step = parseStep(message, pages);
   const isActive = step.status === 'active';
   const hasTools = step.tools.length > 0;
   const hasText = Boolean(step.text);

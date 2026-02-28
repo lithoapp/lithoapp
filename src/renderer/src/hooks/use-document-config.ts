@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { DocumentConfig, RendererError } from '../../../shared/types';
+import type { DocumentConfig } from '../../../shared/types';
 
 interface UseDocumentConfigReturn {
   config: DocumentConfig | null;
   loading: boolean;
-  error: RendererError | null;
+  error: string | null;
   refetch: () => void;
 }
 
 export function useDocumentConfig(workspace?: string, document?: string): UseDocumentConfigReturn {
   const [config, setConfig] = useState<DocumentConfig | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<RendererError | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchConfig = useCallback(async () => {
     if (!workspace || !document) {
@@ -22,13 +22,17 @@ export function useDocumentConfig(workspace?: string, document?: string): UseDoc
     setLoading(true);
     setError(null);
     try {
-      const result = await window.litho.renderer.readDocumentConfig(workspace, document);
-      if (result.ok) {
-        setConfig(result.data);
+      const docs = await window.litho.document.list(workspace);
+      const doc = docs.find((d) => d.id === document);
+      if (doc) {
+        setConfig({ title: doc.title, size: doc.size, pages: doc.pages });
       } else {
         setConfig(null);
-        setError(result.error);
+        setError(`Document "${document}" not found`);
       }
+    } catch (err) {
+      setConfig(null);
+      setError(err instanceof Error ? err.message : 'Failed to load document config');
     } finally {
       setLoading(false);
     }

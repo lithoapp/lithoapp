@@ -58,20 +58,20 @@ export function DocumentChat({
 
   const { sessionId, creating, createError } = useSessionInit({
     client,
-    storageKey: buildStorageKey(workspaceName, doc.slug),
-    sessionTitle: `Document — ${doc.slug}`,
+    storageKey: buildStorageKey(workspaceName, doc.id),
+    sessionTitle: `Document — ${doc.id}`,
     resetKey,
   });
 
   const handleNewChat = () => {
-    localStorage.removeItem(buildStorageKey(workspaceName, doc.slug));
+    localStorage.removeItem(buildStorageKey(workspaceName, doc.id));
     setSnapshotIndex({});
     setResetKey((k) => k + 1);
   };
 
   const captureFiles = useCallback(async () => {
-    return window.litho.snapshot.readDocumentFiles(workspaceName, doc.slug);
-  }, [workspaceName, doc.slug]);
+    return window.litho.snapshot.readDocumentFiles(workspaceName, doc.id);
+  }, [workspaceName, doc.id]);
 
   const handleTurnSnapshot = useCallback(
     async ({
@@ -86,7 +86,7 @@ export function DocumentChat({
       try {
         const snapshotId = await window.litho.snapshot.createDocument(
           workspaceName,
-          doc.slug,
+          doc.id,
           files,
           promptExcerpt,
           assistantMessageId,
@@ -96,7 +96,7 @@ export function DocumentChat({
         // snapshot failure is non-fatal
       }
     },
-    [workspaceName, doc.slug],
+    [workspaceName, doc.id],
   );
 
   const handleRevert = useCallback(
@@ -104,13 +104,13 @@ export function DocumentChat({
       const snapshotId = snapshotIndex[assistantMessageId];
       if (!snapshotId) return;
       try {
-        await window.litho.snapshot.restoreDocument(workspaceName, doc.slug, snapshotId);
+        await window.litho.snapshot.restoreDocument(workspaceName, doc.id, snapshotId);
       } catch (err) {
         console.error('[document-chat] Revert failed:', err);
         toast.error('Failed to revert document');
       }
     },
-    [snapshotIndex, workspaceName, doc.slug],
+    [snapshotIndex, workspaceName, doc.id],
   );
 
   const { system, kickoff } = promptTemplates.document;
@@ -118,16 +118,14 @@ export function DocumentChat({
   const systemPrompt = useMemo(
     () =>
       renderTemplate(system, {
-        workspacePath,
-        slug: doc.slug,
+        docId: doc.id,
         title: doc.title,
         width: doc.size.width,
         height: doc.size.height,
         unit: doc.size.unit,
-        pageList: doc.pages.join(', '),
         assetsSummary,
       }),
-    [workspacePath, doc.slug, doc.title, doc.size, doc.pages, assetsSummary, system],
+    [doc.id, doc.title, doc.size, assetsSummary, system],
   );
 
   const kickoffMessage = useMemo(() => renderTemplate(kickoff, { userName }), [userName, kickoff]);
@@ -203,6 +201,7 @@ export function DocumentChat({
       onTurnSnapshot={handleTurnSnapshot}
       sendMessageRef={sendMessageRef}
       onBusyChange={onBusyChange}
+      pages={doc.pages}
     />
   );
 }

@@ -1,243 +1,227 @@
-import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import type { DocumentSnapshot } from '../shared/types';
-
-// ---- Internal helpers ----
-
-function ensureDir(dir: string): void {
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-}
-
-function readIndex(dir: string): Record<string, string> {
-  const indexPath = join(dir, 'index.json');
-  if (!existsSync(indexPath)) return {};
-  return JSON.parse(readFileSync(indexPath, 'utf-8')) as Record<string, string>;
-}
-
-function writeIndex(dir: string, index: Record<string, string>): void {
-  writeFileSync(join(dir, 'index.json'), JSON.stringify(index, null, 2));
-}
-
-function pruneSnapshots(dir: string, keepCount: number): void {
-  const entries = readdirSync(dir)
-    .filter((f) => f.endsWith('.json') && f !== 'index.json')
-    .map((f) => {
-      const filePath = join(dir, f);
-      const data = JSON.parse(readFileSync(filePath, 'utf-8')) as DocumentSnapshot;
-      return { id: data.id, timestamp: data.timestamp, filePath };
-    })
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-  if (entries.length <= keepCount) return;
-
-  const toDelete = entries.slice(0, entries.length - keepCount);
-  const index = readIndex(dir);
-
-  for (const entry of toDelete) {
-    rmSync(entry.filePath);
-    for (const msgId of Object.keys(index)) {
-      if (index[msgId] === entry.id) {
-        delete index[msgId];
-      }
-    }
-  }
-
-  writeIndex(dir, index);
-}
-
-function documentSnapshotsDir(workspacePath: string, slug: string): string {
-  return join(workspacePath, 'documents', slug, '.snapshots');
-}
-
-function stylesSnapshotsDir(workspacePath: string): string {
-  return join(workspacePath, '.snapshots', 'styles');
-}
+import { generateId, getWorkspaceDb } from './workspace-data';
 
 // ---- Document snapshots ----
 
-export function readDocumentFiles(workspacePath: string, slug: string): Record<string, string> {
-  const docDir = join(workspacePath, 'documents', slug);
+export function readDocumentFiles(workspaceName: string, docId: string): Record<string, string> {
+  const db = getWorkspaceDb(workspaceName);
+  const rows = db
+    .prepare('SELECT id, source FROM pages WHERE document_id = ?')
+    .all(docId) as Array<{ id: string; source: string }>;
+
   const files: Record<string, string> = {};
-
-  const docJsonPath = join(docDir, 'document.json');
-  if (existsSync(docJsonPath)) {
-    files['document.json'] = readFileSync(docJsonPath, 'utf-8');
+  for (const row of rows) {
+    files[row.id] = row.source;
   }
-
-  const pagesDir = join(docDir, 'pages');
-  if (existsSync(pagesDir)) {
-    for (const f of readdirSync(pagesDir)) {
-      if (f.endsWith('.tsx')) {
-        files[`pages/${f}`] = readFileSync(join(pagesDir, f), 'utf-8');
-      }
-    }
-  }
-
   return files;
 }
 
 export function createDocumentSnapshot(
-  workspacePath: string,
-  slug: string,
+  workspaceName: string,
+  docId: string,
   files: Record<string, string>,
   promptExcerpt: string,
   assistantMessageId: string,
   keepCount = 20,
 ): string {
-  const dir = documentSnapshotsDir(workspacePath, slug);
-  ensureDir(dir);
+  const db = getWorkspaceDb(workspaceName);
+  const id = generateId();
 
-  const id = randomUUID();
-  const snapshot: DocumentSnapshot = {
-    id,
-    timestamp: new Date().toISOString(),
-    promptExcerpt,
-    assistantMessageId,
-    files,
-  };
+  const transaction = db.transaction(() => {
+    db.prepare(
+      `INSERT INTO snapshots (id, scope, document_id, prompt_excerpt, assistant_message_id, data)
+       VALUES (?, 'document', ?, ?, ?, ?)`,
+    ).run(id, docId, promptExcerpt, assistantMessageId, JSON.stringify(files));
 
-  writeFileSync(join(dir, `${id}.json`), JSON.stringify(snapshot, null, 2));
-
-  const index = readIndex(dir);
-  index[assistantMessageId] = id;
-  writeIndex(dir, index);
-
-  pruneSnapshots(dir, keepCount);
+    // Prune old snapshots
+    pruneSnapshots(db, 'document', docId, keepCount);
+  });
+  transaction();
 
   return id;
 }
 
 export function restoreDocumentSnapshot(
-  workspacePath: string,
-  slug: string,
+  workspaceName: string,
+  docId: string,
   snapshotId: string,
 ): void {
-  const dir = documentSnapshotsDir(workspacePath, slug);
-  const snapshotPath = join(dir, `${snapshotId}.json`);
+  const db = getWorkspaceDb(workspaceName);
 
-  if (!existsSync(snapshotPath)) {
+  const row = db
+    .prepare("SELECT data FROM snapshots WHERE id = ? AND scope = 'document'")
+    .get(snapshotId) as { data: string } | undefined;
+
+  if (!row) {
     throw new Error(`Snapshot not found: ${snapshotId}`);
   }
 
-  const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf-8')) as DocumentSnapshot;
-  const docDir = join(workspacePath, 'documents', slug);
+  const data = JSON.parse(row.data) as Record<string, string>;
 
-  for (const [relativePath, content] of Object.entries(snapshot.files)) {
-    const fullPath = join(docDir, relativePath);
-    const parentDir = dirname(fullPath);
-    if (!existsSync(parentDir)) mkdirSync(parentDir, { recursive: true });
-    writeFileSync(fullPath, content, 'utf-8');
-  }
+  const updatePage = db.prepare(
+    "UPDATE pages SET source = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
+  );
+
+  const transaction = db.transaction(() => {
+    for (const [pageId, source] of Object.entries(data)) {
+      updatePage.run(source, pageId, docId);
+    }
+  });
+  transaction();
 }
 
-export function listDocumentSnapshots(workspacePath: string, slug: string): DocumentSnapshot[] {
-  const dir = documentSnapshotsDir(workspacePath, slug);
-  if (!existsSync(dir)) return [];
+export function listDocumentSnapshots(workspaceName: string, docId: string): DocumentSnapshot[] {
+  const db = getWorkspaceDb(workspaceName);
 
-  return readdirSync(dir)
-    .filter((f) => f.endsWith('.json') && f !== 'index.json')
-    .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf-8')) as DocumentSnapshot)
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const rows = db
+    .prepare(
+      `SELECT id, prompt_excerpt, assistant_message_id, data, created_at
+       FROM snapshots
+       WHERE scope = 'document' AND document_id = ?
+       ORDER BY created_at`,
+    )
+    .all(docId) as Array<{
+    id: string;
+    prompt_excerpt: string;
+    assistant_message_id: string;
+    data: string;
+    created_at: string;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    timestamp: r.created_at,
+    promptExcerpt: r.prompt_excerpt,
+    assistantMessageId: r.assistant_message_id,
+    data: JSON.parse(r.data),
+  }));
 }
 
 export function deleteDocumentSnapshot(
-  workspacePath: string,
-  slug: string,
+  workspaceName: string,
+  _docId: string,
   snapshotId: string,
 ): void {
-  const dir = documentSnapshotsDir(workspacePath, slug);
-  const snapshotPath = join(dir, `${snapshotId}.json`);
-
-  if (!existsSync(snapshotPath)) return;
-
-  rmSync(snapshotPath);
-
-  const index = readIndex(dir);
-  for (const msgId of Object.keys(index)) {
-    if (index[msgId] === snapshotId) {
-      delete index[msgId];
-    }
-  }
-  writeIndex(dir, index);
+  const db = getWorkspaceDb(workspaceName);
+  db.prepare('DELETE FROM snapshots WHERE id = ?').run(snapshotId);
 }
 
 // ---- Styles snapshots ----
 
-export function readStylesFile(workspacePath: string): Record<string, string> {
-  const stylesPath = join(workspacePath, 'styles.css');
-  if (!existsSync(stylesPath)) return {};
-  return { 'styles.css': readFileSync(stylesPath, 'utf-8') };
+export function readStylesFile(workspaceName: string): Record<string, string> {
+  const db = getWorkspaceDb(workspaceName);
+  const row = db.prepare('SELECT css FROM styles WHERE id = 1').get() as
+    | { css: string }
+    | undefined;
+
+  if (!row) return {};
+  return { css: row.css };
 }
 
 export function createStylesSnapshot(
-  workspacePath: string,
+  workspaceName: string,
   files: Record<string, string>,
   promptExcerpt: string,
   assistantMessageId: string,
   keepCount = 20,
 ): string {
-  const dir = stylesSnapshotsDir(workspacePath);
-  ensureDir(dir);
+  const db = getWorkspaceDb(workspaceName);
+  const id = generateId();
 
-  const id = randomUUID();
-  const snapshot: DocumentSnapshot = {
-    id,
-    timestamp: new Date().toISOString(),
-    promptExcerpt,
-    assistantMessageId,
-    files,
-  };
+  const transaction = db.transaction(() => {
+    db.prepare(
+      `INSERT INTO snapshots (id, scope, document_id, prompt_excerpt, assistant_message_id, data)
+       VALUES (?, 'styles', NULL, ?, ?, ?)`,
+    ).run(id, promptExcerpt, assistantMessageId, JSON.stringify(files));
 
-  writeFileSync(join(dir, `${id}.json`), JSON.stringify(snapshot, null, 2));
-
-  const index = readIndex(dir);
-  index[assistantMessageId] = id;
-  writeIndex(dir, index);
-
-  pruneSnapshots(dir, keepCount);
+    pruneSnapshots(db, 'styles', null, keepCount);
+  });
+  transaction();
 
   return id;
 }
 
-export function restoreStylesSnapshot(workspacePath: string, snapshotId: string): void {
-  const dir = stylesSnapshotsDir(workspacePath);
-  const snapshotPath = join(dir, `${snapshotId}.json`);
+export function restoreStylesSnapshot(workspaceName: string, snapshotId: string): void {
+  const db = getWorkspaceDb(workspaceName);
 
-  if (!existsSync(snapshotPath)) {
+  const row = db
+    .prepare("SELECT data FROM snapshots WHERE id = ? AND scope = 'styles'")
+    .get(snapshotId) as { data: string } | undefined;
+
+  if (!row) {
     throw new Error(`Snapshot not found: ${snapshotId}`);
   }
 
-  const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf-8')) as DocumentSnapshot;
+  const data = JSON.parse(row.data) as Record<string, string>;
+  const css = data.css;
 
-  for (const [relativePath, content] of Object.entries(snapshot.files)) {
-    writeFileSync(join(workspacePath, relativePath), content, 'utf-8');
+  if (css !== undefined) {
+    db.prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1").run(css);
   }
 }
 
-export function listStylesSnapshots(workspacePath: string): DocumentSnapshot[] {
-  const dir = stylesSnapshotsDir(workspacePath);
-  if (!existsSync(dir)) return [];
+export function listStylesSnapshots(workspaceName: string): DocumentSnapshot[] {
+  const db = getWorkspaceDb(workspaceName);
 
-  return readdirSync(dir)
-    .filter((f) => f.endsWith('.json') && f !== 'index.json')
-    .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf-8')) as DocumentSnapshot)
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const rows = db
+    .prepare(
+      `SELECT id, prompt_excerpt, assistant_message_id, data, created_at
+       FROM snapshots
+       WHERE scope = 'styles'
+       ORDER BY created_at`,
+    )
+    .all() as Array<{
+    id: string;
+    prompt_excerpt: string;
+    assistant_message_id: string;
+    data: string;
+    created_at: string;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    timestamp: r.created_at,
+    promptExcerpt: r.prompt_excerpt,
+    assistantMessageId: r.assistant_message_id,
+    data: JSON.parse(r.data),
+  }));
 }
 
-export function deleteStylesSnapshot(workspacePath: string, snapshotId: string): void {
-  const dir = stylesSnapshotsDir(workspacePath);
-  const snapshotPath = join(dir, `${snapshotId}.json`);
+export function deleteStylesSnapshot(workspaceName: string, snapshotId: string): void {
+  const db = getWorkspaceDb(workspaceName);
+  db.prepare('DELETE FROM snapshots WHERE id = ?').run(snapshotId);
+}
 
-  if (!existsSync(snapshotPath)) return;
+// ---- Prune helper ----
 
-  rmSync(snapshotPath);
+function pruneSnapshots(
+  db: import('better-sqlite3').Database,
+  scope: string,
+  documentId: string | null,
+  keepCount: number,
+): void {
+  const whereClause =
+    documentId !== null
+      ? 'WHERE scope = ? AND document_id = ?'
+      : 'WHERE scope = ? AND document_id IS NULL';
+  const params = documentId !== null ? [scope, documentId] : [scope];
 
-  const index = readIndex(dir);
-  for (const msgId of Object.keys(index)) {
-    if (index[msgId] === snapshotId) {
-      delete index[msgId];
+  const count = (
+    db.prepare(`SELECT COUNT(*) as c FROM snapshots ${whereClause}`).get(...params) as {
+      c: number;
     }
+  ).c;
+
+  if (count <= keepCount) return;
+
+  const toDelete = count - keepCount;
+
+  const ids = db
+    .prepare(`SELECT id FROM snapshots ${whereClause} ORDER BY created_at ASC LIMIT ?`)
+    .all(...params, toDelete) as Array<{ id: string }>;
+
+  const deleteStmt = db.prepare('DELETE FROM snapshots WHERE id = ?');
+  for (const { id } of ids) {
+    deleteStmt.run(id);
   }
-  writeIndex(dir, index);
 }

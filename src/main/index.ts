@@ -28,13 +28,7 @@ import {
 } from './auto-updater';
 import { DocumentExporter, exportPage } from './exporter';
 import { OpencodeManager } from './opencode-manager';
-import {
-  buildPage,
-  listPages,
-  listDocuments as rendererListDocuments,
-  listWorkspaces as rendererListWorkspaces,
-  readDocumentConfig as rendererReadDocumentConfig,
-} from './renderer';
+import { buildPage } from './renderer';
 import { initSentry } from './sentry';
 import {
   createDocumentSnapshot,
@@ -58,6 +52,7 @@ import {
   type Theme,
 } from './telemetry-store';
 import {
+  closeAllDbs,
   createDocument,
   createNewWorkspace,
   deleteDocument,
@@ -209,9 +204,9 @@ ipcMain.handle(
   (_event, ws: string, title: string, size: string, folder?: string) =>
     createDocument(ws, title, size, folder),
 );
-ipcMain.handle('document:delete', (_event, ws: string, doc: string) => deleteDocument(ws, doc));
-ipcMain.handle('document:updateFolder', (_event, ws: string, doc: string, folder: string) =>
-  updateDocumentFolder(ws, doc, folder),
+ipcMain.handle('document:delete', (_event, ws: string, docId: string) => deleteDocument(ws, docId));
+ipcMain.handle('document:updateFolder', (_event, ws: string, docId: string, folder: string) =>
+  updateDocumentFolder(ws, docId, folder),
 );
 
 // Design System IPC handlers
@@ -223,44 +218,36 @@ ipcMain.handle(
 );
 
 // Snapshot IPC handlers
-ipcMain.handle('snapshot:readDocumentFiles', (_event, workspaceName: string, slug: string) =>
-  readDocumentFiles(resolveWorkspacePath(workspaceName), slug),
+ipcMain.handle('snapshot:readDocumentFiles', (_event, workspaceName: string, docId: string) =>
+  readDocumentFiles(workspaceName, docId),
 );
 ipcMain.handle(
   'snapshot:createDocument',
   (
     _event,
     workspaceName: string,
-    slug: string,
+    docId: string,
     files: Record<string, string>,
     promptExcerpt: string,
     assistantMessageId: string,
-  ) =>
-    createDocumentSnapshot(
-      resolveWorkspacePath(workspaceName),
-      slug,
-      files,
-      promptExcerpt,
-      assistantMessageId,
-      20,
-    ),
+  ) => createDocumentSnapshot(workspaceName, docId, files, promptExcerpt, assistantMessageId, 20),
 );
 ipcMain.handle(
   'snapshot:restoreDocument',
-  (_event, workspaceName: string, slug: string, snapshotId: string) =>
-    restoreDocumentSnapshot(resolveWorkspacePath(workspaceName), slug, snapshotId),
+  (_event, workspaceName: string, docId: string, snapshotId: string) =>
+    restoreDocumentSnapshot(workspaceName, docId, snapshotId),
 );
-ipcMain.handle('snapshot:listDocument', (_event, workspaceName: string, slug: string) =>
-  listDocumentSnapshots(resolveWorkspacePath(workspaceName), slug),
+ipcMain.handle('snapshot:listDocument', (_event, workspaceName: string, docId: string) =>
+  listDocumentSnapshots(workspaceName, docId),
 );
 ipcMain.handle(
   'snapshot:deleteDocument',
-  (_event, workspaceName: string, slug: string, snapshotId: string) =>
-    deleteDocumentSnapshot(resolveWorkspacePath(workspaceName), slug, snapshotId),
+  (_event, workspaceName: string, docId: string, snapshotId: string) =>
+    deleteDocumentSnapshot(workspaceName, docId, snapshotId),
 );
 
 ipcMain.handle('snapshot:readStylesFile', (_event, workspaceName: string) =>
-  readStylesFile(resolveWorkspacePath(workspaceName)),
+  readStylesFile(workspaceName),
 );
 ipcMain.handle(
   'snapshot:createStyles',
@@ -270,23 +257,16 @@ ipcMain.handle(
     files: Record<string, string>,
     promptExcerpt: string,
     assistantMessageId: string,
-  ) =>
-    createStylesSnapshot(
-      resolveWorkspacePath(workspaceName),
-      files,
-      promptExcerpt,
-      assistantMessageId,
-      20,
-    ),
+  ) => createStylesSnapshot(workspaceName, files, promptExcerpt, assistantMessageId, 20),
 );
 ipcMain.handle('snapshot:restoreStyles', (_event, workspaceName: string, snapshotId: string) =>
-  restoreStylesSnapshot(resolveWorkspacePath(workspaceName), snapshotId),
+  restoreStylesSnapshot(workspaceName, snapshotId),
 );
 ipcMain.handle('snapshot:listStyles', (_event, workspaceName: string) =>
-  listStylesSnapshots(resolveWorkspacePath(workspaceName)),
+  listStylesSnapshots(workspaceName),
 );
 ipcMain.handle('snapshot:deleteStyles', (_event, workspaceName: string, snapshotId: string) =>
-  deleteStylesSnapshot(resolveWorkspacePath(workspaceName), snapshotId),
+  deleteStylesSnapshot(workspaceName, snapshotId),
 );
 
 ipcMain.handle(
@@ -314,12 +294,6 @@ ipcMain.handle(
   'renderer:build',
   (_event, ws: string, doc: string, page: string, approach?: 'ssr' | 'csr') =>
     buildPage(ws, doc, page, approach),
-);
-ipcMain.handle('renderer:list-workspaces', () => rendererListWorkspaces());
-ipcMain.handle('renderer:list-documents', (_event, ws: string) => rendererListDocuments(ws));
-ipcMain.handle('renderer:list-pages', (_event, ws: string, doc: string) => listPages(ws, doc));
-ipcMain.handle('renderer:read-document-config', (_event, ws: string, doc: string) =>
-  rendererReadDocumentConfig(ws, doc),
 );
 ipcMain.handle('renderer:export', (_event, options) => exportPage(options));
 
@@ -423,6 +397,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', (event) => {
   event.preventDefault();
+  closeAllDbs();
   void opencodeManager
     .stop()
     .catch(() => {})

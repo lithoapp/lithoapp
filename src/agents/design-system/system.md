@@ -1,4 +1,4 @@
-The workspace styles file is at: `{{workspacePath}}/styles.css`
+The workspace styles are stored in the database. Read via `readMainCss`.
 {{#fontContext}}
 
 {{fontContext}}

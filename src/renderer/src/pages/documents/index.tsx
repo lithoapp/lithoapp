@@ -273,7 +273,7 @@ export function DocumentsPage({
     const docs = folderMap.get(oldName) ?? [];
     try {
       await Promise.all(
-        docs.map((doc) => window.litho.document.updateFolder(workspaceName, doc.slug, newName)),
+        docs.map((doc) => window.litho.document.updateFolder(workspaceName, doc.id, newName)),
       );
       await refetch();
       if (currentFolder === oldName) setCurrentFolder(newName);
@@ -294,7 +294,7 @@ export function DocumentsPage({
     const docs = folderMap.get(name) ?? [];
     try {
       await Promise.all(
-        docs.map((doc) => window.litho.document.updateFolder(workspaceName, doc.slug, '')),
+        docs.map((doc) => window.litho.document.updateFolder(workspaceName, doc.id, '')),
       );
       await refetch();
       if (currentFolder === name) setCurrentFolder(null);
@@ -429,26 +429,26 @@ export function DocumentsPage({
               ))}
               {ungrouped.map((doc) => (
                 <DocumentCard
-                  key={doc.slug}
+                  key={doc.id}
                   doc={doc}
-                  isDeleting={isDeleting === doc.slug}
+                  isDeleting={isDeleting === doc.id}
                   onDelete={confirmDelete}
                   onAssignFolder={(slug) => setAssignFolderSlug(slug)}
                   onRemoveFromFolder={(slug) => void handleRemoveFromFolder(slug)}
-                  onClick={() => onSelectDocument(doc.slug)}
+                  onClick={() => onSelectDocument(doc.id)}
                 />
               ))}
             </>
           ) : (
             folderDocs?.map((doc) => (
               <DocumentCard
-                key={doc.slug}
+                key={doc.id}
                 doc={doc}
-                isDeleting={isDeleting === doc.slug}
+                isDeleting={isDeleting === doc.id}
                 onDelete={confirmDelete}
                 onAssignFolder={(slug) => setAssignFolderSlug(slug)}
                 onRemoveFromFolder={(slug) => void handleRemoveFromFolder(slug)}
-                onClick={() => onSelectDocument(doc.slug)}
+                onClick={() => onSelectDocument(doc.id)}
               />
             ))
           )}
@@ -663,7 +663,7 @@ export function DocumentsPage({
             <AlertDialogTitle>Delete document?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete &quot;
-              {documents.find((d) => d.slug === deleteConfirm)?.title ?? deleteConfirm}
+              {documents.find((d) => d.id === deleteConfirm)?.title ?? deleteConfirm}
               &quot; and all its pages. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1067,7 +1067,7 @@ function DocumentCard({
       draggable
       className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-card text-left transition-colors hover:border-primary/40"
       onDragStart={(e) => {
-        e.dataTransfer.setData('text/plain', doc.slug);
+        e.dataTransfer.setData('text/plain', doc.id);
         e.dataTransfer.effectAllowed = 'move';
 
         const ghost = document.createElement('div');
@@ -1119,7 +1119,7 @@ function DocumentCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => onDelete(e, doc.slug)} disabled={isDeleting}>
+              <DropdownMenuItem onClick={(e) => onDelete(e, doc.id)} disabled={isDeleting}>
                 {isDeleting ? (
                   <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                 ) : (
@@ -1130,7 +1130,7 @@ function DocumentCard({
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
-                  onAssignFolder(doc.slug);
+                  onAssignFolder(doc.id);
                 }}
               >
                 <FolderInput className="mr-2 h-3.5 w-3.5" />
@@ -1140,7 +1140,7 @@ function DocumentCard({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    onRemoveFromFolder(doc.slug);
+                    onRemoveFromFolder(doc.id);
                   }}
                 >
                   <FolderMinus className="mr-2 h-3.5 w-3.5" />
@@ -1155,7 +1155,9 @@ function DocumentCard({
       <div className="flex flex-col gap-1 px-4 py-3">
         <p className="truncate text-base font-semibold">{doc.title}</p>
         <p className="text-sm text-muted-foreground">
-          {doc.pages.length} {doc.pages.length === 1 ? 'page' : 'pages'}
+          {doc.pages.length === 0
+            ? 'Empty'
+            : `${doc.pages.length} ${doc.pages.length === 1 ? 'page' : 'pages'}`}
         </p>
       </div>
     </button>

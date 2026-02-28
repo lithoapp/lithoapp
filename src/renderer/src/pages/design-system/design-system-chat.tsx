@@ -109,8 +109,8 @@ export function DesignSystemChat({
   const { system, kickoff } = promptTemplates['design-system'];
 
   const systemPrompt = useMemo(
-    () => renderTemplate(system, { workspacePath, fontContext }),
-    [workspacePath, fontContext, system],
+    () => renderTemplate(system, { fontContext }),
+    [fontContext, system],
   );
 
   const kickoffMessage = useMemo(() => renderTemplate(kickoff, { userName }), [userName, kickoff]);

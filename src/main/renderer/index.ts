@@ -1,15 +1,7 @@
-import type {
-  DocumentConfig,
-  PageBuildData,
-  RenderApproach,
-  RendererResult,
-} from '../../shared/types';
+import type { PageBuildData, RenderApproach, RendererResult } from '../../shared/types';
 import {
   readPageSource,
   readStyles,
-  listDocuments as wsListDocuments,
-  listPages as wsListPages,
-  listWorkspaces as wsListWorkspaces,
   readDocumentConfig as wsReadDocumentConfig,
 } from '../workspace-data';
 import { resolveWorkspacePath } from '../workspace-paths';
@@ -79,68 +71,6 @@ export async function buildPage(
         code: 'BUILD_FAILED',
         message: err instanceof Error ? err.message : String(err),
         stage: inferStage(err),
-      },
-    };
-  }
-}
-
-export async function readDocumentConfig(
-  workspace: string,
-  document: string,
-): Promise<RendererResult<DocumentConfig>> {
-  try {
-    return { ok: true, data: await wsReadDocumentConfig(workspace, document) };
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'CONFIG_ERROR',
-        message: err instanceof Error ? err.message : String(err),
-      },
-    };
-  }
-}
-
-export async function listWorkspaces(): Promise<RendererResult<string[]>> {
-  try {
-    return { ok: true, data: await wsListWorkspaces() };
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'LIST_FAILED',
-        message: err instanceof Error ? err.message : String(err),
-      },
-    };
-  }
-}
-
-export async function listDocuments(workspace: string): Promise<RendererResult<string[]>> {
-  try {
-    return { ok: true, data: await wsListDocuments(workspace) };
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'LIST_FAILED',
-        message: err instanceof Error ? err.message : String(err),
-      },
-    };
-  }
-}
-
-export async function listPages(
-  workspace: string,
-  document: string,
-): Promise<RendererResult<string[]>> {
-  try {
-    return { ok: true, data: await wsListPages(workspace, document) };
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'LIST_FAILED',
-        message: err instanceof Error ? err.message : String(err),
       },
     };
   }
