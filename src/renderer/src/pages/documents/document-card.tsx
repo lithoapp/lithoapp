@@ -221,6 +221,7 @@ function CardThumbnail({
   const [html, setHtml] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   // IntersectionObserver: only build when card is visible
   useEffect(() => {
@@ -237,6 +238,17 @@ function CardThumbnail({
     );
     observer.observe(el);
     return () => observer.disconnect();
+  }, []);
+
+  // Track container width for cover-fill scaling
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   // Build the first page when visible
@@ -265,46 +277,44 @@ function CardThumbnail({
   const pageWidthPx = doc.size.width * (doc.size.unit === 'mm' ? 3.7795 : 1);
   const pageHeightPx = doc.size.height * (doc.size.unit === 'mm' ? 3.7795 : 1);
 
-  // Scale to fit within THUMB_HEIGHT
-  const scale = THUMB_HEIGHT / pageHeightPx;
-  const scaledWidth = pageWidthPx * scale;
+  // Cover-fill: scale to fill the entire container, cropping overflow
+  const scaleX = containerWidth > 0 ? containerWidth / pageWidthPx : 0;
+  const scaleY = THUMB_HEIGHT / pageHeightPx;
+  const scale = Math.max(scaleX, scaleY);
+
+  const hasPages = doc.pages.length > 0;
 
   return (
     <div
       ref={containerRef}
-      className="relative flex items-center justify-center overflow-hidden border-b bg-muted/30"
+      className="relative overflow-hidden border-b bg-white"
       style={{ height: THUMB_HEIGHT }}
     >
-      {html ? (
-        <div
-          className="relative overflow-hidden rounded-sm"
-          style={{ width: scaledWidth, height: THUMB_HEIGHT }}
-        >
-          <iframe
-            srcDoc={html}
-            title={`${doc.title} preview`}
-            className="pointer-events-none absolute top-0 left-0 origin-top-left"
-            style={{
-              width: pageWidthPx,
-              height: pageHeightPx,
-              transform: `scale(${scale})`,
-              border: 'none',
-            }}
-            tabIndex={-1}
-            sandbox="allow-scripts allow-same-origin"
-          />
-        </div>
-      ) : isBuilding ? (
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/40" />
-      ) : (
-        <div
-          className="flex items-center justify-center rounded-sm border border-muted-foreground/20 bg-background"
+      {html && containerWidth > 0 ? (
+        <iframe
+          srcDoc={html}
+          title={`${doc.title} preview`}
+          className="pointer-events-none absolute top-0 left-0 origin-top-left"
           style={{
-            aspectRatio: `${doc.size.width} / ${doc.size.height}`,
-            height: '60%',
-            maxWidth: '80%',
+            width: pageWidthPx,
+            height: pageHeightPx,
+            transform: `scale(${scale})`,
+            border: 'none',
           }}
-        >
+          tabIndex={-1}
+          sandbox="allow-scripts allow-same-origin"
+        />
+      ) : isBuilding ? (
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/40" />
+        </div>
+      ) : !hasPages ? (
+        <div className="flex h-full flex-col items-center justify-center gap-1.5">
+          <FileText className="h-6 w-6 text-muted-foreground/30" />
+          <span className="text-xs text-muted-foreground/50">No pages</span>
+        </div>
+      ) : (
+        <div className="flex h-full items-center justify-center">
           <FileText className="h-6 w-6 text-muted-foreground/40" />
         </div>
       )}

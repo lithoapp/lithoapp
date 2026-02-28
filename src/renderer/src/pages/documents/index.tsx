@@ -414,10 +414,13 @@ export function DocumentsPage({
 
       {/* Utility cards — only at top level */}
       {currentFolder === null && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <DesignSystemCard workspaceName={workspaceName} onClick={onOpenDesignSystem} />
-          <AssetsCard onClick={onOpenAssets} />
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <DesignSystemCard workspaceName={workspaceName} onClick={onOpenDesignSystem} />
+            <AssetsCard onClick={onOpenAssets} />
+          </div>
+          <hr className="border-border" />
+        </>
       )}
 
       {/* Loading skeleton */}
@@ -457,9 +460,9 @@ export function DocumentsPage({
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-          {currentFolder === null ? (
-            <>
+        <>
+          {currentFolder === null && allFolderNames.length > 0 && (
+            <div className="flex flex-wrap gap-3">
               {allFolderNames.map((name) => (
                 <FolderCard
                   key={name}
@@ -471,12 +474,12 @@ export function DocumentsPage({
                   onDropDoc={(slug) => void handleAssignFolder(slug, name)}
                 />
               ))}
-              {ungrouped.map(renderDocCard)}
-            </>
-          ) : (
-            folderDocs?.map(renderDocCard)
+            </div>
           )}
-        </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+            {currentFolder === null ? ungrouped.map(renderDocCard) : folderDocs?.map(renderDocCard)}
+          </div>
+        </>
       )}
 
       {/* New Folder dialog */}
