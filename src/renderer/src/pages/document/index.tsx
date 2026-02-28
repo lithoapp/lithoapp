@@ -1,5 +1,14 @@
 import * as Sentry from '@sentry/electron/renderer';
-import { ArrowLeft, Download, Loader2, Maximize2, Minus, Pencil, Plus } from 'lucide-react';
+import {
+  ArrowLeft,
+  CircleAlert,
+  Download,
+  Loader2,
+  Maximize2,
+  Minus,
+  Pencil,
+  Plus,
+} from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -7,10 +16,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type { PageAudit } from '@/lib/page-audit-types';
+import { runPageAudits } from '@/lib/page-auditors/run-page-audits';
 import { cn } from '@/lib/utils';
 import type { DocumentInfo } from '../../../../shared/types';
 import { DocumentChat } from './document-chat';
 import { ExportDialog } from './export-dialog';
+import { PageAuditBar } from './page-audit-bar';
 
 const ZOOM_STEP = 0.25;
 const ZOOM_MIN = 0.25;
@@ -41,10 +53,13 @@ export function DocumentPage({
   const [exportOpen, setExportOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [pageHtmlMap, setPageHtmlMap] = useState<Map<string, string>>(new Map());
+  const [pageAudits, setPageAudits] = useState<Map<string, PageAudit[]>>(new Map());
+  const [isAgentBusy, setIsAgentBusy] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const viewerRef = useRef<HTMLDivElement>(null);
+  const sendMessageRef = useRef<((text: string) => void) | null>(null);
 
   // Intrinsic page size in px
   const pageWidthPx = doc.size.width * (doc.size.unit === 'mm' ? 3.7795 : 1);
@@ -151,6 +166,7 @@ export function DocumentPage({
   // biome-ignore lint/correctness/useExhaustiveDependencies: build pages on mount and when doc changes
   useEffect(() => {
     setPageHtmlMap(new Map());
+    setPageAudits(new Map());
     void buildPages();
   }, [workspaceName, doc.slug, doc.pages]);
 
@@ -186,6 +202,11 @@ export function DocumentPage({
   // Rebuild a single page after the agent edits it
   const buildPage = useCallback(
     async (pageId: string) => {
+      setPageAudits((prev) => {
+        const next = new Map(prev);
+        next.delete(pageId);
+        return next;
+      });
       try {
         const result = await window.litho.renderer.build(workspaceName, doc.slug, pageId);
         if (result.ok) {
@@ -223,6 +244,29 @@ export function DocumentPage({
     [buildPage],
   );
 
+  const handleIframeLoad = useCallback(
+    (pageId: string, iframe: HTMLIFrameElement) => {
+      console.log(`[page-audit] handleIframeLoad called for page "${pageId}"`);
+      console.log(`[page-audit] page dimensions: ${pageWidthPx}x${pageHeightPx}px`);
+      console.log(
+        `[page-audit] iframe contentDocument:`,
+        iframe.contentDocument ? 'exists' : 'null',
+      );
+      const audits = runPageAudits(iframe, { pageId, pageWidthPx, pageHeightPx });
+      console.log(`[page-audit] audits for "${pageId}":`, audits);
+      setPageAudits((prev) => new Map(prev).set(pageId, audits));
+    },
+    [pageWidthPx, pageHeightPx],
+  );
+
+  const handleAuditFix = useCallback((audit: PageAudit) => {
+    sendMessageRef.current?.(audit.fixMessage);
+  }, []);
+
+  const handleBusyChange = useCallback((busy: boolean) => {
+    setIsAgentBusy(busy);
+  }, []);
+
   const [isMac, setIsMac] = useState(false);
   useEffect(() => {
     void window.litho.app.getPlatform().then((p) => setIsMac(p === 'darwin'));
@@ -245,22 +289,32 @@ export function DocumentPage({
     />
   );
 
+  const displayWidth = pageWidthPx * zoom;
+
   const pages = (
     <div
       className="flex flex-col items-center gap-6 py-6"
       style={{ paddingInline: VIEWER_PADDING }}
     >
       {doc.pages.map((pageId, index) => (
-        <PageFrame
-          key={pageId}
-          ref={(el) => setPageRef(index, el)}
-          index={index}
-          html={pageHtmlMap.get(pageId)}
-          pageWidthPx={pageWidthPx}
-          pageHeightPx={pageHeightPx}
-          zoom={zoom}
-          editMode={editMode}
-        />
+        <div key={pageId} className="flex flex-col items-center">
+          <PageFrame
+            ref={(el) => setPageRef(index, el)}
+            index={index}
+            html={pageHtmlMap.get(pageId)}
+            pageWidthPx={pageWidthPx}
+            pageHeightPx={pageHeightPx}
+            zoom={zoom}
+            editMode={editMode}
+            onIframeLoad={(iframe) => handleIframeLoad(pageId, iframe)}
+          />
+          <PageAuditBar
+            audits={pageAudits.get(pageId) ?? []}
+            displayWidth={displayWidth}
+            isAgentBusy={isAgentBusy}
+            onFix={handleAuditFix}
+          />
+        </div>
       ))}
     </div>
   );
@@ -312,6 +366,7 @@ export function DocumentPage({
                         pageWidthPx={pageWidthPx}
                         pageHeightPx={pageHeightPx}
                         isActive={currentPage === index}
+                        hasAuditError={(pageAudits.get(pageId)?.length ?? 0) > 0}
                         onClick={handleThumbnailClick}
                       />
                     ))}
@@ -342,6 +397,8 @@ export function DocumentPage({
             workspacePath={workspacePath}
             userName={userName}
             onToolComplete={handleToolComplete}
+            sendMessageRef={sendMessageRef}
+            onBusyChange={handleBusyChange}
           />
         </ResizablePanel>
       </ResizablePanelGroup>
@@ -472,6 +529,7 @@ function PageThumbnail({
   pageWidthPx,
   pageHeightPx,
   isActive,
+  hasAuditError,
   onClick,
 }: {
   index: number;
@@ -479,6 +537,7 @@ function PageThumbnail({
   pageWidthPx: number;
   pageHeightPx: number;
   isActive: boolean;
+  hasAuditError: boolean;
   onClick: (index: number) => void;
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -512,7 +571,9 @@ function PageThumbnail({
         ref={containerRef}
         className={cn(
           'relative w-full overflow-hidden rounded border bg-white',
-          isActive && 'border-primary ring-1 ring-primary',
+          hasAuditError
+            ? 'border-red-500 ring-1 ring-red-500'
+            : isActive && 'border-primary ring-1 ring-primary',
         )}
         style={{
           height: thumbHeight || 'auto',
@@ -538,8 +599,18 @@ function PageThumbnail({
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
           </div>
         ) : null}
+        {hasAuditError && (
+          <div className="absolute right-1 bottom-1 rounded-full bg-red-500 p-0.5">
+            <CircleAlert className="h-2.5 w-2.5 text-white" />
+          </div>
+        )}
       </div>
-      <span className={cn('text-xs', isActive ? 'text-foreground' : 'text-muted-foreground')}>
+      <span
+        className={cn(
+          'text-xs',
+          hasAuditError ? 'text-red-500' : isActive ? 'text-foreground' : 'text-muted-foreground',
+        )}
+      >
         {index + 1}
       </span>
     </button>
@@ -559,10 +630,30 @@ const PageFrame = forwardRef<
     pageHeightPx: number;
     zoom: number;
     editMode?: boolean;
+    onIframeLoad?: (iframe: HTMLIFrameElement) => void;
   }
->(function PageFrame({ index, html, pageWidthPx, pageHeightPx, zoom, editMode = false }, ref) {
+>(function PageFrame(
+  { index, html, pageWidthPx, pageHeightPx, zoom, editMode = false, onIframeLoad },
+  ref,
+) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const displayWidth = pageWidthPx * zoom;
   const displayHeight = pageHeightPx * zoom;
+
+  const handleLoad = useCallback(() => {
+    const iframe = iframeRef.current;
+    console.log(`[page-audit] iframe onLoad fired, index=${index}`, {
+      hasIframe: !!iframe,
+      hasCallback: !!onIframeLoad,
+    });
+    if (!iframe || !onIframeLoad) return;
+    // Double rAF to wait for CSR pages where React renders async after script load
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        onIframeLoad(iframe);
+      });
+    });
+  }, [onIframeLoad, index]);
 
   return (
     <div
@@ -573,6 +664,7 @@ const PageFrame = forwardRef<
     >
       {html ? (
         <iframe
+          ref={iframeRef}
           srcDoc={html}
           title={`Page ${index + 1}`}
           className={cn(
@@ -587,6 +679,7 @@ const PageFrame = forwardRef<
           }}
           tabIndex={editMode ? 0 : -1}
           sandbox="allow-scripts allow-same-origin"
+          onLoad={handleLoad}
         />
       ) : (
         <div className="flex h-full items-center justify-center">

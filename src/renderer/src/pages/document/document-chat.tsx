@@ -14,6 +14,8 @@ interface DocumentChatProps {
   workspacePath: string;
   userName?: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
+  sendMessageRef?: React.RefObject<((text: string) => void) | null>;
+  onBusyChange?: (isBusy: boolean) => void;
 }
 
 function buildStorageKey(workspaceName: string, slug: string): string {
@@ -26,6 +28,8 @@ export function DocumentChat({
   workspacePath,
   userName,
   onToolComplete,
+  sendMessageRef,
+  onBusyChange,
 }: DocumentChatProps): React.JSX.Element {
   const { client, baseUrl, status } = useOpencode();
   const [resetKey, setResetKey] = useState(0);
@@ -197,6 +201,8 @@ export function DocumentChat({
       onRevert={handleRevert}
       captureFiles={captureFiles}
       onTurnSnapshot={handleTurnSnapshot}
+      sendMessageRef={sendMessageRef}
+      onBusyChange={onBusyChange}
     />
   );
 }

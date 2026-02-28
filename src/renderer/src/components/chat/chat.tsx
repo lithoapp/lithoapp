@@ -84,6 +84,8 @@ export function Chat({
   onRevert,
   captureFiles,
   onTurnSnapshot,
+  sendMessageRef,
+  onBusyChange,
 }: {
   directory: string;
   systemPrompt: string;
@@ -103,6 +105,8 @@ export function Chat({
     assistantMessageId: string;
     promptExcerpt: string;
   }) => void;
+  sendMessageRef?: React.RefObject<((text: string) => void) | null>;
+  onBusyChange?: (isBusy: boolean) => void;
 }): React.JSX.Element {
   const [providerId, setProviderId] = useState(() => loadChatPrefs().providerId);
   const [modelId, setModelId] = useState(() => loadChatPrefs().modelId);
@@ -191,6 +195,20 @@ export function Chat({
   const showCover = Boolean(kickoffMessage) && loaded && chat.messages.length === 0 && !kickoffSent;
   const isBusy = chat.sessionStatus?.type === 'busy';
   const totalTok = chat.totalTokens.input + chat.totalTokens.output + chat.totalTokens.reasoning;
+
+  // Expose sendMessage to parent via ref
+  useEffect(() => {
+    if (!sendMessageRef) return;
+    sendMessageRef.current = (text: string) => chat.sendMessage(text);
+    return () => {
+      sendMessageRef.current = null;
+    };
+  }, [sendMessageRef, chat]);
+
+  // Notify parent of busy state changes
+  useEffect(() => {
+    onBusyChange?.(isBusy);
+  }, [isBusy, onBusyChange]);
 
   if (showCover) {
     return (
