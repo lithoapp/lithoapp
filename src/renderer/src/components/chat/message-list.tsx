@@ -173,11 +173,14 @@ function DiagnosticMessageView({ message }: { message: ChatMessage }): React.JSX
   const fullText = textParts.map((p) => (p.type === 'text' ? p.text : '')).join('');
   const displayText = stripDiagnosticPrefix(fullText);
 
-  // Count errors from the message (each "- " prefixed line is an error)
-  const errorCount = (displayText.match(/^- /gm) ?? []).length;
+  // Derive label from first line: "Page build found 2 error(s):" → "Page build — 2 error(s)"
+  const firstLine = displayText.split('\n')[0];
+  const countMatch = firstLine.match(/(\d+)\s+error/);
+  const errorCount = countMatch ? Number(countMatch[1]) : 0;
+  const category = firstLine.replace(/\s+found\s+\d+.*$/, '');
   const label =
     errorCount > 0
-      ? `CSS validation — ${errorCount} error(s) reported to agent`
+      ? `${category} — ${errorCount} error(s) reported to agent`
       : 'Validation errors reported to agent';
 
   return (

@@ -9,13 +9,14 @@ import {
   Pencil,
   Plus,
 } from 'lucide-react';
-import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { type PostTurnValidator, usePostTurnDiagnostics } from '@/hooks/use-post-turn-diagnostics';
 import type { PageAudit } from '@/lib/page-audit-types';
 import { runPageAudits } from '@/lib/page-auditors/run-page-audits';
 import { cn } from '@/lib/utils';
@@ -81,6 +82,30 @@ export function DocumentPage({
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const viewerRef = useRef<HTMLDivElement>(null);
   const sendMessageRef = useRef<((text: string) => void) | null>(null);
+
+  // TSX post-turn diagnostics: validate page builds after the agent finishes
+  const tsxValidator: PostTurnValidator = useMemo(
+    () => ({
+      tools: ['writePage', 'editPage'],
+      getDirtyKey: (_tool, args) => args.pageId as string,
+      validate: async (dirtyKeys) => {
+        const errors: string[] = [];
+        for (const pageId of dirtyKeys) {
+          const result = await window.litho.renderer.build(workspaceName, doc.id, pageId);
+          if (!result.ok && result.error.stage !== 'tailwind') {
+            const pageName = pages.find((p) => p.id === pageId)?.name ?? pageId;
+            errors.push(`Page "${pageName}": ${result.error.message}`);
+          }
+        }
+        return errors;
+      },
+      formatMessage: (errors) =>
+        `Page build found ${errors.length} error(s):\n${errors.map((e) => `- ${e}`).join('\n')}\n\nFix these errors in the page source.`,
+    }),
+    [workspaceName, doc.id, pages],
+  );
+
+  const tsxDiagnosticComplete = usePostTurnDiagnostics([tsxValidator], sendMessageRef, isAgentBusy);
 
   // Intrinsic page size in px
   const pageWidthPx = doc.size.width * (doc.size.unit === 'mm' ? 3.7795 : 1);
@@ -289,6 +314,8 @@ export function DocumentPage({
   rebuildAllOnToolsRef.current = rebuildAllOnTools;
   const handleToolComplete = useCallback(
     (tool: string, args: Record<string, unknown>) => {
+      tsxDiagnosticComplete(tool, args);
+
       // Check caller-provided tools that require a full rebuild
       if (rebuildAllOnToolsRef.current?.includes(tool)) {
         void buildPages();
@@ -312,7 +339,7 @@ export function DocumentPage({
           break;
       }
     },
-    [buildPage, buildPages, refetchDocOnPageChange, refetchDocConfig],
+    [buildPage, buildPages, refetchDocOnPageChange, refetchDocConfig, tsxDiagnosticComplete],
   );
 
   const handleIframeLoad = useCallback(
