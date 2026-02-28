@@ -155,6 +155,7 @@ Assets: use `@assets/logo.png`, `@assets/hero.jpg`, etc. as `src` in `<img>` tag
 - Never use `overflow-auto`, `overflow-scroll`, or `min-h-screen`
 - No responsive prefixes (`sm:`, `md:`, `lg:`) — they have no effect
 - Use absolute positioning and explicit heights/widths for precise placement
+- Fill the page through intentional design — generous padding, considered spacing between sections, and visual balance. Don't stretch elements with `flex-1` or `justify-between` to mechanically fill vertical space. Content blocks should have natural heights; use whitespace and layout composition to make the page feel full.
 - For print: avoid very low contrast, semi-transparent overlays on complex backgrounds, or colors that look wrong in grayscale
 - For digital/social: vibrant colors, high contrast, and bold type are encouraged — design for small screens and fast scrolling
 - Content that overflows the page boundary is silently clipped — invisible to the user
