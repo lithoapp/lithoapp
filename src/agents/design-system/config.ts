@@ -14,6 +14,7 @@ export const designSystemConfig = {
     createPage: 'allow',
     deletePage: 'allow',
     updatePageDetails: 'allow',
+    movePage: 'allow',
     // OpenCode built-in tools — all denied
     read: 'deny',
     edit: 'deny',

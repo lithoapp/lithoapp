@@ -406,6 +406,79 @@ const updatePageDetails = tool({
   },
 });
 
+// ─── movePage ────────────────────────────────────────────────────────────────
+
+const movePage = tool({
+  description: 'Move a page to a new position in the document.',
+  args: {
+    docId: tool.schema.string().describe('Document ID'),
+    pageId: tool.schema.string().describe('Page ID to move'),
+    targetPageId: tool.schema.string().describe('Target page ID to move relative to'),
+    position: tool.schema.enum(['before', 'after']).describe('Move before or after target'),
+  },
+  async execute(args, context) {
+    const db = openDb(context.directory);
+    try {
+      const pages = db
+        .prepare('SELECT id, position FROM pages WHERE document_id = ? ORDER BY position')
+        .all(args.docId) as Array<{ id: string; position: number }>;
+
+      if (pages.length < 2) {
+        throw new Error('Document must have at least 2 pages to reorder');
+      }
+
+      const movingIdx = pages.findIndex((p) => p.id === args.pageId);
+      if (movingIdx === -1) {
+        throw new Error(`Page "${args.pageId}" not found in document "${args.docId}"`);
+      }
+
+      const targetIdx = pages.findIndex((p) => p.id === args.targetPageId);
+      if (targetIdx === -1) {
+        throw new Error(`Target page "${args.targetPageId}" not found in document "${args.docId}"`);
+      }
+
+      if (args.pageId === args.targetPageId) {
+        throw new Error('Cannot move a page relative to itself');
+      }
+
+      let newPosition: number;
+
+      if (args.position === 'before') {
+        if (targetIdx === 0) {
+          newPosition = pages[0].position / 2;
+        } else {
+          newPosition = (pages[targetIdx - 1].position + pages[targetIdx].position) / 2;
+        }
+      } else {
+        if (targetIdx === pages.length - 1) {
+          newPosition = pages[targetIdx].position + 1;
+        } else {
+          newPosition = (pages[targetIdx].position + pages[targetIdx + 1].position) / 2;
+        }
+      }
+
+      const currentIdx = pages.findIndex(
+        (p, i) =>
+          (i === 0 || pages[i - 1].position < newPosition) &&
+          (i === pages.length - 1 || pages[i + 1].position > newPosition) &&
+          p.id === args.pageId,
+      );
+
+      if (currentIdx !== -1) {
+        return `Page ${args.pageId} is already in that position`;
+      }
+
+      db.prepare(
+        "UPDATE pages SET position = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
+      ).run(newPosition, args.pageId, args.docId);
+
+      return `Moved ${args.pageId} ${args.position} ${args.targetPageId}`;
+    } finally {
+      db.close();
+    }
+  },
+});
+
 // ─── Plugin export ──────────────────────────────────────────────────────────
 
 export const lithoPlugin: Plugin = async () => ({
@@ -420,5 +493,6 @@ export const lithoPlugin: Plugin = async () => ({
     createPage,
     deletePage,
     updatePageDetails,
+    movePage,
   },
 });

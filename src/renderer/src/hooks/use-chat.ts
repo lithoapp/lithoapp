@@ -162,6 +162,8 @@ export function useChat({
                 'editPage',
                 'createPage',
                 'deletePage',
+                'updatePageDetails',
+                'movePage',
                 'writeMainCss',
                 'editMainCss',
               ];

@@ -11,6 +11,7 @@ export const documentConfig = {
     createPage: 'allow',
     deletePage: 'allow',
     updatePageDetails: 'allow',
+    movePage: 'allow',
     // Litho tools — denied (design-system only)
     writeMainCss: 'deny',
     editMainCss: 'deny',

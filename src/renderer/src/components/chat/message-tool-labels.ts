@@ -53,6 +53,19 @@ export function resolveToolLabel(
     case 'updatePageDetails':
       return { label: 'Updating page details', icon: 'pencil' };
 
+    case 'movePage': {
+      const pageLabel = resolvePageLabel(input.pageId as string | undefined, pages);
+      const targetLabel = resolvePageLabel(input.targetPageId as string | undefined, pages);
+      const position = input.position as 'before' | 'after' | undefined;
+      if (pageLabel && targetLabel) {
+        return {
+          label: `Moving page ${pageLabel} ${position ?? ''} ${targetLabel}`,
+          icon: 'pencil',
+        };
+      }
+      return { label: 'Reordering page', icon: 'pencil' };
+    }
+
     case 'readMainCss':
       return { label: 'Reading styles', icon: 'eye' };
 

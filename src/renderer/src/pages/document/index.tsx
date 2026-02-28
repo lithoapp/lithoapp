@@ -331,6 +331,8 @@ export function DocumentPage({
         }
         case 'createPage':
         case 'deletePage':
+        case 'movePage':
+        case 'updatePageDetails':
           if (refetchDocOnPageChange) {
             void refetchDocConfig();
           } else {
