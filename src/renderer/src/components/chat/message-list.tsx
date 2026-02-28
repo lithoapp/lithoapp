@@ -1,18 +1,6 @@
-import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import NodeRenderer, { setCustomComponents } from 'markstream-react';
 import 'markstream-react/index.css';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
 import type { ChatMessage } from '@/hooks/use-chat';
 import { isDiagnosticMessage, stripDiagnosticPrefix } from '@/hooks/use-post-turn-diagnostics';
 
@@ -106,15 +94,7 @@ export function StreamingMarkdown({
 // User message view (shared across all display modes)
 // ---------------------------------------------------------------------------
 
-export function UserMessageView({
-  message,
-  snapshotId,
-  onRevert,
-}: {
-  message: ChatMessage;
-  snapshotId?: string;
-  onRevert?: () => void;
-}): React.JSX.Element {
+export function UserMessageView({ message }: { message: ChatMessage }): React.JSX.Element {
   const firstText = message.parts.find((p) => p.type === 'text');
   const isDiagnostic = firstText?.type === 'text' && isDiagnosticMessage(firstText.text);
 
@@ -133,33 +113,6 @@ export function UserMessageView({
             </p>
           ))}
       </div>
-      {snapshotId && onRevert && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-5 gap-1 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
-            >
-              <RotateCcw className="h-2.5 w-2.5" />
-              Revert
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Revert changes?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Files will be restored to before this message and the subsequent chat history will
-                be removed.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={onRevert}>Revert</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </div>
   );
 }

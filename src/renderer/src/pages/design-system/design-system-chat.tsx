@@ -1,6 +1,5 @@
 import { Loader2, MessageSquare, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
 import { Chat } from '@/components/chat/chat';
 import { Button } from '@/components/ui/button';
 import { useOpencode } from '@/hooks/use-opencode';
@@ -14,9 +13,7 @@ interface DesignSystemChatProps {
   workspaceName: string;
   workspacePath: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
-  /** Primary sendMessageRef — populated by Chat so callers can inject messages. */
   sendMessageRef?: React.RefObject<SendMessageFn>;
-  /** Secondary ref also kept in sync (e.g. DocumentPage's ref for audit fixes). */
   parentSendMessageRef?: React.RefObject<SendMessageFn>;
   onBusyChange?: (isBusy: boolean) => void;
 }
@@ -33,8 +30,6 @@ export function DesignSystemChat({
   parentSendMessageRef,
   onBusyChange,
 }: DesignSystemChatProps): React.JSX.Element {
-  // Create a merged ref that syncs writes to both sendMessageRef and parentSendMessageRef.
-  // Chat writes to this ref's .current in a useEffect.
   const mergedSendRef = useMemo(() => {
     let value: SendMessageFn = null;
     return {
@@ -50,7 +45,6 @@ export function DesignSystemChat({
   }, [sendMessageRef, parentSendMessageRef]);
   const { client, baseUrl, status } = useOpencode();
   const [resetKey, setResetKey] = useState(0);
-  const [snapshotIndex, setSnapshotIndex] = useState<Record<string, string>>({});
   const [fontContext, setFontContext] = useState('');
   const [userName, setUserName] = useState('');
   const [dsDocId, setDsDocId] = useState<string | null>(null);
@@ -63,7 +57,6 @@ export function DesignSystemChat({
       .catch(() => {});
   }, []);
 
-  // Load design system doc ID and config
   useEffect(() => {
     void (async () => {
       try {
@@ -103,70 +96,9 @@ export function DesignSystemChat({
 
   const handleNewChat = () => {
     localStorage.removeItem(buildStorageKey(workspaceName));
-    setSnapshotIndex({});
     setResetKey((k) => k + 1);
   };
 
-  const captureFiles = useCallback(async () => {
-    if (!dsDocId) return window.litho.snapshot.readStylesFile(workspaceName);
-    return window.litho.snapshot.readDesignSystemFiles(workspaceName, dsDocId);
-  }, [workspaceName, dsDocId]);
-
-  const handleTurnSnapshot = useCallback(
-    async ({
-      files,
-      assistantMessageId,
-      promptExcerpt,
-    }: {
-      files: Record<string, string>;
-      assistantMessageId: string;
-      promptExcerpt: string;
-    }) => {
-      try {
-        let snapshotId: string;
-        if (dsDocId) {
-          snapshotId = await window.litho.snapshot.createDesignSystem(
-            workspaceName,
-            dsDocId,
-            files,
-            promptExcerpt,
-            assistantMessageId,
-          );
-        } else {
-          snapshotId = await window.litho.snapshot.createStyles(
-            workspaceName,
-            files,
-            promptExcerpt,
-            assistantMessageId,
-          );
-        }
-        setSnapshotIndex((prev) => ({ ...prev, [assistantMessageId]: snapshotId }));
-      } catch {
-        // snapshot failure is non-fatal
-      }
-    },
-    [workspaceName, dsDocId],
-  );
-
-  const handleRevert = useCallback(
-    async (assistantMessageId: string) => {
-      const snapshotId = snapshotIndex[assistantMessageId];
-      if (!snapshotId) return;
-      try {
-        if (dsDocId) {
-          await window.litho.snapshot.restoreDesignSystem(workspaceName, dsDocId, snapshotId);
-        } else {
-          await window.litho.snapshot.restoreStyles(workspaceName, snapshotId);
-        }
-      } catch (err) {
-        console.error('[design-system-chat] Revert failed:', err);
-        toast.error('Failed to revert styles');
-      }
-    },
-    [snapshotIndex, workspaceName, dsDocId],
-  );
-
-  // Refetch doc config when pages change
   const refetchDocConfig = useCallback(async () => {
     if (!dsDocId) return;
     try {
@@ -261,10 +193,6 @@ export function DesignSystemChat({
       onToolComplete={handleToolComplete}
       onNewChat={handleNewChat}
       kickoffMessage={kickoffMessage}
-      snapshotIndex={snapshotIndex}
-      onRevert={handleRevert}
-      captureFiles={captureFiles}
-      onTurnSnapshot={handleTurnSnapshot}
       sendMessageRef={mergedSendRef}
       onBusyChange={onBusyChange}
       pages={docConfig?.pages}

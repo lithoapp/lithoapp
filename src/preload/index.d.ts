@@ -3,7 +3,6 @@ import type {
   DesignSystem,
   DocumentConfig,
   DocumentInfo,
-  DocumentSnapshot,
   ExportProgress,
   ExportRequest,
   PageSize,
@@ -90,47 +89,6 @@ interface LithoAPI {
       workspaceName: string,
       updates: Array<{ variable: string; value: string }>,
     ) => Promise<void>;
-  };
-  snapshot: {
-    readDocumentFiles: (workspaceName: string, docId: string) => Promise<Record<string, string>>;
-    createDocument: (
-      workspaceName: string,
-      docId: string,
-      files: Record<string, string>,
-      promptExcerpt: string,
-      assistantMessageId: string,
-    ) => Promise<string>;
-    restoreDocument: (workspaceName: string, docId: string, snapshotId: string) => Promise<void>;
-    listDocument: (workspaceName: string, docId: string) => Promise<DocumentSnapshot[]>;
-    deleteDocument: (workspaceName: string, docId: string, snapshotId: string) => Promise<void>;
-
-    readDesignSystemFiles: (
-      workspaceName: string,
-      dsDocId: string,
-    ) => Promise<Record<string, string>>;
-    createDesignSystem: (
-      workspaceName: string,
-      dsDocId: string,
-      files: Record<string, string>,
-      promptExcerpt: string,
-      assistantMessageId: string,
-    ) => Promise<string>;
-    restoreDesignSystem: (
-      workspaceName: string,
-      dsDocId: string,
-      snapshotId: string,
-    ) => Promise<void>;
-
-    readStylesFile: (workspaceName: string) => Promise<Record<string, string>>;
-    createStyles: (
-      workspaceName: string,
-      files: Record<string, string>,
-      promptExcerpt: string,
-      assistantMessageId: string,
-    ) => Promise<string>;
-    restoreStyles: (workspaceName: string, snapshotId: string) => Promise<void>;
-    listStyles: (workspaceName: string) => Promise<DocumentSnapshot[]>;
-    deleteStyles: (workspaceName: string, snapshotId: string) => Promise<void>;
   };
   renderer: {
     build: (

@@ -1,6 +1,5 @@
 import { Loader2, MessageSquare, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { useEffect, useMemo, useState } from 'react';
 import { Chat } from '@/components/chat/chat';
 import { Button } from '@/components/ui/button';
 import { useOpencode } from '@/hooks/use-opencode';
@@ -33,7 +32,6 @@ export function DocumentChat({
 }: DocumentChatProps): React.JSX.Element {
   const { client, baseUrl, status } = useOpencode();
   const [resetKey, setResetKey] = useState(0);
-  const [snapshotIndex, setSnapshotIndex] = useState<Record<string, string>>({});
   const [assetsSummary, setAssetsSummary] = useState(
     'Assets: @assets/... (workspace-level assets)',
   );
@@ -73,53 +71,8 @@ export function DocumentChat({
 
   const handleNewChat = () => {
     localStorage.removeItem(buildStorageKey(workspaceName, doc.id));
-    setSnapshotIndex({});
     setResetKey((k) => k + 1);
   };
-
-  const captureFiles = useCallback(async () => {
-    return window.litho.snapshot.readDocumentFiles(workspaceName, doc.id);
-  }, [workspaceName, doc.id]);
-
-  const handleTurnSnapshot = useCallback(
-    async ({
-      files,
-      assistantMessageId,
-      promptExcerpt,
-    }: {
-      files: Record<string, string>;
-      assistantMessageId: string;
-      promptExcerpt: string;
-    }) => {
-      try {
-        const snapshotId = await window.litho.snapshot.createDocument(
-          workspaceName,
-          doc.id,
-          files,
-          promptExcerpt,
-          assistantMessageId,
-        );
-        setSnapshotIndex((prev) => ({ ...prev, [assistantMessageId]: snapshotId }));
-      } catch {
-        // snapshot failure is non-fatal
-      }
-    },
-    [workspaceName, doc.id],
-  );
-
-  const handleRevert = useCallback(
-    async (assistantMessageId: string) => {
-      const snapshotId = snapshotIndex[assistantMessageId];
-      if (!snapshotId) return;
-      try {
-        await window.litho.snapshot.restoreDocument(workspaceName, doc.id, snapshotId);
-      } catch (err) {
-        console.error('[document-chat] Revert failed:', err);
-        toast.error('Failed to revert document');
-      }
-    },
-    [snapshotIndex, workspaceName, doc.id],
-  );
 
   const { system, kickoff } = promptTemplates.document;
 
@@ -204,10 +157,6 @@ export function DocumentChat({
       onToolComplete={onToolComplete}
       onNewChat={handleNewChat}
       kickoffMessage={kickoffMessage}
-      snapshotIndex={snapshotIndex}
-      onRevert={handleRevert}
-      captureFiles={captureFiles}
-      onTurnSnapshot={handleTurnSnapshot}
       sendMessageRef={sendMessageRef}
       onBusyChange={onBusyChange}
       pages={doc.pages}

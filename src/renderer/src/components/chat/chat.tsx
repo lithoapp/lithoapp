@@ -34,10 +34,6 @@ import { Timeline } from './message-timeline';
 import { ModelSelector } from './model-selector';
 import { PermissionCard } from './permission-card';
 
-// ---------------------------------------------------------------------------
-// Display modes
-// ---------------------------------------------------------------------------
-
 type DisplayMode = 'activity' | 'status' | 'timeline' | 'debug';
 
 const ASSISTANT_COMPONENTS: Record<
@@ -57,18 +53,10 @@ const DISPLAY_MODE_LABELS: Record<DisplayMode, { label: string; icon: React.Elem
   debug: { label: 'Debug', icon: Bug },
 };
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function formatTokens(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
 }
-
-// ---------------------------------------------------------------------------
-// Chat
-// ---------------------------------------------------------------------------
 
 export function Chat({
   directory,
@@ -81,10 +69,6 @@ export function Chat({
   onNewChat,
   kickoffMessage,
   onToolComplete,
-  snapshotIndex,
-  onRevert,
-  captureFiles,
-  onTurnSnapshot,
   sendMessageRef,
   onBusyChange,
   pages,
@@ -99,14 +83,6 @@ export function Chat({
   onNewChat?: () => void;
   kickoffMessage?: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
-  snapshotIndex?: Record<string, string>;
-  onRevert?: (assistantMessageId: string) => Promise<void>;
-  captureFiles?: () => Promise<Record<string, string>>;
-  onTurnSnapshot?: (data: {
-    files: Record<string, string>;
-    assistantMessageId: string;
-    promptExcerpt: string;
-  }) => void;
   sendMessageRef?: React.RefObject<((text: string) => void) | null>;
   onBusyChange?: (isBusy: boolean) => void;
   pages?: PageInfo[];
@@ -135,17 +111,7 @@ export function Chat({
     providerId,
     modelId,
     onToolComplete,
-    captureFiles,
-    onTurnSnapshot,
   });
-
-  const handleRevert = useCallback(
-    async (msg: ChatMessage) => {
-      if (onRevert) await onRevert(msg.info.id);
-      await chat.revert(msg.info.id);
-    },
-    [onRevert, chat],
-  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset + load on session change
   useEffect(() => {
@@ -307,21 +273,7 @@ export function Chat({
 
           {displayMessages.map((msg, idx) => {
             if (msg.info.role === 'user') {
-              const nextMsg = displayMessages[idx + 1];
-              const relatedAssistant =
-                nextMsg?.info.role === 'assistant' && snapshotIndex?.[nextMsg.info.id]
-                  ? nextMsg
-                  : undefined;
-              return (
-                <UserMessageView
-                  key={msg.info.id}
-                  message={msg}
-                  snapshotId={
-                    relatedAssistant ? snapshotIndex?.[relatedAssistant.info.id] : undefined
-                  }
-                  onRevert={relatedAssistant ? () => handleRevert(relatedAssistant) : undefined}
-                />
-              );
+              return <UserMessageView key={msg.info.id} message={msg} />;
             }
 
             const isLastAssistant = idx === displayMessages.length - 1;

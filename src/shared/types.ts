@@ -247,13 +247,3 @@ export interface DocumentInfo {
   folder?: string;
   updatedAt?: string;
 }
-
-// --- Snapshots ---
-
-export interface DocumentSnapshot {
-  id: string;
-  timestamp: string; // ISO 8601
-  promptExcerpt: string; // first 100 chars of user prompt
-  assistantMessageId: string;
-  data: Record<string, string>; // pageId → source (documents) or key → content (styles)
-}

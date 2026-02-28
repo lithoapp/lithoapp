@@ -32,21 +32,6 @@ import { buildPage } from './renderer';
 import { compileTailwind, formatCssError } from './renderer/build-shared';
 import { initSentry } from './sentry';
 import {
-  createDesignSystemSnapshot,
-  createDocumentSnapshot,
-  createStylesSnapshot,
-  deleteDocumentSnapshot,
-  deleteStylesSnapshot,
-  listDocumentSnapshots,
-  listStylesSnapshots,
-  readDesignSystemFiles,
-  readDocumentFiles,
-  readStylesFile,
-  restoreDesignSystemSnapshot,
-  restoreDocumentSnapshot,
-  restoreStylesSnapshot,
-} from './snapshot-manager';
-import {
   getAdvancedToolsEnabled,
   getTelemetryEnabled,
   getTheme,
@@ -271,87 +256,6 @@ ipcMain.handle(
   'designSystem:updateTokens',
   (_event, ws: string, updates: Array<{ variable: string; value: string }>) =>
     updateDesignTokens(ws, updates),
-);
-
-// Snapshot IPC handlers
-ipcMain.handle('snapshot:readDocumentFiles', (_event, workspaceName: string, docId: string) =>
-  readDocumentFiles(workspaceName, docId),
-);
-ipcMain.handle(
-  'snapshot:createDocument',
-  (
-    _event,
-    workspaceName: string,
-    docId: string,
-    files: Record<string, string>,
-    promptExcerpt: string,
-    assistantMessageId: string,
-  ) => createDocumentSnapshot(workspaceName, docId, files, promptExcerpt, assistantMessageId, 20),
-);
-ipcMain.handle(
-  'snapshot:restoreDocument',
-  (_event, workspaceName: string, docId: string, snapshotId: string) =>
-    restoreDocumentSnapshot(workspaceName, docId, snapshotId),
-);
-ipcMain.handle('snapshot:listDocument', (_event, workspaceName: string, docId: string) =>
-  listDocumentSnapshots(workspaceName, docId),
-);
-ipcMain.handle(
-  'snapshot:deleteDocument',
-  (_event, workspaceName: string, docId: string, snapshotId: string) =>
-    deleteDocumentSnapshot(workspaceName, docId, snapshotId),
-);
-
-// Design system snapshot IPC handlers
-ipcMain.handle('snapshot:readDesignSystemFiles', (_event, workspaceName: string, dsDocId: string) =>
-  readDesignSystemFiles(workspaceName, dsDocId),
-);
-ipcMain.handle(
-  'snapshot:createDesignSystem',
-  (
-    _event,
-    workspaceName: string,
-    dsDocId: string,
-    files: Record<string, string>,
-    promptExcerpt: string,
-    assistantMessageId: string,
-  ) =>
-    createDesignSystemSnapshot(
-      workspaceName,
-      dsDocId,
-      files,
-      promptExcerpt,
-      assistantMessageId,
-      20,
-    ),
-);
-ipcMain.handle(
-  'snapshot:restoreDesignSystem',
-  (_event, workspaceName: string, dsDocId: string, snapshotId: string) =>
-    restoreDesignSystemSnapshot(workspaceName, dsDocId, snapshotId),
-);
-
-ipcMain.handle('snapshot:readStylesFile', (_event, workspaceName: string) =>
-  readStylesFile(workspaceName),
-);
-ipcMain.handle(
-  'snapshot:createStyles',
-  (
-    _event,
-    workspaceName: string,
-    files: Record<string, string>,
-    promptExcerpt: string,
-    assistantMessageId: string,
-  ) => createStylesSnapshot(workspaceName, files, promptExcerpt, assistantMessageId, 20),
-);
-ipcMain.handle('snapshot:restoreStyles', (_event, workspaceName: string, snapshotId: string) =>
-  restoreStylesSnapshot(workspaceName, snapshotId),
-);
-ipcMain.handle('snapshot:listStyles', (_event, workspaceName: string) =>
-  listStylesSnapshots(workspaceName),
-);
-ipcMain.handle('snapshot:deleteStyles', (_event, workspaceName: string, snapshotId: string) =>
-  deleteStylesSnapshot(workspaceName, snapshotId),
 );
 
 ipcMain.handle(

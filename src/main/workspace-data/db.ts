@@ -67,18 +67,6 @@ CREATE TABLE IF NOT EXISTS styles (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS snapshots (
-  id TEXT PRIMARY KEY,
-  scope TEXT NOT NULL CHECK (scope IN ('document', 'styles')),
-  document_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
-  prompt_excerpt TEXT,
-  assistant_message_id TEXT,
-  data TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_snapshots_lookup
-  ON snapshots(scope, document_id, created_at);
 `;
 
 function applyMigrations(db: Database.Database, workspaceName: string): void {

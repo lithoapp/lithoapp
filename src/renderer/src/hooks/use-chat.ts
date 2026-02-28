@@ -25,12 +25,6 @@ interface UseChatInput {
   providerId: string;
   modelId: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
-  captureFiles?: () => Promise<Record<string, string>>;
-  onTurnSnapshot?: (data: {
-    files: Record<string, string>;
-    assistantMessageId: string;
-    promptExcerpt: string;
-  }) => void;
 }
 
 export interface UseChatReturn {
@@ -46,12 +40,7 @@ export interface UseChatReturn {
   abort: () => Promise<void>;
   replyPermission: (id: string, response: 'once' | 'always' | 'reject') => Promise<void>;
   loadMessages: () => Promise<void>;
-  revert: (assistantMessageId: string) => Promise<void>;
 }
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useChat({
   client,
@@ -63,46 +52,29 @@ export function useChat({
   providerId,
   modelId,
   onToolComplete,
-  captureFiles,
-  onTurnSnapshot,
 }: UseChatInput): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [revertMessageId, setRevertMessageId] = useState<string | null>(null);
   const [pendingPermissions, setPendingPermissions] = useState<PendingPermission[]>([]);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
   const [sending, setSending] = useState(false);
   const [isAborting, setIsAborting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cost accumulators stored in refs, synced to state
   const costRef = useRef(0);
   const tokensRef = useRef({ input: 0, output: 0, reasoning: 0 });
   const [totalCost, setTotalCost] = useState(0);
   const [totalTokens, setTotalTokens] = useState({ input: 0, output: 0, reasoning: 0 });
 
-  // Directory ref to filter SSE events without reconnecting
   const directoryRef = useRef(directory);
   directoryRef.current = directory;
 
-  // Callback refs so changes don't force SSE reconnection
   const onToolCompleteRef = useRef(onToolComplete);
   onToolCompleteRef.current = onToolComplete;
-  const captureFilesRef = useRef(captureFiles);
-  captureFilesRef.current = captureFiles;
-  const onTurnSnapshotRef = useRef(onTurnSnapshot);
-  onTurnSnapshotRef.current = onTurnSnapshot;
-
-  // Snapshot tracking refs (no state — avoids re-renders)
-  const pendingSnapshotFilesRef = useRef<Record<string, string> | null>(null);
-  const pendingSnapshotPromptRef = useRef('');
-  const fileEditedCountRef = useRef(0);
-  const currentAssistantMessageIdRef = useRef<string | null>(null);
 
   // Reset state when sessionId changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on sessionId change
   useEffect(() => {
     setMessages([]);
-    setRevertMessageId(null);
     setPendingPermissions([]);
     setSessionStatus(null);
     setSending(false);
@@ -111,12 +83,7 @@ export function useChat({
     tokensRef.current = { input: 0, output: 0, reasoning: 0 };
     setTotalCost(0);
     setTotalTokens({ input: 0, output: 0, reasoning: 0 });
-    pendingSnapshotFilesRef.current = null;
-    fileEditedCountRef.current = 0;
-    currentAssistantMessageIdRef.current = null;
   }, [sessionId]);
-
-  // ---- SSE subscription ----
 
   useEffect(() => {
     if (!baseUrl || !sessionId) return;
@@ -137,7 +104,6 @@ export function useChat({
         const event = raw.payload;
         const eventDir = raw.directory ?? '';
 
-        // Filter by directory
         const configDir = directoryRef.current.trim();
         if (configDir && eventDir && eventDir !== configDir) return;
 
@@ -145,7 +111,6 @@ export function useChat({
           case 'message.part.updated': {
             const { part } = event.properties;
             setMessages((prev) => updateMessagePart(prev, part, { createPlaceholder: true }));
-            // Accumulate cost from step-finish parts
             const stats = extractStepFinishStats(part);
             if (stats) {
               costRef.current += stats.cost;
@@ -155,7 +120,6 @@ export function useChat({
               tokensRef.current.reasoning += stats.tokens.reasoning;
               setTotalTokens({ ...tokensRef.current });
             }
-            // Detect completed litho tool calls that mutate files
             if (part.type === 'tool' && part.state.status === 'completed') {
               const mutatingTools = [
                 'writePage',
@@ -168,7 +132,6 @@ export function useChat({
                 'editMainCss',
               ];
               if (mutatingTools.includes(part.tool)) {
-                fileEditedCountRef.current += 1;
                 onToolCompleteRef.current?.(
                   part.tool,
                   (part.state.input as Record<string, unknown>) ?? {},
@@ -185,42 +148,18 @@ export function useChat({
           case 'message.updated': {
             const { info } = event.properties;
             setMessages((prev) => updateMessage(prev, info));
-            // Track the first assistant message of this turn for snapshot
-            if (info.role === 'assistant' && !currentAssistantMessageIdRef.current) {
-              currentAssistantMessageIdRef.current = info.id;
-            }
             break;
           }
           case 'message.removed': {
             const { messageID } = event.properties;
             setMessages((prev) => removeMessage(prev, messageID));
-            // If the reverted message is removed, the revert is complete
-            setRevertMessageId((prev) => (prev === messageID ? null : prev));
             break;
           }
           case 'session.status': {
             setSessionStatus(event.properties.status);
-            if (event.properties.status.type === 'idle') {
-              // Write snapshot if this turn edited files
-              if (
-                fileEditedCountRef.current > 0 &&
-                pendingSnapshotFilesRef.current &&
-                currentAssistantMessageIdRef.current
-              ) {
-                onTurnSnapshotRef.current?.({
-                  files: pendingSnapshotFilesRef.current,
-                  assistantMessageId: currentAssistantMessageIdRef.current,
-                  promptExcerpt: pendingSnapshotPromptRef.current,
-                });
-              }
-              pendingSnapshotFilesRef.current = null;
-              fileEditedCountRef.current = 0;
-              currentAssistantMessageIdRef.current = null;
-            }
             break;
           }
           case 'session.updated': {
-            // Session info updated — no action needed for chat
             break;
           }
           case 'session.error': {
@@ -249,15 +188,10 @@ export function useChat({
     };
   }, [baseUrl, sessionId]);
 
-  // ---- Actions ----
-
   const loadMessages = useCallback(async () => {
     if (!client || !sessionId) return;
     try {
-      const [msgsResult, sessionResult] = await Promise.all([
-        client.session.messages({ path: { id: sessionId } }),
-        client.session.get({ path: { id: sessionId } }),
-      ]);
+      const msgsResult = await client.session.messages({ path: { id: sessionId } });
       if (msgsResult.data) {
         const msgs = msgsResult.data as ChatMessage[];
         setMessages(msgs);
@@ -267,9 +201,6 @@ export function useChat({
         setTotalCost(stats.cost);
         setTotalTokens({ ...stats.tokens });
       }
-      // Restore any persisted revert state (survives navigation)
-      const session = sessionResult.data as { revert?: { messageID: string } } | undefined;
-      setRevertMessageId(session?.revert?.messageID ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages');
     }
@@ -280,14 +211,6 @@ export function useChat({
       if (!client || !sessionId || !text.trim()) return;
       setError(null);
       setSending(true);
-
-      // Capture pre-turn file state for snapshotting
-      if (captureFilesRef.current) {
-        pendingSnapshotFilesRef.current = await captureFilesRef.current();
-        pendingSnapshotPromptRef.current = text.trim().slice(0, 100);
-      }
-      fileEditedCountRef.current = 0;
-      currentAssistantMessageIdRef.current = null;
 
       const body: Record<string, unknown> = {
         parts: [{ type: 'text', text: text.trim() }],
@@ -363,31 +286,8 @@ export function useChat({
     [client, sessionId],
   );
 
-  const revert = useCallback(
-    async (assistantMessageId: string) => {
-      if (!client || !sessionId) return;
-      try {
-        const result = await client.session.revert({
-          path: { id: sessionId },
-          body: { messageID: assistantMessageId },
-        });
-        const session = result.data as { revert?: { messageID: string } } | undefined;
-        setRevertMessageId(session?.revert?.messageID ?? null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to revert');
-      }
-    },
-    [client, sessionId],
-  );
-
-  // Filter messages: hide everything from the revert point onwards.
-  // When cleanup() fires on the next prompt, message.removed SSE events will
-  // permanently remove those messages and clear revertMessageId automatically.
-  const revertIdx = revertMessageId ? messages.findIndex((m) => m.info.id === revertMessageId) : -1;
-  const visibleMessages = revertIdx >= 0 ? messages.slice(0, revertIdx) : messages;
-
   return {
-    messages: visibleMessages,
+    messages,
     pendingPermissions,
     sessionStatus,
     totalCost,
@@ -399,6 +299,5 @@ export function useChat({
     abort,
     replyPermission,
     loadMessages,
-    revert,
   };
 }
