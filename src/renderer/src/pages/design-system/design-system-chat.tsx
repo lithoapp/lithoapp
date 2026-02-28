@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useOpencode } from '@/hooks/use-opencode';
 import { useSessionInit } from '@/hooks/use-session-init';
 import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
+import type { DocumentConfig } from '../../../../shared/types';
 
 interface DesignSystemChatProps {
   workspaceName: string;
@@ -27,6 +28,8 @@ export function DesignSystemChat({
   const [snapshotIndex, setSnapshotIndex] = useState<Record<string, string>>({});
   const [fontContext, setFontContext] = useState('');
   const [userName, setUserName] = useState('');
+  const [dsDocId, setDsDocId] = useState<string | null>(null);
+  const [docConfig, setDocConfig] = useState<DocumentConfig | null>(null);
 
   useEffect(() => {
     window.litho.preferences
@@ -34,6 +37,22 @@ export function DesignSystemChat({
       .then((profile) => setUserName(profile.name ?? ''))
       .catch(() => {});
   }, []);
+
+  // Load design system doc ID and config
+  useEffect(() => {
+    void (async () => {
+      try {
+        const id = await window.litho.workspace.getDesignSystemDocId(workspaceName);
+        setDsDocId(id);
+        if (id) {
+          const config = await window.litho.document.read(workspaceName, id);
+          setDocConfig(config);
+        }
+      } catch {
+        // non-fatal
+      }
+    })();
+  }, [workspaceName]);
 
   useEffect(() => {
     const fontExts = new Set(['.woff2', '.woff', '.ttf', '.otf']);
@@ -64,8 +83,9 @@ export function DesignSystemChat({
   };
 
   const captureFiles = useCallback(async () => {
-    return window.litho.snapshot.readStylesFile(workspaceName);
-  }, [workspaceName]);
+    if (!dsDocId) return window.litho.snapshot.readStylesFile(workspaceName);
+    return window.litho.snapshot.readDesignSystemFiles(workspaceName, dsDocId);
+  }, [workspaceName, dsDocId]);
 
   const handleTurnSnapshot = useCallback(
     async ({
@@ -78,18 +98,29 @@ export function DesignSystemChat({
       promptExcerpt: string;
     }) => {
       try {
-        const snapshotId = await window.litho.snapshot.createStyles(
-          workspaceName,
-          files,
-          promptExcerpt,
-          assistantMessageId,
-        );
+        let snapshotId: string;
+        if (dsDocId) {
+          snapshotId = await window.litho.snapshot.createDesignSystem(
+            workspaceName,
+            dsDocId,
+            files,
+            promptExcerpt,
+            assistantMessageId,
+          );
+        } else {
+          snapshotId = await window.litho.snapshot.createStyles(
+            workspaceName,
+            files,
+            promptExcerpt,
+            assistantMessageId,
+          );
+        }
         setSnapshotIndex((prev) => ({ ...prev, [assistantMessageId]: snapshotId }));
       } catch {
         // snapshot failure is non-fatal
       }
     },
-    [workspaceName],
+    [workspaceName, dsDocId],
   );
 
   const handleRevert = useCallback(
@@ -97,20 +128,45 @@ export function DesignSystemChat({
       const snapshotId = snapshotIndex[assistantMessageId];
       if (!snapshotId) return;
       try {
-        await window.litho.snapshot.restoreStyles(workspaceName, snapshotId);
+        if (dsDocId) {
+          await window.litho.snapshot.restoreDesignSystem(workspaceName, dsDocId, snapshotId);
+        } else {
+          await window.litho.snapshot.restoreStyles(workspaceName, snapshotId);
+        }
       } catch (err) {
         console.error('[design-system-chat] Revert failed:', err);
         toast.error('Failed to revert styles');
       }
     },
-    [snapshotIndex, workspaceName],
+    [snapshotIndex, workspaceName, dsDocId],
+  );
+
+  // Refetch doc config when pages change
+  const refetchDocConfig = useCallback(async () => {
+    if (!dsDocId) return;
+    try {
+      const config = await window.litho.document.read(workspaceName, dsDocId);
+      setDocConfig(config);
+    } catch {
+      // non-fatal
+    }
+  }, [workspaceName, dsDocId]);
+
+  const handleToolComplete = useCallback(
+    (tool: string, args: Record<string, unknown>) => {
+      if (tool === 'createPage' || tool === 'deletePage') {
+        void refetchDocConfig();
+      }
+      onToolComplete?.(tool, args);
+    },
+    [onToolComplete, refetchDocConfig],
   );
 
   const { system, kickoff } = promptTemplates['design-system'];
 
   const systemPrompt = useMemo(
-    () => renderTemplate(system, { fontContext }),
-    [fontContext, system],
+    () => renderTemplate(system, { fontContext, docId: dsDocId }),
+    [fontContext, system, dsDocId],
   );
 
   const kickoffMessage = useMemo(() => renderTemplate(kickoff, { userName }), [userName, kickoff]);
@@ -177,13 +233,14 @@ export function DesignSystemChat({
       sessionId={sessionId}
       client={client}
       baseUrl={baseUrl}
-      onToolComplete={onToolComplete}
+      onToolComplete={handleToolComplete}
       onNewChat={handleNewChat}
       kickoffMessage={kickoffMessage}
       snapshotIndex={snapshotIndex}
       onRevert={handleRevert}
       captureFiles={captureFiles}
       onTurnSnapshot={handleTurnSnapshot}
+      pages={docConfig?.pages}
     />
   );
 }

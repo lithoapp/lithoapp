@@ -1,6 +1,7 @@
 import type {
   AssetEntry,
   DesignSystem,
+  DocumentConfig,
   DocumentInfo,
   DocumentSnapshot,
   ExportProgress,
@@ -59,10 +60,12 @@ interface LithoAPI {
     select: (name: string) => Promise<void>;
     stop: () => Promise<void>;
     getDocumentCount: (name: string) => Promise<number>;
+    getDesignSystemDocId: (name: string) => Promise<string | null>;
     onChanged: (callback: (data: WorkspaceState) => void) => () => void;
   };
   document: {
     list: (workspaceName: string) => Promise<DocumentInfo[]>;
+    read: (workspaceName: string, docId: string) => Promise<DocumentConfig>;
     create: (
       workspaceName: string,
       title: string,
@@ -93,6 +96,23 @@ interface LithoAPI {
     restoreDocument: (workspaceName: string, docId: string, snapshotId: string) => Promise<void>;
     listDocument: (workspaceName: string, docId: string) => Promise<DocumentSnapshot[]>;
     deleteDocument: (workspaceName: string, docId: string, snapshotId: string) => Promise<void>;
+
+    readDesignSystemFiles: (
+      workspaceName: string,
+      dsDocId: string,
+    ) => Promise<Record<string, string>>;
+    createDesignSystem: (
+      workspaceName: string,
+      dsDocId: string,
+      files: Record<string, string>,
+      promptExcerpt: string,
+      assistantMessageId: string,
+    ) => Promise<string>;
+    restoreDesignSystem: (
+      workspaceName: string,
+      dsDocId: string,
+      snapshotId: string,
+    ) => Promise<void>;
 
     readStylesFile: (workspaceName: string) => Promise<Record<string, string>>;
     createStyles: (

@@ -1,0 +1,143 @@
+import '@styles.css';
+
+function Swatch({ className, label }: { className: string; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className={`h-10 w-full rounded ${className}`} />
+      <span className="mt-1 text-[8px] text-neutral-400">{label}</span>
+    </div>
+  );
+}
+
+function Palette({ name, children }: { name: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-semibold capitalize text-neutral-500">{name}</p>
+      <div className="grid grid-cols-11 gap-px">{children}</div>
+    </div>
+  );
+}
+
+export default function Colors() {
+  return (
+    <div className="h-full bg-white p-14">
+      <h1 className="mb-8 border-b border-neutral-200 pb-3 text-3xl font-bold text-neutral-900">
+        Colors
+      </h1>
+
+      <div className="flex flex-col gap-5">
+        <Palette name="Primary">
+          <Swatch className="bg-primary-50" label="50" />
+          <Swatch className="bg-primary-100" label="100" />
+          <Swatch className="bg-primary-200" label="200" />
+          <Swatch className="bg-primary-300" label="300" />
+          <Swatch className="bg-primary-400" label="400" />
+          <Swatch className="bg-primary-500" label="500" />
+          <Swatch className="bg-primary-600" label="600" />
+          <Swatch className="bg-primary-700" label="700" />
+          <Swatch className="bg-primary-800" label="800" />
+          <Swatch className="bg-primary-900" label="900" />
+          <Swatch className="bg-primary-950" label="950" />
+        </Palette>
+
+        <Palette name="Secondary">
+          <Swatch className="bg-secondary-50" label="50" />
+          <Swatch className="bg-secondary-100" label="100" />
+          <Swatch className="bg-secondary-200" label="200" />
+          <Swatch className="bg-secondary-300" label="300" />
+          <Swatch className="bg-secondary-400" label="400" />
+          <Swatch className="bg-secondary-500" label="500" />
+          <Swatch className="bg-secondary-600" label="600" />
+          <Swatch className="bg-secondary-700" label="700" />
+          <Swatch className="bg-secondary-800" label="800" />
+          <Swatch className="bg-secondary-900" label="900" />
+          <Swatch className="bg-secondary-950" label="950" />
+        </Palette>
+
+        <Palette name="Accent">
+          <Swatch className="bg-accent-50" label="50" />
+          <Swatch className="bg-accent-100" label="100" />
+          <Swatch className="bg-accent-200" label="200" />
+          <Swatch className="bg-accent-300" label="300" />
+          <Swatch className="bg-accent-400" label="400" />
+          <Swatch className="bg-accent-500" label="500" />
+          <Swatch className="bg-accent-600" label="600" />
+          <Swatch className="bg-accent-700" label="700" />
+          <Swatch className="bg-accent-800" label="800" />
+          <Swatch className="bg-accent-900" label="900" />
+          <Swatch className="bg-accent-950" label="950" />
+        </Palette>
+
+        <Palette name="Neutral">
+          <Swatch className="bg-neutral-50" label="50" />
+          <Swatch className="bg-neutral-100" label="100" />
+          <Swatch className="bg-neutral-200" label="200" />
+          <Swatch className="bg-neutral-300" label="300" />
+          <Swatch className="bg-neutral-400" label="400" />
+          <Swatch className="bg-neutral-500" label="500" />
+          <Swatch className="bg-neutral-600" label="600" />
+          <Swatch className="bg-neutral-700" label="700" />
+          <Swatch className="bg-neutral-800" label="800" />
+          <Swatch className="bg-neutral-900" label="900" />
+          <Swatch className="bg-neutral-950" label="950" />
+        </Palette>
+
+        <Palette name="Success">
+          <Swatch className="bg-success-50" label="50" />
+          <Swatch className="bg-success-100" label="100" />
+          <Swatch className="bg-success-200" label="200" />
+          <Swatch className="bg-success-300" label="300" />
+          <Swatch className="bg-success-400" label="400" />
+          <Swatch className="bg-success-500" label="500" />
+          <Swatch className="bg-success-600" label="600" />
+          <Swatch className="bg-success-700" label="700" />
+          <Swatch className="bg-success-800" label="800" />
+          <Swatch className="bg-success-900" label="900" />
+          <Swatch className="bg-success-950" label="950" />
+        </Palette>
+
+        <Palette name="Warning">
+          <Swatch className="bg-warning-50" label="50" />
+          <Swatch className="bg-warning-100" label="100" />
+          <Swatch className="bg-warning-200" label="200" />
+          <Swatch className="bg-warning-300" label="300" />
+          <Swatch className="bg-warning-400" label="400" />
+          <Swatch className="bg-warning-500" label="500" />
+          <Swatch className="bg-warning-600" label="600" />
+          <Swatch className="bg-warning-700" label="700" />
+          <Swatch className="bg-warning-800" label="800" />
+          <Swatch className="bg-warning-900" label="900" />
+          <Swatch className="bg-warning-950" label="950" />
+        </Palette>
+
+        <Palette name="Error">
+          <Swatch className="bg-error-50" label="50" />
+          <Swatch className="bg-error-100" label="100" />
+          <Swatch className="bg-error-200" label="200" />
+          <Swatch className="bg-error-300" label="300" />
+          <Swatch className="bg-error-400" label="400" />
+          <Swatch className="bg-error-500" label="500" />
+          <Swatch className="bg-error-600" label="600" />
+          <Swatch className="bg-error-700" label="700" />
+          <Swatch className="bg-error-800" label="800" />
+          <Swatch className="bg-error-900" label="900" />
+          <Swatch className="bg-error-950" label="950" />
+        </Palette>
+
+        <Palette name="Info">
+          <Swatch className="bg-info-50" label="50" />
+          <Swatch className="bg-info-100" label="100" />
+          <Swatch className="bg-info-200" label="200" />
+          <Swatch className="bg-info-300" label="300" />
+          <Swatch className="bg-info-400" label="400" />
+          <Swatch className="bg-info-500" label="500" />
+          <Swatch className="bg-info-600" label="600" />
+          <Swatch className="bg-info-700" label="700" />
+          <Swatch className="bg-info-800" label="800" />
+          <Swatch className="bg-info-900" label="900" />
+          <Swatch className="bg-info-950" label="950" />
+        </Palette>
+      </div>
+    </div>
+  );
+}

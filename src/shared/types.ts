@@ -230,11 +230,16 @@ export interface DesignSystem {
   fonts: string[];
 }
 
+// --- Document Type ---
+
+export type DocumentType = 'normal' | 'design-system';
+
 // --- Document Info (replaces ManifestDocument) ---
 
 export interface DocumentInfo {
   id: string;
   title: string;
+  type: DocumentType;
   size: PageSize;
   pages: PageInfo[];
   folder?: string;

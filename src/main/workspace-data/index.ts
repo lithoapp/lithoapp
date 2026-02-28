@@ -11,6 +11,7 @@ export {
   createNewWorkspace,
   deleteDocument,
   duplicateDocument,
+  getDesignSystemDocId,
   getDocumentCount,
   listDocuments,
   listDocumentsFull,

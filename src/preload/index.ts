@@ -67,6 +67,8 @@ contextBridge.exposeInMainWorld('litho', {
     stop: (): Promise<void> => ipcRenderer.invoke('workspace:stop'),
     getDocumentCount: (name: string): Promise<number> =>
       ipcRenderer.invoke('workspace:getDocumentCount', name),
+    getDesignSystemDocId: (name: string): Promise<string | null> =>
+      ipcRenderer.invoke('workspace:getDesignSystemDocId', name),
     onChanged: (callback: (data: unknown) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
       ipcRenderer.on('workspace:changed', listener);
@@ -76,6 +78,8 @@ contextBridge.exposeInMainWorld('litho', {
   document: {
     list: (workspaceName: string): Promise<unknown> =>
       ipcRenderer.invoke('document:list', workspaceName),
+    read: (workspaceName: string, docId: string): Promise<unknown> =>
+      ipcRenderer.invoke('document:read', workspaceName, docId),
     create: (
       workspaceName: string,
       title: string,
@@ -123,6 +127,33 @@ contextBridge.exposeInMainWorld('litho', {
       ipcRenderer.invoke('snapshot:listDocument', workspaceName, docId),
     deleteDocument: (workspaceName: string, docId: string, snapshotId: string): Promise<void> =>
       ipcRenderer.invoke('snapshot:deleteDocument', workspaceName, docId, snapshotId),
+
+    readDesignSystemFiles: (
+      workspaceName: string,
+      dsDocId: string,
+    ): Promise<Record<string, string>> =>
+      ipcRenderer.invoke('snapshot:readDesignSystemFiles', workspaceName, dsDocId),
+    createDesignSystem: (
+      workspaceName: string,
+      dsDocId: string,
+      files: Record<string, string>,
+      promptExcerpt: string,
+      assistantMessageId: string,
+    ): Promise<string> =>
+      ipcRenderer.invoke(
+        'snapshot:createDesignSystem',
+        workspaceName,
+        dsDocId,
+        files,
+        promptExcerpt,
+        assistantMessageId,
+      ),
+    restoreDesignSystem: (
+      workspaceName: string,
+      dsDocId: string,
+      snapshotId: string,
+    ): Promise<void> =>
+      ipcRenderer.invoke('snapshot:restoreDesignSystem', workspaceName, dsDocId, snapshotId),
 
     readStylesFile: (workspaceName: string): Promise<Record<string, string>> =>
       ipcRenderer.invoke('snapshot:readStylesFile', workspaceName),

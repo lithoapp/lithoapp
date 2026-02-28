@@ -106,6 +106,86 @@ export function deleteDocumentSnapshot(
   db.prepare('DELETE FROM snapshots WHERE id = ?').run(snapshotId);
 }
 
+// ---- Design system snapshots (CSS + pages combined) ----
+
+export function readDesignSystemFiles(
+  workspaceName: string,
+  dsDocId: string,
+): Record<string, string> {
+  const db = getWorkspaceDb(workspaceName);
+
+  // CSS
+  const cssRow = db.prepare('SELECT css FROM styles WHERE id = 1').get() as
+    | { css: string }
+    | undefined;
+  const files: Record<string, string> = {};
+  if (cssRow) files.__css__ = cssRow.css;
+
+  // Pages
+  const rows = db
+    .prepare('SELECT id, source FROM pages WHERE document_id = ?')
+    .all(dsDocId) as Array<{ id: string; source: string }>;
+  for (const row of rows) {
+    files[row.id] = row.source;
+  }
+
+  return files;
+}
+
+export function createDesignSystemSnapshot(
+  workspaceName: string,
+  dsDocId: string,
+  files: Record<string, string>,
+  promptExcerpt: string,
+  assistantMessageId: string,
+  keepCount = 20,
+): string {
+  // Reuse document scope with the design system doc ID
+  return createDocumentSnapshot(
+    workspaceName,
+    dsDocId,
+    files,
+    promptExcerpt,
+    assistantMessageId,
+    keepCount,
+  );
+}
+
+export function restoreDesignSystemSnapshot(
+  workspaceName: string,
+  dsDocId: string,
+  snapshotId: string,
+): void {
+  const db = getWorkspaceDb(workspaceName);
+
+  const row = db
+    .prepare("SELECT data FROM snapshots WHERE id = ? AND scope = 'document'")
+    .get(snapshotId) as { data: string } | undefined;
+
+  if (!row) {
+    throw new Error(`Snapshot not found: ${snapshotId}`);
+  }
+
+  const data = JSON.parse(row.data) as Record<string, string>;
+
+  const updatePage = db.prepare(
+    "UPDATE pages SET source = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
+  );
+
+  const transaction = db.transaction(() => {
+    for (const [key, value] of Object.entries(data)) {
+      if (key === '__css__') {
+        db.prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1").run(
+          value,
+        );
+      } else {
+        updatePage.run(value, key, dsDocId);
+      }
+    }
+  });
+  transaction();
+}
+
 // ---- Styles snapshots ----
 
 export function readStylesFile(workspaceName: string): Record<string, string> {

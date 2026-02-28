@@ -1,0 +1,35 @@
+import '@styles.css';
+
+function FontSpecimen({ name, className }: { name: string; className: string }) {
+  return (
+    <div className="mb-6">
+      <p className="mb-1 text-xs font-medium uppercase tracking-widest text-neutral-400">
+        {name}
+      </p>
+      <p className={`mb-2 text-xl text-neutral-700 ${className}`}>
+        Aa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz
+      </p>
+      <p className={`text-4xl leading-tight text-neutral-900 ${className}`}>
+        The quick brown fox jumps over the lazy dog.
+      </p>
+      <hr className="mt-6 border-neutral-100" />
+    </div>
+  );
+}
+
+export default function Typefaces() {
+  return (
+    <div className="h-full bg-white p-14">
+      <h1 className="mb-8 border-b border-neutral-200 pb-3 text-3xl font-bold text-neutral-900">
+        Typefaces
+      </h1>
+
+      <div className="flex flex-col">
+        <FontSpecimen name="Sans" className="font-sans" />
+        <FontSpecimen name="Display" className="font-display" />
+        <FontSpecimen name="Serif" className="font-serif" />
+        <FontSpecimen name="Mono" className="font-mono" />
+      </div>
+    </div>
+  );
+}

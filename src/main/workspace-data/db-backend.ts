@@ -9,10 +9,10 @@ import type {
 } from '../../shared/types';
 import { resolveWorkspacePath, WORKSPACES_BASE } from '../workspace-paths';
 import { generateId, getWorkspaceDb } from './db';
+import { DEFAULT_STYLES_CSS, insertDesignSystemDocument } from './design-system-pages';
 import {
   applyUpdates,
   categorizeTokens,
-  DEFAULT_STYLES_CSS,
   parseThemeBlock,
   serializeFullCss,
   slugify,
@@ -49,6 +49,9 @@ export async function createNewWorkspace(name: string): Promise<string> {
   // Insert default styles row
   db.prepare('INSERT INTO styles (id, css) VALUES (1, ?)').run(DEFAULT_STYLES_CSS);
 
+  // Insert design system document with default pages
+  insertDesignSystemDocument(db, generateId, slug);
+
   return slug;
 }
 
@@ -64,7 +67,9 @@ export async function listDocuments(workspace: string): Promise<string[]> {
 
 export async function getDocumentCount(workspace: string): Promise<number> {
   const db = getWorkspaceDb(workspace);
-  const row = db.prepare('SELECT COUNT(*) as count FROM documents').get() as { count: number };
+  const row = db.prepare("SELECT COUNT(*) as count FROM documents WHERE type = 'normal'").get() as {
+    count: number;
+  };
   return row.count;
 }
 
@@ -78,6 +83,7 @@ export async function readDocumentConfig(
     | {
         id: string;
         title: string;
+        type: string;
         size_preset: string | null;
         size_width: number;
         size_height: number;
@@ -152,10 +158,20 @@ export async function createDocument(
 
 export async function deleteDocument(workspace: string, document: string): Promise<void> {
   const db = getWorkspaceDb(workspace);
-  const result = db.prepare('DELETE FROM documents WHERE id = ?').run(document);
-  if (result.changes === 0) {
+
+  const doc = db.prepare('SELECT type FROM documents WHERE id = ?').get(document) as
+    | { type: string }
+    | undefined;
+
+  if (!doc) {
     throw new Error(`Document "${document}" not found.`);
   }
+
+  if (doc.type === 'design-system') {
+    throw new Error('The design system document cannot be deleted.');
+  }
+
+  db.prepare('DELETE FROM documents WHERE id = ?').run(document);
 }
 
 export async function updateDocumentFolder(
@@ -173,9 +189,12 @@ export async function updateDocumentFolder(
 export async function listDocumentsFull(workspace: string): Promise<DocumentInfo[]> {
   const db = getWorkspaceDb(workspace);
 
-  const docs = db.prepare('SELECT * FROM documents ORDER BY position').all() as Array<{
+  const docs = db
+    .prepare("SELECT * FROM documents WHERE type = 'normal' ORDER BY position")
+    .all() as Array<{
     id: string;
     title: string;
+    type: string;
     folder: string | null;
     size_preset: string | null;
     size_width: number;
@@ -194,6 +213,7 @@ export async function listDocumentsFull(workspace: string): Promise<DocumentInfo
     result.push({
       id: doc.id,
       title: doc.title,
+      type: doc.type as 'normal' | 'design-system',
       size: {
         width: doc.size_width,
         height: doc.size_height,
@@ -284,6 +304,18 @@ export async function duplicateDocument(workspace: string, docId: string): Promi
   }
 
   return newDocId;
+}
+
+// ---------------------------------------------------------------------------
+// Design System document lookup
+// ---------------------------------------------------------------------------
+
+export async function getDesignSystemDocId(workspace: string): Promise<string | null> {
+  const db = getWorkspaceDb(workspace);
+  const row = db.prepare("SELECT id FROM documents WHERE type = 'design-system' LIMIT 1").get() as
+    | { id: string }
+    | undefined;
+  return row?.id ?? null;
 }
 
 // ---------------------------------------------------------------------------

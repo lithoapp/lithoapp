@@ -9,15 +9,17 @@ import { randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import Database from 'better-sqlite3';
 import { resolveWorkspacePath } from '../workspace-paths';
+import { insertDesignSystemDocument } from './design-system-pages';
 
 const connections = new Map<string, Database.Database>();
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS documents (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'normal',
   folder TEXT,
   size_preset TEXT,
   size_width REAL NOT NULL,
@@ -79,7 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_lookup
   ON snapshots(scope, document_id, created_at);
 `;
 
-function applyMigrations(db: Database.Database): void {
+function applyMigrations(db: Database.Database, workspaceName: string): void {
   const currentVersion = db.pragma('user_version', { simple: true }) as number;
 
   if (currentVersion >= SCHEMA_VERSION) return;
@@ -91,6 +93,10 @@ function applyMigrations(db: Database.Database): void {
     // Incremental migrations
     if (currentVersion < 2) {
       db.exec("ALTER TABLE pages ADD COLUMN name TEXT NOT NULL DEFAULT ''");
+    }
+    if (currentVersion < 3) {
+      db.exec("ALTER TABLE documents ADD COLUMN type TEXT NOT NULL DEFAULT 'normal'");
+      insertDesignSystemDocument(db, generateId, workspaceName);
     }
   }
 
@@ -110,7 +116,7 @@ export function openWorkspaceDb(workspaceName: string): Database.Database {
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
 
-  applyMigrations(db);
+  applyMigrations(db, workspaceName);
 
   connections.set(workspaceName, db);
   return db;

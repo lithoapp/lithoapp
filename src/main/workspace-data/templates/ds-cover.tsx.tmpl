@@ -1,0 +1,70 @@
+import '@styles.css';
+
+export default function Cover() {
+  return (
+    <div className="h-full flex flex-col bg-white">
+      {/* Top accent bar */}
+      <div className="flex h-2">
+        <div className="flex-1 bg-primary-500" />
+        <div className="flex-1 bg-primary-700" />
+        <div className="flex-1 bg-accent-500" />
+        <div className="flex-1 bg-neutral-800" />
+      </div>
+
+      <div className="flex flex-1 flex-col justify-between p-14">
+        {/* Title area */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
+            Design System
+          </p>
+          <h1 className="mt-3 font-display text-6xl font-bold leading-none text-neutral-900">
+            {{workspaceName}}
+          </h1>
+        </div>
+
+        {/* Bottom: font specimen + color strips */}
+        <div className="flex flex-col gap-8">
+          {/* Font specimen */}
+          <div>
+            <p className="mb-2 text-[9px] font-semibold uppercase tracking-widest text-neutral-300">
+              Primary typeface
+            </p>
+            <p className="font-sans text-xl leading-snug text-neutral-700">
+              Aa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz
+            </p>
+          </div>
+
+          {/* Color palette strips */}
+          <div className="flex flex-col gap-1">
+            <div className="flex h-8 overflow-hidden rounded">
+              <div className="flex-1 bg-primary-50" />
+              <div className="flex-1 bg-primary-100" />
+              <div className="flex-1 bg-primary-200" />
+              <div className="flex-1 bg-primary-300" />
+              <div className="flex-1 bg-primary-400" />
+              <div className="flex-1 bg-primary-500" />
+              <div className="flex-1 bg-primary-600" />
+              <div className="flex-1 bg-primary-700" />
+              <div className="flex-1 bg-primary-800" />
+              <div className="flex-1 bg-primary-900" />
+              <div className="flex-1 bg-primary-950" />
+            </div>
+            <div className="flex h-8 overflow-hidden rounded">
+              <div className="flex-1 bg-neutral-50" />
+              <div className="flex-1 bg-neutral-100" />
+              <div className="flex-1 bg-neutral-200" />
+              <div className="flex-1 bg-neutral-300" />
+              <div className="flex-1 bg-neutral-400" />
+              <div className="flex-1 bg-neutral-500" />
+              <div className="flex-1 bg-neutral-600" />
+              <div className="flex-1 bg-neutral-700" />
+              <div className="flex-1 bg-neutral-800" />
+              <div className="flex-1 bg-neutral-900" />
+              <div className="flex-1 bg-neutral-950" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

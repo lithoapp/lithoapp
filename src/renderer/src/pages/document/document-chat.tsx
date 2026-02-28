@@ -37,6 +37,14 @@ export function DocumentChat({
   const [assetsSummary, setAssetsSummary] = useState(
     'Assets: @assets/... (workspace-level assets)',
   );
+  const [designSystemDocId, setDesignSystemDocId] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.litho.workspace
+      .getDesignSystemDocId(workspaceName)
+      .then((id) => setDesignSystemDocId(id))
+      .catch(() => {});
+  }, [workspaceName]);
 
   useEffect(() => {
     void (async () => {
@@ -124,8 +132,9 @@ export function DocumentChat({
         height: doc.size.height,
         unit: doc.size.unit,
         assetsSummary,
+        designSystemDocId,
       }),
-    [doc.id, doc.title, doc.size, assetsSummary, system],
+    [doc.id, doc.title, doc.size, assetsSummary, designSystemDocId, system],
   );
 
   const kickoffMessage = useMemo(() => renderTemplate(kickoff, { userName }), [userName, kickoff]);

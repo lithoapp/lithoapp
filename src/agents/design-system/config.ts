@@ -6,14 +6,14 @@ export const designSystemConfig = {
     readMainCss: 'allow',
     writeMainCss: 'allow',
     editMainCss: 'allow',
-    // Litho tools — denied (document only)
-    listPages: 'deny',
-    readPage: 'deny',
-    writePage: 'deny',
-    editPage: 'deny',
-    createPage: 'deny',
-    deletePage: 'deny',
-    updatePageDescription: 'deny',
+    // Litho tools — page tools for design system document
+    listPages: 'allow',
+    readPage: 'allow',
+    writePage: 'allow',
+    editPage: 'allow',
+    createPage: 'allow',
+    deletePage: 'allow',
+    updatePageDescription: 'allow',
     // OpenCode built-in tools — all denied
     read: 'deny',
     edit: 'deny',

@@ -1,0 +1,38 @@
+import '@styles.css';
+
+function ScaleSample({ label, className }: { label: string; className: string }) {
+  return (
+    <div className="flex items-baseline gap-4">
+      <div className="w-20 shrink-0">
+        <p className="font-mono text-[10px] text-neutral-400">{label}</p>
+      </div>
+      <p className={`truncate leading-tight text-neutral-900 ${className}`}>
+        The quick brown fox
+      </p>
+    </div>
+  );
+}
+
+export default function TypeScale() {
+  return (
+    <div className="h-full bg-white p-14">
+      <h1 className="mb-8 border-b border-neutral-200 pb-3 text-3xl font-bold text-neutral-900">
+        Type Scale
+      </h1>
+
+      <div className="flex flex-col gap-3">
+        <ScaleSample label="7xl" className="text-7xl" />
+        <ScaleSample label="6xl" className="text-6xl" />
+        <ScaleSample label="5xl" className="text-5xl" />
+        <ScaleSample label="4xl" className="text-4xl" />
+        <ScaleSample label="3xl" className="text-3xl" />
+        <ScaleSample label="2xl" className="text-2xl" />
+        <ScaleSample label="xl" className="text-xl" />
+        <ScaleSample label="lg" className="text-lg" />
+        <ScaleSample label="base" className="text-base" />
+        <ScaleSample label="sm" className="text-sm" />
+        <ScaleSample label="xs" className="text-xs" />
+      </div>
+    </div>
+  );
+}

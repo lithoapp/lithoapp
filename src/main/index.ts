@@ -31,14 +31,17 @@ import { OpencodeManager } from './opencode-manager';
 import { buildPage } from './renderer';
 import { initSentry } from './sentry';
 import {
+  createDesignSystemSnapshot,
   createDocumentSnapshot,
   createStylesSnapshot,
   deleteDocumentSnapshot,
   deleteStylesSnapshot,
   listDocumentSnapshots,
   listStylesSnapshots,
+  readDesignSystemFiles,
   readDocumentFiles,
   readStylesFile,
+  restoreDesignSystemSnapshot,
   restoreDocumentSnapshot,
   restoreStylesSnapshot,
 } from './snapshot-manager';
@@ -57,11 +60,13 @@ import {
   createNewWorkspace,
   deleteDocument,
   duplicateDocument,
+  getDesignSystemDocId,
   getDocumentCount,
   listDocumentsFull,
   listWorkspaces,
   readAssetFile,
   readDesignSystem,
+  readDocumentConfig,
   readWorkspaceConfig,
   renameDocument,
   updateDesignTokens,
@@ -200,7 +205,11 @@ ipcMain.handle('workspace:getDocumentCount', (_event, workspaceName: string) =>
 );
 
 // Document CRUD IPC handlers
+ipcMain.handle('workspace:getDesignSystemDocId', (_event, ws: string) => getDesignSystemDocId(ws));
 ipcMain.handle('document:list', (_event, ws: string) => listDocumentsFull(ws));
+ipcMain.handle('document:read', (_event, ws: string, docId: string) =>
+  readDocumentConfig(ws, docId),
+);
 ipcMain.handle(
   'document:create',
   (_event, ws: string, title: string, size: string, folder?: string) =>
@@ -252,6 +261,35 @@ ipcMain.handle(
   'snapshot:deleteDocument',
   (_event, workspaceName: string, docId: string, snapshotId: string) =>
     deleteDocumentSnapshot(workspaceName, docId, snapshotId),
+);
+
+// Design system snapshot IPC handlers
+ipcMain.handle('snapshot:readDesignSystemFiles', (_event, workspaceName: string, dsDocId: string) =>
+  readDesignSystemFiles(workspaceName, dsDocId),
+);
+ipcMain.handle(
+  'snapshot:createDesignSystem',
+  (
+    _event,
+    workspaceName: string,
+    dsDocId: string,
+    files: Record<string, string>,
+    promptExcerpt: string,
+    assistantMessageId: string,
+  ) =>
+    createDesignSystemSnapshot(
+      workspaceName,
+      dsDocId,
+      files,
+      promptExcerpt,
+      assistantMessageId,
+      20,
+    ),
+);
+ipcMain.handle(
+  'snapshot:restoreDesignSystem',
+  (_event, workspaceName: string, dsDocId: string, snapshotId: string) =>
+    restoreDesignSystemSnapshot(workspaceName, dsDocId, snapshotId),
 );
 
 ipcMain.handle('snapshot:readStylesFile', (_event, workspaceName: string) =>
