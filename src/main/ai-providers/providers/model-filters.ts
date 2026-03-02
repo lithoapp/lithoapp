@@ -1,21 +1,20 @@
-import { CODEX_DEFAULT_MODEL } from '../oauth/openai-flow';
-import type { CredentialApi, ModelInfo } from '../types';
-import { getCredential } from './credential-store';
+import type { CredentialApi, ModelInfo } from "../types";
+import { getCredential } from "./credential-store";
 
 // ---------------------------------------------------------------------------
 // Free models (OpenCode Zen with public key)
 // ---------------------------------------------------------------------------
 
 const OPENCODE_FREE_MODELS = new Set([
-  'trinity-large-preview-free',
-  'kimi-k2.5-free',
-  'grok-code',
-  'glm-5-free',
-  'minimax-m2.1-free',
-  'minimax-m2.5-free',
-  'glm-4.7-free',
-  'gpt-5-nano',
-  'big-pickle',
+  "trinity-large-preview-free",
+  "kimi-k2.5-free",
+  "grok-code",
+  "glm-5-free",
+  "minimax-m2.1-free",
+  "minimax-m2.5-free",
+  "glm-4.7-free",
+  "gpt-5-nano",
+  "big-pickle",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -23,45 +22,41 @@ const OPENCODE_FREE_MODELS = new Set([
 // ---------------------------------------------------------------------------
 
 const CODEX_ALLOWED_MODELS = new Set([
-  'gpt-5.1-codex-max',
-  'gpt-5.1-codex-mini',
-  'gpt-5.2',
-  'gpt-5.2-codex',
-  'gpt-5.3-codex',
-  'gpt-5.1-codex',
+  "gpt-5.1-codex-max",
+  "gpt-5.1-codex-mini",
+  "gpt-5.2",
+  "gpt-5.2-codex",
+  "gpt-5.3-codex",
+  "gpt-5.1-codex",
 ]);
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-export function filterModelsForProvider(providerId: string, models: ModelInfo[]): ModelInfo[] {
-  if (providerId === 'opencode') {
-    const cred = getCredential('opencode');
-    if (cred?.type === 'api' && (cred as CredentialApi).key === 'public') {
+export function filterModelsForProvider(
+  providerId: string,
+  models: ModelInfo[],
+): ModelInfo[] {
+  if (providerId === "opencode") {
+    const cred = getCredential("opencode");
+    if (cred?.type === "api" && (cred as CredentialApi).key === "public") {
       return models.filter((m) => OPENCODE_FREE_MODELS.has(m.id));
     }
     return models;
   }
 
-  if (providerId === 'openai') {
-    const cred = getCredential('openai');
-    if (cred?.type === 'oauth') {
+  if (providerId === "openai") {
+    const cred = getCredential("openai");
+    if (cred?.type === "oauth") {
       const codexModels = models.filter(
-        (m) => m.id.includes('codex') || CODEX_ALLOWED_MODELS.has(m.id),
+        (m) => m.id.includes("codex") || CODEX_ALLOWED_MODELS.has(m.id),
       );
-      if (!codexModels.some((m) => m.id === 'gpt-5.3-codex')) {
+      if (!codexModels.some((m) => m.id === "gpt-5.3-codex")) {
         codexModels.push({
-          id: 'gpt-5.3-codex',
-          name: 'GPT-5.3 Codex',
-          capabilities: ['reasoning', 'tool_call', 'attachment', 'vision'],
-        });
-      }
-      if (!codexModels.some((m) => m.id === CODEX_DEFAULT_MODEL)) {
-        codexModels.push({
-          id: CODEX_DEFAULT_MODEL,
-          name: 'GPT-4.1 Mini (Codex)',
-          capabilities: ['tool_call'],
+          id: "gpt-5.3-codex",
+          name: "GPT-5.3 Codex",
+          capabilities: ["reasoning", "tool_call", "attachment", "vision"],
         });
       }
       return codexModels;

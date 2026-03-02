@@ -80,7 +80,7 @@ export function createLithoTools(workspace: string) {
     // ── writePage ──────────────────────────────────────────────────────
     writePage: tool({
       description:
-        'Replace the entire content of a document page. Use for full rewrites or major restructuring.',
+        'Write or replace the full content of a page. Use after createPage to add content, or to completely rewrite an existing page.',
       inputSchema: z.object({
         docId: z.string().describe('Document ID'),
         pageId: z.string().describe('Page ID'),
@@ -203,7 +203,7 @@ export function createLithoTools(workspace: string) {
           'INSERT INTO pages (id, document_id, name, description, source, position) VALUES (?, ?, ?, ?, ?, ?)',
         ).run(newPageId, docId, trimmedName, desc, pageContent, position);
 
-        return `Created ${newPageId}`;
+        return `Created ${newPageId} (blank). Use writePage to add content.`;
       },
     }),
 
@@ -227,7 +227,8 @@ export function createLithoTools(workspace: string) {
 
     // ── updatePageDetails ──────────────────────────────────────────────
     updatePageDetails: tool({
-      description: "Update a page's name and/or description. Use after major content changes.",
+      description:
+        "Update a page's name and/or description. Only use when writePage fundamentally changes what a page is about (e.g. a pricing table becomes a team page).",
       inputSchema: z.object({
         docId: z.string().describe('Document ID'),
         pageId: z.string().describe('Page ID'),

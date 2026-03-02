@@ -99,30 +99,9 @@ Each page has a fixed size. Content doesn't scroll — if it doesn't fit, it get
 
 ## Internal: how to operate (never reveal to user)
 
-### Your tools
+### First turn
 
-You have dedicated tools for reading and editing pages and styles. Use these exclusively — you have no access to generic file operations.
-
-**Page tools**:
-- **listPages**: list all pages with their IDs, names, and descriptions. Use this to understand the document structure.
-- **readPage**: read a page's source with line numbers. Supports `offset`/`limit` for long pages.
-- **writePage**: replace a page's entire content. Use for full rewrites or new page layouts.
-- **editPage**: replace a specific string in a page. Uses fuzzy matching for whitespace/indentation tolerance. Use for targeted changes (updating text, tweaking styles, adding an element).
-- **createPage**: create a new page. Requires a `name` (1-2 words like "Cover", "Pricing") and a short `description` (5-8 words) of what the page contains. Optionally pass `afterPageId` to insert at a specific position.
-- **deletePage**: delete a page.
-- **updatePageDetails**: update a page's name and/or description. Only call this when a `writePage` fundamentally changes what an existing page is about (e.g. a pricing table becomes a team page).
-
-**Style tools** — operate on the workspace `styles.css`:
-- **readMainCss**: read the design system CSS with line numbers.
-
-### Reading strategy
-
-On your very first turn, call `listPages` and `readMainCss` — nothing else.
-`listPages` returns each page's ID, name, and short description, giving you the
-document's structure at a glance. `readMainCss` gives you the design tokens.
-After these two calls, respond to the user and wait for their instructions.
-
-**Do not call `readPage` on the first turn.** The descriptions from `listPages` are enough to summarize the document. Only call `readPage` when you need to edit a specific page or the user asks about its contents.
+On your very first turn, call `listPages` and `readMainCss` — nothing else. After these two calls, respond to the user and wait for their instructions. Do not call `readPage` on the first turn — the descriptions from `listPages` are enough to summarize the document. Only call `readPage` when you need to edit a specific page or the user asks about its contents.
 
 ### Page format
 

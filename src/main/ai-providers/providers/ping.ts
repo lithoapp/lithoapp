@@ -1,23 +1,47 @@
-import { streamText } from 'ai';
-import type { PingResult } from '../types';
-import { createModel } from './create-model';
-import { getCredential } from './credential-store';
+import { streamText } from "ai";
+import type { PingResult } from "../types";
+import { createModel } from "./create-model";
+import { getCredential } from "./credential-store";
 
 // ---------------------------------------------------------------------------
 // Ping
 // ---------------------------------------------------------------------------
 
-export async function pingProvider(providerId: string, modelId: string): Promise<PingResult> {
+export async function pingProvider(
+  providerId: string,
+  modelId: string,
+): Promise<PingResult> {
   const model = createModel(providerId, modelId);
 
   const cred = getCredential(providerId);
-  const isOAuthCodex = providerId === 'openai' && cred?.type === 'oauth';
+  const isOAuthCodex = providerId === "openai" && cred?.type === "oauth";
   const start = performance.now();
+
+  const pingSystem =
+    "You are a helpful assistant. Follow instructions exactly.";
 
   const result = streamText({
     model,
-    system: 'You are a helpful assistant. Follow instructions exactly.',
-    prompt: 'Reply with only the word: Pong',
+    messages: [
+      { role: "system" as const, content: pingSystem },
+      { role: "user" as const, content: "Reply with only the word: Pong" },
+    ],
+    maxRetries: 0,
+    headers: {
+      ...(isOAuthCodex
+        ? {
+            originator: "opencode",
+            "User-Agent": `opencode/litho (${process.platform} ${process.arch})`,
+            session_id: "ping",
+          }
+        : {}),
+    },
+    providerOptions: {
+      openai: {
+        store: false,
+        ...(isOAuthCodex ? { instructions: pingSystem } : {}),
+      },
+    },
     // Reasoning models burn tokens on thinking — 100 leaves plenty for "Pong"
     ...(isOAuthCodex ? {} : { maxOutputTokens: 100 }),
   });
@@ -29,17 +53,19 @@ export async function pingProvider(providerId: string, modelId: string): Promise
   const latencyMs = Math.round(performance.now() - start);
 
   const warningMessages = warnings
-    ?.map((w) => ('message' in w ? String(w.message) : JSON.stringify(w)))
-    .join('; ');
+    ?.map((w) => ("message" in w ? String(w.message) : JSON.stringify(w)))
+    .join("; ");
 
   return {
     text,
-    reasoning: reasoningText ?? '',
+    reasoning: reasoningText ?? "",
     finishReason,
     modelId,
     latencyMs,
-    ...(finishReason === 'error' && {
-      error: warningMessages || 'Stream finished with error (provider returned invalid response)',
+    ...(finishReason === "error" && {
+      error:
+        warningMessages ||
+        "Stream finished with error (provider returned invalid response)",
     }),
     usage: {
       promptTokens: usage.inputTokens ?? 0,

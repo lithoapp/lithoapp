@@ -20,9 +20,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "2.0.57",
+    "@ai-sdk/anthropic": "2.0.65",
     "@ai-sdk/openai": "2.0.89",
-    "@ai-sdk/openai-compatible": "1.0.30",
+    "@ai-sdk/openai-compatible": "1.0.32",
     "@base-ui/react": "^1.2.0",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
@@ -34,7 +34,7 @@
     "@sentry/react": "^10.39.0",
     "@sentry/vite-plugin": "^4.9.1",
     "@tailwindcss/node": "^4.1.10",
-    "ai": "5.0.119",
+    "ai": "5.0.124",
     "better-sqlite3": "^12.6.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

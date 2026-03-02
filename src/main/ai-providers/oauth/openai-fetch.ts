@@ -1,5 +1,9 @@
-import type { CredentialOAuth } from '../types';
-import { CODEX_API_ENDPOINT, extractAccountId, refreshOpenAIToken } from './openai-flow';
+import type { CredentialOAuth } from "../types";
+import {
+  CODEX_API_ENDPOINT,
+  extractAccountId,
+  refreshOpenAIToken,
+} from "./openai-flow";
 
 // ---------------------------------------------------------------------------
 // Fetch wrapper for Codex API (URL rewriting, body patching, token refresh)
@@ -13,11 +17,11 @@ export function createOpenAIFetchWrapper(
     // Remove dummy API key authorization header
     if (init?.headers) {
       if (init.headers instanceof Headers) {
-        init.headers.delete('authorization');
-        init.headers.delete('Authorization');
+        init.headers.delete("authorization");
+        init.headers.delete("Authorization");
       } else if (Array.isArray(init.headers)) {
         init.headers = init.headers.filter(
-          ([key]: [string, string]) => key.toLowerCase() !== 'authorization',
+          ([key]: [string, string]) => key.toLowerCase() !== "authorization",
         );
       } else {
         const h = init.headers as Record<string, string>;
@@ -48,75 +52,43 @@ export function createOpenAIFetchWrapper(
           if (value !== undefined) headers.set(key, String(value));
         }
       } else {
-        for (const [key, value] of Object.entries(init.headers as Record<string, string>)) {
+        for (const [key, value] of Object.entries(
+          init.headers as Record<string, string>,
+        )) {
           if (value !== undefined) headers.set(key, String(value));
         }
       }
     }
 
-    headers.set('authorization', `Bearer ${oauthCred.access}`);
-    headers.set('originator', 'litho');
+    headers.set("authorization", `Bearer ${oauthCred.access}`);
+    if (!headers.has("originator")) {
+      headers.set("originator", "opencode");
+    }
+    if (!headers.has("User-Agent")) {
+      headers.set(
+        "User-Agent",
+        `opencode/litho (${process.platform} ${process.arch})`,
+      );
+    }
     if (oauthCred.accountId) {
-      headers.set('ChatGPT-Account-Id', oauthCred.accountId);
+      headers.set("ChatGPT-Account-Id", oauthCred.accountId);
     }
 
     // Rewrite URL to Codex endpoint
     const parsed =
       requestInput instanceof URL
         ? requestInput
-        : new URL(typeof requestInput === 'string' ? requestInput : (requestInput as Request).url);
+        : new URL(
+            typeof requestInput === "string"
+              ? requestInput
+              : (requestInput as Request).url,
+          );
     const url =
-      parsed.pathname.includes('/v1/responses') || parsed.pathname.includes('/chat/completions')
+      parsed.pathname.includes("/v1/responses") ||
+      parsed.pathname.includes("/chat/completions")
         ? new URL(CODEX_API_ENDPOINT)
         : parsed;
 
-    // Patch request body for Codex endpoint requirements
-    let body = init?.body;
-    if (typeof body === 'string' && init?.method === 'POST') {
-      try {
-        const bodyObj = JSON.parse(body);
-
-        // Extract system/developer message from input array → instructions field
-        // ai-sdk sends system as role:"developer" for reasoning models (gpt-5.x)
-        if (!bodyObj.instructions && Array.isArray(bodyObj.input)) {
-          const sysIdx = bodyObj.input.findIndex(
-            (m: { role?: string }) => m.role === 'system' || m.role === 'developer',
-          );
-          if (sysIdx !== -1) {
-            const sysMsg = bodyObj.input[sysIdx];
-            bodyObj.instructions =
-              typeof sysMsg.content === 'string' ? sysMsg.content : JSON.stringify(sysMsg.content);
-            bodyObj.input.splice(sysIdx, 1);
-          }
-        }
-
-        bodyObj.store = false;
-        delete bodyObj.max_output_tokens;
-
-        // Let the Codex endpoint decide tool_choice — explicit "auto" may behave differently
-        if (bodyObj.tool_choice === 'auto') {
-          delete bodyObj.tool_choice;
-        }
-
-        // Strip item IDs from input (Codex requires this when store=false)
-        if (Array.isArray(bodyObj.input)) {
-          for (const item of bodyObj.input) {
-            if ('id' in item) {
-              delete item.id;
-            }
-          }
-        }
-
-        console.log(
-          `  [codex-fetch] ${bodyObj.model} | input=${Array.isArray(bodyObj.input) ? bodyObj.input.length : '?'} items`,
-        );
-
-        body = JSON.stringify(bodyObj);
-      } catch {
-        // not JSON, leave as-is
-      }
-    }
-
-    return globalThis.fetch(url, { ...init, body, headers });
+    return globalThis.fetch(url, { ...init, headers });
   };
 }

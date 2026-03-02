@@ -1,14 +1,21 @@
-import { type LanguageModel, type ModelMessage, streamText, type Tool } from 'ai';
-import { getActiveWorkspace } from '../../active-workspace-store';
-import { renderSystemPrompt, resolveAgentTools } from '../agents/config';
-import { createModel } from '../providers/create-model';
-import type { ChatStartParams } from '../types';
+import {
+  type LanguageModel,
+  type ModelMessage,
+  streamText,
+  type Tool,
+} from "ai";
+import { getActiveWorkspace } from "../../active-workspace-store";
+import { renderSystemPrompt, resolveAgentTools } from "../agents/config";
+import { getCredential } from "../providers/credential-store";
+import { createModel, OUTPUT_TOKEN_MAX } from "../providers/create-model";
+import type { ChatStartParams } from "../types";
 import {
   type ResponseMessage,
   responseToStoredMessages,
   storedToModelMessages,
-} from './message-mapping';
-import { type ChatStreamEvent, mapStreamPart } from './stream-events';
+} from "./message-mapping";
+import { type ChatStreamEvent, mapStreamPart } from "./stream-events";
+import { buildProviderOptions } from "./provider-options";
 
 // ---------------------------------------------------------------------------
 // Active stream registry
@@ -21,7 +28,6 @@ const activeStreams = new Map<string, AbortController>();
 // ---------------------------------------------------------------------------
 
 const MAX_STEPS = 25;
-const MAX_TEXT_ONLY_STEPS = 3;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -35,13 +41,15 @@ export function startChat(params: ChatStartParams, emit: Emit): string {
   activeStreams.set(chatId, controller);
 
   const model = createModel(params.providerId, params.modelId);
+  const cred = getCredential(params.providerId);
+  const isOAuthCodex = params.providerId === "openai" && cred?.type === "oauth";
 
   let tools: Record<string, Tool> | undefined;
   let systemPrompt = params.system;
 
   if (params.agentId) {
     const workspace = getActiveWorkspace();
-    if (!workspace) throw new Error('No active workspace');
+    if (!workspace) throw new Error("No active workspace");
     tools = resolveAgentTools(params.agentId, workspace);
     if (params.agentContext) {
       systemPrompt = renderSystemPrompt(params.agentId, params.agentContext);
@@ -53,10 +61,21 @@ export function startChat(params: ChatStartParams, emit: Emit): string {
 
   console.log(
     `[chat:start] ${chatId.slice(0, 8)} | ${params.providerId}/${params.modelId} | ` +
-      `agent=${params.agentId ?? 'none'} | tools=${toolNames.length} | msgs=${params.messages.length}`,
+      `agent=${params.agentId ?? "none"} | tools=${toolNames.length} | msgs=${params.messages.length}`,
   );
 
-  void runStepLoop(chatId, model, systemPrompt, modelMessages, tools, controller, emit);
+  void runStepLoop(
+    chatId,
+    model,
+    systemPrompt,
+    modelMessages,
+    tools,
+    isOAuthCodex,
+    params.providerId,
+    params.modelId,
+    controller,
+    emit,
+  );
 
   return chatId;
 }
@@ -79,13 +98,15 @@ async function runStepLoop(
   systemPrompt: string | undefined,
   initialMessages: ModelMessage[],
   tools: Record<string, Tool> | undefined,
+  isOAuthCodex: boolean,
+  providerId: string,
+  modelId: string,
   controller: AbortController,
   emit: Emit,
 ): Promise<void> {
   let currentMessages = initialMessages;
   let allResponseMessages: ResponseMessage[] = [];
   const totalUsage = { inputTokens: 0, outputTokens: 0 };
-  let consecutiveTextOnlySteps = 0;
 
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
@@ -93,77 +114,99 @@ async function runStepLoop(
 
       console.log(`  [step ${step + 1}/${MAX_STEPS}]`);
 
+      // Build messages array: system prompt as system-role message (like OpenCode),
+      // followed by conversation messages.
+      const msgs: ModelMessage[] = [
+        ...(systemPrompt
+          ? [{ role: "system" as const, content: systemPrompt }]
+          : []),
+        ...currentMessages,
+      ];
+
+      // Build provider-specific options (matches OpenCode's ProviderTransform.options)
+      // biome-ignore lint/suspicious/noExplicitAny: providerOptions needs wide type
+      const extra: Record<string, any> = { promptCacheKey: chatId };
+      if (isOAuthCodex && systemPrompt) {
+        extra.instructions = systemPrompt;
+      }
+      const providerOptions = buildProviderOptions(providerId, modelId, extra);
+
       const result = streamText({
         model,
-        system: systemPrompt,
-        messages: currentMessages,
+        messages: msgs,
         abortSignal: controller.signal,
-        providerOptions: { openai: { store: false } },
+        // OpenCode sets maxRetries to 0 and handles retry at a higher level
+        maxRetries: 0,
+        // OpenCode caps output at 32K; undefined for Codex
+        ...(isOAuthCodex ? {} : { maxOutputTokens: OUTPUT_TOKEN_MAX }),
+        headers: {
+          ...(isOAuthCodex
+            ? {
+                originator: "opencode",
+                "User-Agent": `opencode/litho (${process.platform} ${process.arch})`,
+                session_id: chatId,
+              }
+            : {}),
+        },
+        providerOptions,
         ...(tools ? { tools } : {}),
       });
 
       // Consume this step's stream
       let hasToolCalls = false;
       let textLength = 0;
-      let stepFinishReason = 'unknown';
+      let stepFinishReason = "unknown";
 
       for await (const part of result.fullStream) {
         // biome-ignore lint/suspicious/noExplicitAny: stream part is a wide union
         const p = part as any;
 
-        if (p.type === 'text-delta') {
-          textLength += (p.text ?? '').length;
-        } else if (p.type === 'tool-call') {
+        if (p.type === "text-delta") {
+          textLength += (p.text ?? "").length;
+        } else if (p.type === "tool-call") {
           hasToolCalls = true;
           console.log(`    tool-call: ${p.toolName}`);
-        } else if (p.type === 'tool-result') {
+        } else if (p.type === "tool-result") {
           console.log(`    tool-result: ${p.toolName}`);
-        } else if (p.type === 'finish') {
-          stepFinishReason = p.finishReason ?? 'unknown';
+        } else if (p.type === "finish") {
+          stepFinishReason = p.finishReason ?? "unknown";
           totalUsage.inputTokens += p.totalUsage?.inputTokens ?? 0;
           totalUsage.outputTokens += p.totalUsage?.outputTokens ?? 0;
         }
 
         // Emit displayable events to renderer (skip finish — we emit our own)
-        if (p.type !== 'finish') {
+        if (p.type !== "finish") {
           const event = mapStreamPart(p);
           if (event) {
-            emit('chat:delta', chatId, event);
+            emit("chat:delta", chatId, event);
           }
         }
       }
 
-      console.log(`    done — text=${textLength} tools=${hasToolCalls} finish=${stepFinishReason}`);
+      console.log(
+        `    done — text=${textLength} tools=${hasToolCalls} finish=${stepFinishReason}`,
+      );
 
       // Collect response messages from this step
       const response = await result.response;
       const stepMessages = response.messages as ResponseMessage[];
       allResponseMessages = [...allResponseMessages, ...stepMessages];
 
-      // Decide whether to continue
-      if (hasToolCalls) {
-        currentMessages = [...currentMessages, ...(stepMessages as ModelMessage[])];
-        consecutiveTextOnlySteps = 0;
-        continue;
-      }
+      // Decide whether to continue (matches OpenCode: only continue on tool-calls/unknown)
+      if (!hasToolCalls) break;
 
-      // Text-only response
-      consecutiveTextOnlySteps++;
-
-      if (!tools || consecutiveTextOnlySteps >= MAX_TEXT_ONLY_STEPS) {
-        break;
-      }
-
-      currentMessages = [...currentMessages, ...(stepMessages as ModelMessage[])];
-      console.log(`    continuing (text-only ${consecutiveTextOnlySteps}/${MAX_TEXT_ONLY_STEPS})`);
+      currentMessages = [
+        ...currentMessages,
+        ...(stepMessages as ModelMessage[]),
+      ];
     }
 
     // Emit final finish with all accumulated response messages
     const responseMessages = responseToStoredMessages(allResponseMessages);
 
-    emit('chat:delta', chatId, {
-      type: 'finish',
-      finishReason: 'stop',
+    emit("chat:delta", chatId, {
+      type: "finish",
+      finishReason: "stop",
       usage: {
         inputTokens: totalUsage.inputTokens,
         outputTokens: totalUsage.outputTokens,
@@ -172,17 +215,17 @@ async function runStepLoop(
       responseMessages,
     } satisfies ChatStreamEvent);
   } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      emit('chat:delta', chatId, {
-        type: 'finish',
-        finishReason: 'abort',
+    if (err instanceof Error && err.name === "AbortError") {
+      emit("chat:delta", chatId, {
+        type: "finish",
+        finishReason: "abort",
         usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
         responseMessages: responseToStoredMessages(allResponseMessages),
       } satisfies ChatStreamEvent);
       return;
     }
-    emit('chat:delta', chatId, {
-      type: 'error',
+    emit("chat:delta", chatId, {
+      type: "error",
       error: err instanceof Error ? err.message : String(err),
     } satisfies ChatStreamEvent);
   } finally {
