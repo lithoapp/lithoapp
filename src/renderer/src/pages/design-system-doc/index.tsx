@@ -1,9 +1,9 @@
 import * as Sentry from '@sentry/electron/renderer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DesignSystemChat } from '@/components/chat/design-system-chat';
 import { Spinner } from '@/components/ui/spinner';
 import { type PostTurnValidator, usePostTurnDiagnostics } from '@/hooks/use-post-turn-diagnostics';
 import type { DocumentConfig, DocumentInfo } from '../../../../shared/types';
-import { DesignSystemChat } from '../design-system/design-system-chat';
 import { DocumentPage } from '../document';
 
 const REBUILD_ALL_ON_TOOLS = ['writeMainCss', 'editMainCss'];

@@ -1,12 +1,14 @@
 import { Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { OpencodeClient } from '@/lib/opencode-client-types';
 import { ModelSelector } from './model-selector';
+
+// ---------------------------------------------------------------------------
+// Design wand icon (same SVG from original chat-cover)
+// ---------------------------------------------------------------------------
 
 function DesignWandIcon({ className }: { className?: string }): React.JSX.Element {
   return (
     <svg viewBox="0 0 48 48" fill="none" className={className} role="img" aria-label="Design wand">
-      {/* Main diamond body */}
       <rect
         x="2.3"
         y="18.38"
@@ -19,7 +21,6 @@ function DesignWandIcon({ className }: { className?: string }): React.JSX.Elemen
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Sparkle lines */}
       <line
         x1="27.97"
         y1="20.03"
@@ -83,7 +84,6 @@ function DesignWandIcon({ className }: { className?: string }): React.JSX.Elemen
         strokeWidth="1.5"
         strokeLinecap="round"
       />
-      {/* Wand tip */}
       <path
         d="M24,16.05l3.63-3.63a3.89,3.89,0,0,1,1.47-.92l9-3.11a1.22,1.22,0,0,1,1.55,1.55l-3.11,9a3.89,3.89,0,0,1-.92,1.47L32,24"
         className="stroke-primary"
@@ -91,7 +91,6 @@ function DesignWandIcon({ className }: { className?: string }): React.JSX.Elemen
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Wand handle */}
       <path
         d="M24,32l-10,10a1.94,1.94,0,0,1-2.75,0l-5.2-5.2a1.94,1.94,0,0,1,0-2.75l10-10"
         className="stroke-primary"
@@ -121,14 +120,16 @@ function DesignWandIcon({ className }: { className?: string }): React.JSX.Elemen
   );
 }
 
+// ---------------------------------------------------------------------------
+// Chat cover — kickoff screen
+// ---------------------------------------------------------------------------
+
 export function ChatCover({
-  client,
   providerId,
   modelId,
   onModelSelect,
   onStart,
 }: {
-  client: OpencodeClient | null;
   providerId: string;
   modelId: string;
   onModelSelect: (providerId: string, modelId: string) => void;
@@ -160,12 +161,7 @@ export function ChatCover({
       </div>
 
       <div className="relative">
-        <ModelSelector
-          client={client}
-          providerId={providerId}
-          modelId={modelId}
-          onSelect={onModelSelect}
-        />
+        <ModelSelector providerId={providerId} modelId={modelId} onSelect={onModelSelect} />
       </div>
 
       <div className="relative">

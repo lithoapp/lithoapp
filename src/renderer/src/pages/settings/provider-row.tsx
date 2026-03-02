@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { OpencodeClient, ProviderAuthMethod, ProviderInfo } from '@/lib/opencode-client-types';
+import type { AuthMethod, ProviderInfo } from '@/hooks/use-provider-list';
 import { disconnectProvider } from '@/lib/provider-actions';
 import { ConnectDialog } from './connect-dialog';
 import { PingDialog } from './ping-dialog';
@@ -11,18 +11,12 @@ import { PingDialog } from './ping-dialog';
 export function ProviderRow({
   provider,
   isConnected,
-  defaultModel,
   authMethods,
-  client,
-  baseUrl,
   onRefresh,
 }: {
   provider: ProviderInfo;
   isConnected: boolean;
-  defaultModel?: string;
-  authMethods: ProviderAuthMethod[];
-  client: OpencodeClient;
-  baseUrl: string;
+  authMethods: AuthMethod[];
   onRefresh: () => void;
 }): React.JSX.Element {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -32,7 +26,7 @@ export function ProviderRow({
   const handleDisconnect = async (): Promise<void> => {
     setDisconnecting(true);
     try {
-      await disconnectProvider(client, baseUrl, provider.id);
+      await disconnectProvider(provider.id);
       onRefresh();
     } catch (err) {
       console.error('[settings] Failed to disconnect:', err);
@@ -42,10 +36,7 @@ export function ProviderRow({
     }
   };
 
-  const modelCount = Object.keys(provider.models).length;
-  const defaultModelName = defaultModel
-    ? (provider.models[defaultModel]?.name ?? defaultModel)
-    : undefined;
+  const modelCount = provider.modelCount;
 
   return (
     <>
@@ -65,8 +56,6 @@ export function ProviderRow({
             </Badge>
           </div>
           <div className="mt-1 text-sm text-muted-foreground">
-            {isConnected && defaultModelName && <span>Default: {defaultModelName}</span>}
-            {isConnected && defaultModelName && modelCount > 0 && <span> · </span>}
             {modelCount > 0 && (
               <span>
                 {modelCount} model{modelCount !== 1 ? 's' : ''}
@@ -115,7 +104,6 @@ export function ProviderRow({
       <ConnectDialog
         provider={provider}
         authMethods={authMethods}
-        client={client}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onConnected={onRefresh}
@@ -124,8 +112,6 @@ export function ProviderRow({
       {isConnected && (
         <PingDialog
           provider={provider}
-          defaultModel={defaultModel}
-          client={client}
           open={pingOpen}
           onOpenChange={setPingOpen}
         />

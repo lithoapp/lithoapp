@@ -20,16 +20,6 @@ export interface WorkspaceInfo {
   lastOpenedAt: string;
 }
 
-// --- OpenCode ---
-
-export type OpencodeStatus = 'starting' | 'running' | 'stopped' | 'crashed' | 'failed';
-
-export interface OpencodeInfo {
-  status: OpencodeStatus;
-  port?: number;
-  uptime?: number;
-}
-
 // --- Auto Updater ---
 
 export type UpdateStatus =
@@ -231,6 +221,67 @@ export interface DesignSystem {
   zIndex: DesignSystemToken[];
   fonts: string[];
 }
+
+// --- AI Agents ---
+
+export type AgentId = 'document' | 'design-system';
+
+export interface AgentContext {
+  docId: string;
+  title?: string;
+  width?: number;
+  height?: number;
+  unit?: string;
+  userName?: string;
+  fontContext?: string;
+  assetsSummary?: string;
+  designSystemDocId?: string | null;
+}
+
+// --- Stored Messages (conversation persistence) ---
+
+export interface StoredTextPart {
+  type: 'text';
+  text: string;
+}
+
+export interface StoredReasoningPart {
+  type: 'reasoning';
+  text: string;
+}
+
+export interface StoredToolCallPart {
+  type: 'tool-call';
+  toolCallId: string;
+  toolName: string;
+  input: unknown;
+}
+
+export interface StoredToolResultPart {
+  type: 'tool-result';
+  toolCallId: string;
+  toolName: string;
+  output: unknown;
+}
+
+export interface StoredUserMessage {
+  role: 'user';
+  content: string;
+}
+
+export interface StoredAssistantMessage {
+  role: 'assistant';
+  content:
+    | string
+    | Array<StoredTextPart | StoredReasoningPart | StoredToolCallPart | StoredToolResultPart>;
+}
+
+export interface StoredToolMessage {
+  role: 'tool';
+  content: StoredToolResultPart[];
+}
+
+export type StoredMessage = StoredUserMessage | StoredAssistantMessage | StoredToolMessage;
 
 // --- Document Type ---
 

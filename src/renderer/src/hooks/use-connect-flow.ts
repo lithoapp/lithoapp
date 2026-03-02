@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  OpencodeClient,
-  ProviderAuthMethod,
-  ProviderInfo,
-} from '../lib/opencode-client-types';
-import { completeOAuth, connectWithApiKey, startOAuth } from '../lib/provider-actions';
+import { completeOAuth, connectFree, connectWithApiKey, startOAuth } from '../lib/provider-actions';
+import type { AuthMethod, ProviderInfo } from './use-provider-list';
 
 export interface ConnectFlowState {
   step: 'select' | 'api-key' | 'oauth-waiting' | 'oauth-code';
@@ -24,9 +20,8 @@ export interface ConnectFlowState {
 }
 
 export function useConnectFlow(
-  client: OpencodeClient,
   provider: ProviderInfo,
-  authMethods: ProviderAuthMethod[],
+  authMethods: AuthMethod[],
   onConnected: () => void,
 ): ConnectFlowState {
   const initialStep = authMethods.length === 0 ? 'api-key' : 'select';
@@ -39,8 +34,8 @@ export function useConnectFlow(
   const [instructions, setInstructions] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  // Prevents state updates and onConnected() from firing after the dialog closes.
   const canceledRef = useRef(false);
+  const verifierRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     return () => {
@@ -64,14 +59,14 @@ export function useConnectFlow(
     setLoading(true);
     setError('');
     try {
-      await connectWithApiKey(client, provider.id, apiKey);
+      await connectWithApiKey(provider.id, apiKey);
       onConnected();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to set API key');
     } finally {
       setLoading(false);
     }
-  }, [apiKey, client, provider.id, onConnected]);
+  }, [apiKey, provider.id, onConnected]);
 
   const continueFlow = useCallback(() => {
     const method = authMethods[selectedMethod];
@@ -80,22 +75,31 @@ export function useConnectFlow(
       setStep('api-key');
       return;
     }
+    if (method.type === 'free') {
+      setLoading(true);
+      setError('');
+      connectFree(provider.id)
+        .then(() => {
+          if (!canceledRef.current) onConnected();
+        })
+        .catch((err) => {
+          if (!canceledRef.current)
+            setError(err instanceof Error ? err.message : 'Failed to connect');
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
+    // OAuth flow
     setLoading(true);
     setError('');
     canceledRef.current = false;
-    startOAuth(client, provider.id, selectedMethod)
+    startOAuth(provider.id, method.id)
       .then((result) => {
         window.open(result.url);
-        setInstructions(result.instructions);
+        verifierRef.current = result.verifier;
         if (result.method === 'auto') {
           setStep('oauth-waiting');
-          // For 'auto' flow the server has stored a pending callback function in its state
-          // cache. Calling completeOAuth (no code) tells the server to run it — the request
-          // blocks until the provider's token exchange finishes (either by polling the
-          // provider's device-flow endpoint, or by waiting for the browser redirect to the
-          // local OAuth callback server on port 19876). DO NOT poll provider.list() or call
-          // dispose() before this resolves — both would wipe the server's cached callback fn.
-          completeOAuth(client, provider.id, selectedMethod)
+          completeOAuth(provider.id, undefined, result.verifier, method.id)
             .then(() => {
               if (!canceledRef.current) onConnected();
             })
@@ -115,21 +119,22 @@ export function useConnectFlow(
       .finally(() => {
         setLoading(false);
       });
-  }, [authMethods, client, provider.id, selectedMethod, onConnected]);
+  }, [authMethods, provider.id, selectedMethod, onConnected]);
 
   const submitOAuthCode = useCallback(async () => {
     if (!oauthCode.trim()) return;
     setLoading(true);
     setError('');
     try {
-      await completeOAuth(client, provider.id, selectedMethod, oauthCode);
+      const method = authMethods[selectedMethod];
+      await completeOAuth(provider.id, oauthCode, verifierRef.current, method?.id);
       onConnected();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to complete OAuth');
     } finally {
       setLoading(false);
     }
-  }, [oauthCode, client, provider.id, selectedMethod, onConnected]);
+  }, [oauthCode, provider.id, selectedMethod, authMethods, onConnected]);
 
   return {
     step,

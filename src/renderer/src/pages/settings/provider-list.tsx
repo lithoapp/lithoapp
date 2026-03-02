@@ -3,16 +3,9 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProviderList } from '@/hooks/use-provider-list';
-import type { OpencodeClient } from '@/lib/opencode-client-types';
 import { ProviderRow } from './provider-row';
 
-export function ProviderList({
-  client,
-  baseUrl,
-}: {
-  client: OpencodeClient;
-  baseUrl: string;
-}): React.JSX.Element {
+export function ProviderList(): React.JSX.Element {
   const {
     providers,
     authMethods,
@@ -21,7 +14,7 @@ export function ProviderList({
     loading,
     error,
     refetch,
-  } = useProviderList(client);
+  } = useProviderList();
   const [search, setSearch] = useState('');
 
   const filteredAvailable = useMemo(() => {
@@ -44,7 +37,7 @@ export function ProviderList({
     );
   }
 
-  if (error || !providers) {
+  if (error || providers.length === 0) {
     return (
       <div className="flex flex-col gap-3 rounded-lg border p-5">
         <p className="text-sm font-medium">Providers</p>
@@ -74,10 +67,7 @@ export function ProviderList({
               <ProviderRow
                 provider={provider}
                 isConnected
-                defaultModel={providers.default[provider.id]}
                 authMethods={authMethods[provider.id] ?? []}
-                client={client}
-                baseUrl={baseUrl}
                 onRefresh={refetch}
               />
             </div>
@@ -109,8 +99,6 @@ export function ProviderList({
                 provider={provider}
                 isConnected={false}
                 authMethods={authMethods[provider.id] ?? []}
-                client={client}
-                baseUrl={baseUrl}
                 onRefresh={refetch}
               />
             </div>
@@ -123,7 +111,7 @@ export function ProviderList({
         </div>
       )}
 
-      {providers.all.length === 0 && (
+      {providers.length === 0 && (
         <p className="text-sm text-muted-foreground">No providers available.</p>
       )}
     </div>

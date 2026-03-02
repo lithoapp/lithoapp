@@ -1,4 +1,4 @@
-import { delimiter, join } from 'node:path';
+import { join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
 import {
   app,
@@ -7,11 +7,11 @@ import {
   ipcMain,
   nativeTheme,
   protocol,
-  session,
   shell,
 } from 'electron';
 import type { WorkspaceState } from '../shared/types';
 import { getActiveWorkspace, setActiveWorkspace } from './active-workspace-store';
+import { registerAiProviderHandlers } from './ai-providers';
 import {
   createAssetDirectory,
   deleteAsset,
@@ -27,7 +27,6 @@ import {
   installUpdate,
 } from './auto-updater';
 import { DocumentExporter, exportPage } from './exporter';
-import { OpencodeManager } from './opencode-manager';
 import { buildPage } from './renderer';
 import { compileTailwind, formatCssError } from './renderer/build-shared';
 import { initSentry } from './sentry';
@@ -43,6 +42,7 @@ import {
   type Theme,
 } from './telemetry-store';
 import {
+  clearConversation,
   closeAllDbs,
   createDocument,
   createNewWorkspace,
@@ -54,11 +54,13 @@ import {
   getDocumentCount,
   listDocumentsFull,
   listWorkspaces,
+  loadConversation,
   readAssetFile,
   readDesignSystem,
   readDocumentConfig,
   readStyles,
   renameDocument,
+  saveConversation,
   updateDesignTokens,
   updateDocumentFolder,
   updateWorkspaceLastOpened,
@@ -68,7 +70,6 @@ import { resolveWorkspacePath } from './workspace-paths';
 initSentry();
 
 const documentExporter = new DocumentExporter();
-const opencodeManager = new OpencodeManager();
 let mainWindow: BrowserWindow | null = null;
 
 function getWorkspaceState(): WorkspaceState {
@@ -132,10 +133,6 @@ ipcMain.handle('preferences:setUserProfile', (_event, name: string, email: strin
 );
 ipcMain.handle('preferences:getTheme', () => getTheme());
 ipcMain.handle('preferences:setTheme', (_event, value: Theme) => setTheme(value));
-ipcMain.handle('opencode:status', () => opencodeManager.getStatus());
-ipcMain.handle('opencode:start', () => opencodeManager.start());
-ipcMain.handle('opencode:restart', () => opencodeManager.restart());
-ipcMain.handle('opencode:stop', () => opencodeManager.stop());
 ipcMain.handle('app:getVersion', () => app.getVersion());
 ipcMain.handle('app:getPlatform', () => process.platform);
 ipcMain.handle('app:setTitleBarOverlay', (_event, color: string, symbolColor: string) => {
@@ -258,6 +255,17 @@ ipcMain.handle(
     updateDesignTokens(ws, updates),
 );
 
+// Conversation persistence IPC handlers
+ipcMain.handle('conversation:load', (_event, ws: string, docId: string) =>
+  loadConversation(ws, docId),
+);
+ipcMain.handle('conversation:save', (_event, ws: string, docId: string, messages: unknown) =>
+  saveConversation(ws, docId, messages as import('../shared/types').StoredMessage[]),
+);
+ipcMain.handle('conversation:clear', (_event, ws: string, docId: string) =>
+  clearConversation(ws, docId),
+);
+
 ipcMain.handle(
   'assets:list',
   (_event, workspaceName: string, dirPath: string, recursive?: boolean) =>
@@ -277,6 +285,9 @@ ipcMain.handle('assets:delete', (_event, workspaceName: string, entryPath: strin
 ipcMain.handle('assets:rename', (_event, workspaceName: string, oldPath: string, newPath: string) =>
   renameAsset(resolveWorkspacePath(workspaceName), oldPath, newPath),
 );
+
+// AI Provider Manager
+registerAiProviderHandlers(ipcMain);
 
 // Renderer
 ipcMain.handle(
@@ -309,13 +320,6 @@ ipcMain.handle(
     }
   },
 );
-
-// Forward opencode status changes to renderer
-opencodeManager.on('status-change', (data) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('opencode:status-change', data);
-  }
-});
 
 // Forward export progress to renderer
 documentExporter.on('progress', (data) => {
@@ -371,32 +375,6 @@ app.whenReady().then(async () => {
   }
   setTimeout(() => checkForUpdates(), 30_000);
 
-  // Inject CORS headers for OpenCode server responses
-  session.defaultSession.webRequest.onHeadersReceived(
-    { urls: ['http://127.0.0.1:*/*', 'http://localhost:*/*'] },
-    (details, callback) => {
-      const headers: Record<string, string[]> = {};
-      for (const [key, value] of Object.entries(details.responseHeaders ?? {})) {
-        if (!key.toLowerCase().startsWith('access-control-')) {
-          headers[key] = value;
-        }
-      }
-      headers['Access-Control-Allow-Origin'] = ['*'];
-      headers['Access-Control-Allow-Methods'] = ['GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS'];
-      headers['Access-Control-Allow-Headers'] = ['Content-Type, x-opencode-directory'];
-      callback({ responseHeaders: headers });
-    },
-  );
-
-  // Prepend bundled opencode binary to PATH so the SDK can spawn it
-  const binDir = app.isPackaged
-    ? join(process.resourcesPath, 'bin')
-    : join(app.getAppPath(), 'resources', 'bin');
-  process.env.PATH = binDir + delimiter + (process.env.PATH ?? '');
-
-  // Start the opencode server
-  void opencodeManager.start();
-
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -408,11 +386,6 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', (event) => {
-  event.preventDefault();
+app.on('before-quit', () => {
   closeAllDbs();
-  void opencodeManager
-    .stop()
-    .catch(() => {})
-    .finally(() => app.exit());
 });

@@ -11,4 +11,4 @@ out
 *.log*
 dev-app-update.yml
 resources/bin/
-resources/opencode-plugin/
+references/

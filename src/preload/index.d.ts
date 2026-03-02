@@ -8,9 +8,8 @@ import type {
   PageSize,
 } from '../shared/types';
 import type { PageBuildData, PageExportOptions, RendererResult } from '../shared/types';
-import type { OpencodeInfo } from '../shared/types';
 import type { UpdateState } from '../shared/types';
-import type { WorkspaceInfo, WorkspaceState } from '../shared/types';
+import type { StoredMessage, WorkspaceInfo, WorkspaceState } from '../shared/types';
 
 interface LithoAPI {
   preferences: {
@@ -28,13 +27,6 @@ interface LithoAPI {
     getEnabled: () => Promise<boolean>;
     setEnabled: (value: boolean) => Promise<void>;
     exportSource: () => Promise<{ success: boolean; path?: string; error?: string }>;
-  };
-  opencode: {
-    getStatus: () => Promise<OpencodeInfo>;
-    start: () => Promise<void>;
-    restart: () => Promise<void>;
-    stop: () => Promise<void>;
-    onStatusChange: (callback: (data: OpencodeInfo) => void) => () => void;
   };
   app: {
     getVersion: () => Promise<string>;
@@ -99,6 +91,107 @@ interface LithoAPI {
     ) => Promise<RendererResult<PageBuildData>>;
     export: (options: PageExportOptions) => Promise<RendererResult<void>>;
     validateCss: (workspace: string) => Promise<{ ok: true } | { ok: false; errors: string[] }>;
+  };
+  aiProvider: {
+    list: () => Promise<{
+      providers: Array<{
+        id: string;
+        name: string;
+        env: string[];
+        npm?: string;
+        api?: string;
+        modelCount: number;
+      }>;
+      connected: string[];
+      modelsDevLoaded: boolean;
+      modelsDevError: string | null;
+    }>;
+    models: (providerId: string) => Promise<
+      Array<{
+        id: string;
+        name: string;
+        family?: string;
+        contextWindow?: number;
+        maxOutput?: number;
+        inputCost?: number;
+        outputCost?: number;
+        capabilities: string[];
+      }>
+    >;
+    authMethods: (
+      providerId: string,
+    ) => Promise<Array<{ type: 'api' | 'oauth' | 'free'; label: string; id?: string }>>;
+    connectApiKey: (providerId: string, key: string) => Promise<void>;
+    disconnect: (providerId: string) => Promise<void>;
+    startOAuth: (
+      providerId: string,
+      mode?: string,
+    ) => Promise<{ url: string; verifier?: string; method: 'auto' | 'code' }>;
+    completeOAuth: (
+      providerId: string,
+      code?: string,
+      verifier?: string,
+      mode?: string,
+    ) => Promise<{ success: boolean; error?: string }>;
+    connectFree: (providerId: string) => Promise<void>;
+    ping: (
+      providerId: string,
+      modelId: string,
+    ) => Promise<{
+      text: string;
+      reasoning: string;
+      finishReason: string;
+      modelId: string;
+      latencyMs: number;
+      error?: string;
+      usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
+    }>;
+    refreshModelsDev: () => Promise<{ loaded: boolean; error: string | null }>;
+  };
+  chat: {
+    start: (params: {
+      providerId: string;
+      modelId: string;
+      system?: string;
+      messages: StoredMessage[];
+      maxOutputTokens?: number;
+      agentId?: 'document' | 'design-system';
+      agentContext?: {
+        docId: string;
+        title?: string;
+        width?: number;
+        height?: number;
+        unit?: string;
+        userName?: string;
+        fontContext?: string;
+        assetsSummary?: string;
+        designSystemDocId?: string | null;
+      };
+    }) => Promise<{ chatId: string }>;
+    abort: (chatId: string) => Promise<void>;
+    onDelta: (
+      callback: (
+        chatId: string,
+        data:
+          | { type: 'text-delta'; text: string }
+          | { type: 'reasoning-delta'; text: string }
+          | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown }
+          | { type: 'tool-result'; toolCallId: string; toolName: string; output: unknown }
+          | { type: 'source'; source: unknown }
+          | { type: 'error'; error: string }
+          | {
+              type: 'finish';
+              finishReason: string;
+              usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+              responseMessages: StoredMessage[];
+            },
+      ) => void,
+    ) => () => void;
+  };
+  conversation: {
+    load: (workspace: string, documentId: string) => Promise<StoredMessage[]>;
+    save: (workspace: string, documentId: string, messages: StoredMessage[]) => Promise<void>;
+    clear: (workspace: string, documentId: string) => Promise<void>;
   };
   assets: {
     list: (workspaceName: string, dirPath: string, recursive?: boolean) => Promise<AssetEntry[]>;

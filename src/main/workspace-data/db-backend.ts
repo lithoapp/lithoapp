@@ -6,6 +6,7 @@ import type {
   DocumentInfo,
   PageInfo,
   PageSize,
+  StoredMessage,
   WorkspaceInfo,
 } from '../../shared/types';
 import { resolveWorkspacePath, WORKSPACES_BASE } from '../workspace-paths';
@@ -561,4 +562,43 @@ export async function readAssetFile(
   const ext = extname(fullPath).toLowerCase();
   const mimeType = MIME_MAP[ext] ?? 'application/octet-stream';
   return { data: Buffer.from(data), mimeType };
+}
+
+// ---------------------------------------------------------------------------
+// Conversation persistence
+// ---------------------------------------------------------------------------
+
+export async function loadConversation(
+  workspace: string,
+  documentId: string,
+): Promise<StoredMessage[]> {
+  const db = getWorkspaceDb(workspace);
+  const row = db
+    .prepare('SELECT messages FROM conversations WHERE document_id = ?')
+    .get(documentId) as { messages: string } | undefined;
+
+  if (!row) return [];
+
+  return JSON.parse(row.messages) as StoredMessage[];
+}
+
+export async function saveConversation(
+  workspace: string,
+  documentId: string,
+  messages: StoredMessage[],
+): Promise<void> {
+  const db = getWorkspaceDb(workspace);
+  const json = JSON.stringify(messages);
+
+  db.prepare(
+    `INSERT INTO conversations (document_id, messages, updated_at)
+     VALUES (?, ?, datetime('now'))
+     ON CONFLICT(document_id)
+     DO UPDATE SET messages = excluded.messages, updated_at = excluded.updated_at`,
+  ).run(documentId, json);
+}
+
+export async function clearConversation(workspace: string, documentId: string): Promise<void> {
+  const db = getWorkspaceDb(workspace);
+  db.prepare('DELETE FROM conversations WHERE document_id = ?').run(documentId);
 }

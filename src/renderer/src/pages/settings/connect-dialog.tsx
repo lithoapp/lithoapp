@@ -10,19 +10,17 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useConnectFlow } from '@/hooks/use-connect-flow';
-import type { OpencodeClient, ProviderAuthMethod, ProviderInfo } from '@/lib/opencode-client-types';
+import type { AuthMethod, ProviderInfo } from '@/hooks/use-provider-list';
 
 export function ConnectDialog({
   provider,
   authMethods,
-  client,
   open,
   onOpenChange,
   onConnected,
 }: {
   provider: ProviderInfo;
-  authMethods: ProviderAuthMethod[];
-  client: OpencodeClient;
+  authMethods: AuthMethod[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConnected: () => void;
@@ -32,7 +30,7 @@ export function ConnectDialog({
     onOpenChange(false);
   }, [onConnected, onOpenChange]);
 
-  const flow = useConnectFlow(client, provider, authMethods, handleConnected);
+  const flow = useConnectFlow(provider, authMethods, handleConnected);
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {

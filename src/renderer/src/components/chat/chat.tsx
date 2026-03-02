@@ -1,149 +1,125 @@
-import {
-  AlertCircle,
-  ArrowLeft,
-  Bug,
-  LayoutList,
-  Loader2,
-  Minus,
-  Send,
-  Square,
-  SquarePen,
-  Timer,
-} from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Bug, Loader2, MessageSquarePlus, Send, Square, Workflow } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { ChatMessage } from '@/hooks/use-chat';
-import { useChat } from '@/hooks/use-chat';
+import { type AgentContext, useChatV2 } from '@/hooks/use-chat';
 import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
-import type { OpencodeClient } from '@/lib/opencode-client-types';
 import type { PageInfo } from '../../../../shared/types';
 import { ChatCover } from './chat-cover';
-import { ActivityLog } from './message-activity-log';
-import { MessageDebug, UserMessageView } from './message-list';
-import { StatusLine } from './message-status-line';
-import { Timeline } from './message-timeline';
+import { MessageList } from './message-list';
 import { ModelSelector } from './model-selector';
-import { PermissionCard } from './permission-card';
+import type { DisplayMode } from './types';
 
-type DisplayMode = 'activity' | 'status' | 'timeline' | 'debug';
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
-const ASSISTANT_COMPONENTS: Record<
-  DisplayMode,
-  React.ComponentType<{ message: ChatMessage; isStreaming?: boolean; pages?: PageInfo[] }>
-> = {
-  activity: ActivityLog,
-  status: StatusLine,
-  timeline: Timeline,
-  debug: MessageDebug,
-};
-
-const DISPLAY_MODE_LABELS: Record<DisplayMode, { label: string; icon: React.ElementType }> = {
-  activity: { label: 'Activity', icon: LayoutList },
-  status: { label: 'Minimal', icon: Minus },
-  timeline: { label: 'Timeline', icon: Timer },
-  debug: { label: 'Debug', icon: Bug },
-};
-
-function formatTokens(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
-
-export function Chat({
-  directory,
-  systemPrompt,
-  agentName,
-  sessionId,
-  client,
-  baseUrl,
-  onBack,
-  onNewChat,
-  kickoffMessage,
-  onToolComplete,
-  sendMessageRef,
-  onBusyChange,
-  pages,
-}: {
-  directory: string;
-  systemPrompt: string;
-  agentName?: string;
-  sessionId: string;
-  client: OpencodeClient | null;
-  baseUrl: string | null;
-  onBack?: () => void;
-  onNewChat?: () => void;
+export interface ChatProps {
+  workspaceName: string;
+  documentId: string;
+  agentId: 'document' | 'design-system';
+  agentContext: AgentContext;
   kickoffMessage?: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   sendMessageRef?: React.RefObject<((text: string) => void) | null>;
   onBusyChange?: (isBusy: boolean) => void;
   pages?: PageInfo[];
-}): React.JSX.Element {
+}
+
+// ---------------------------------------------------------------------------
+// Display mode icons
+// ---------------------------------------------------------------------------
+
+const DISPLAY_MODES: Array<{ mode: DisplayMode; icon: React.ElementType; label: string }> = [
+  { mode: 'activity', icon: Workflow, label: 'Activity' },
+  { mode: 'debug', icon: Bug, label: 'Debug' },
+];
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function Chat({
+  workspaceName,
+  documentId,
+  agentId,
+  agentContext,
+  kickoffMessage,
+  onToolComplete,
+  sendMessageRef,
+  onBusyChange,
+  pages,
+}: ChatProps): React.JSX.Element {
+  // Provider / model from localStorage
   const [providerId, setProviderId] = useState(() => loadChatPrefs().providerId);
   const [modelId, setModelId] = useState(() => loadChatPrefs().modelId);
-  const [input, setInput] = useState('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('activity');
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [input, setInput] = useState('');
   const [kickoffSent, setKickoffSent] = useState(false);
-  const [loaded, setLoaded] = useState(false);
 
-  const handleModelSelect = useCallback((pId: string, mId: string) => {
-    setProviderId(pId);
-    setModelId(mId);
-    saveChatPrefs({ providerId: pId, modelId: mId });
-  }, []);
+  // Ref for provider/model so the hook can read at send time without re-subscribing
+  const providerModelRef = useRef({ providerId, modelId });
+  providerModelRef.current = { providerId, modelId };
 
-  const chat = useChat({
-    client,
-    baseUrl,
-    directory,
-    systemPrompt,
-    agentName,
-    sessionId,
-    providerId,
-    modelId,
+  const chat = useChatV2({
+    workspaceName,
+    documentId,
+    agentId,
+    agentContext,
+    providerModelRef,
     onToolComplete,
   });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset + load on session change
-  useEffect(() => {
-    setKickoffSent(false);
-    setLoaded(false);
-    void chat.loadMessages().finally(() => setLoaded(true));
-  }, [sessionId]);
+  // ---------------------------------------------------------------------------
+  // Sync busy state to parent
+  // ---------------------------------------------------------------------------
 
-  // Auto-scroll on new messages
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on data change
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [chat.messages, chat.pendingPermissions]);
+    onBusyChange?.(chat.isStreaming);
+  }, [chat.isStreaming, onBusyChange]);
+
+  // ---------------------------------------------------------------------------
+  // Model selection
+  // ---------------------------------------------------------------------------
+
+  const handleModelSelect = useCallback((pid: string, mid: string) => {
+    setProviderId(pid);
+    setModelId(mid);
+    saveChatPrefs({ providerId: pid, modelId: mid });
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Send / abort
+  // ---------------------------------------------------------------------------
 
   const handleSend = useCallback(() => {
-    if (!input.trim() || chat.sending) return;
-    const text = input;
+    const text = input.trim();
+    if (!text || chat.isStreaming) return;
     setInput('');
-    chat.sendMessage(text);
+    void chat.sendMessage(text);
   }, [input, chat]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend],
-  );
+  const handleAbort = useCallback(() => {
+    void chat.abort();
+  }, [chat]);
+
+  // ---------------------------------------------------------------------------
+  // Expose send for diagnostic injection
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!sendMessageRef) return;
+    sendMessageRef.current = (text: string) => {
+      void chat.sendMessage(text);
+    };
+    return () => {
+      sendMessageRef.current = null;
+    };
+  }, [sendMessageRef, chat]);
+
+  // ---------------------------------------------------------------------------
+  // Kickoff
+  // ---------------------------------------------------------------------------
 
   const handleKickoff = useCallback(() => {
     if (!kickoffMessage) return;
@@ -151,38 +127,43 @@ export function Chat({
     void chat.sendMessage(kickoffMessage);
   }, [kickoffMessage, chat]);
 
-  const displayMessages = useMemo(() => {
-    if (!kickoffMessage) return chat.messages;
-    let skipped = false;
-    return chat.messages.filter((msg) => {
-      if (skipped || msg.info.role !== 'user') return true;
-      skipped = true;
-      return false;
-    });
-  }, [chat.messages, kickoffMessage]);
+  const handleNewChat = useCallback(() => {
+    setKickoffSent(false);
+    void chat.clearConversation();
+  }, [chat]);
 
-  const showCover = Boolean(kickoffMessage) && loaded && chat.messages.length === 0 && !kickoffSent;
-  const isBusy = chat.sessionStatus?.type === 'busy';
-  const totalTok = chat.totalTokens.input + chat.totalTokens.output + chat.totalTokens.reasoning;
-
-  // Expose sendMessage to parent via ref
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on document change
   useEffect(() => {
-    if (!sendMessageRef) return;
-    sendMessageRef.current = (text: string) => chat.sendMessage(text);
-    return () => {
-      sendMessageRef.current = null;
-    };
-  }, [sendMessageRef, chat]);
+    setKickoffSent(false);
+  }, [documentId]);
 
-  // Notify parent of busy state changes
-  useEffect(() => {
-    onBusyChange?.(isBusy);
-  }, [isBusy, onBusyChange]);
+  // ---------------------------------------------------------------------------
+  // Derived state
+  // ---------------------------------------------------------------------------
+
+  const isConversationEmpty = chat.messages.length === 0 && !chat.isStreaming;
+  const showCover = kickoffMessage && isConversationEmpty && !kickoffSent;
+  const hideFirstUserMessage = Boolean(kickoffMessage);
+
+  // ---------------------------------------------------------------------------
+  // Loading state
+  // ---------------------------------------------------------------------------
+
+  if (chat.isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Kickoff cover
+  // ---------------------------------------------------------------------------
 
   if (showCover) {
     return (
       <ChatCover
-        client={client}
         providerId={providerId}
         modelId={modelId}
         onModelSelect={handleModelSelect}
@@ -191,152 +172,103 @@ export function Chat({
     );
   }
 
-  const AssistantView = ASSISTANT_COMPONENTS[displayMode];
-  const CurrentModeIcon = DISPLAY_MODE_LABELS[displayMode].icon;
+  // ---------------------------------------------------------------------------
+  // Main chat UI
+  // ---------------------------------------------------------------------------
 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
-        {onBack && (
-          <Button size="icon-sm" variant="ghost" onClick={onBack}>
-            <ArrowLeft className="h-3.5 w-3.5" />
-          </Button>
+      <div className="flex items-center gap-2 border-b px-3 py-2">
+        <ModelSelector providerId={providerId} modelId={modelId} onSelect={handleModelSelect} />
+        <div className="flex-1" />
+
+        {/* Usage */}
+        {chat.usage.totalTokens > 0 && (
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {chat.usage.totalTokens.toLocaleString()} tokens
+          </span>
         )}
 
-        <ModelSelector
-          client={client}
-          providerId={providerId}
-          modelId={modelId}
-          onSelect={handleModelSelect}
-        />
-
-        {onNewChat && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon-sm" variant="ghost" onClick={onNewChat}>
-                <SquarePen className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>New chat</TooltipContent>
-          </Tooltip>
-        )}
-
-        <div className="ml-auto flex items-center gap-2">
-          <div className="text-right text-[11px] text-muted-foreground font-mono">
-            {chat.totalCost > 0 && <div>${chat.totalCost.toFixed(2)}</div>}
-            {totalTok > 0 && <div className="text-[10px]">{formatTokens(totalTok)} tokens</div>}
-          </div>
-
-          {/* Display mode toggle */}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button size="icon-sm" variant="ghost">
-                    <CurrentModeIcon className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Display mode</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="end">
-              <DropdownMenuRadioGroup
-                value={displayMode}
-                onValueChange={(v) => setDisplayMode(v as DisplayMode)}
-              >
-                {(
-                  Object.entries(DISPLAY_MODE_LABELS) as [
-                    DisplayMode,
-                    (typeof DISPLAY_MODE_LABELS)[DisplayMode],
-                  ][]
-                ).map(([mode, { label, icon: Icon }]) => (
-                  <DropdownMenuRadioItem key={mode} value={mode} className="gap-2">
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {/* Display mode toggle */}
+        <div className="flex gap-0.5">
+          {DISPLAY_MODES.map(({ mode, icon: Icon, label }) => (
+            <Button
+              key={mode}
+              variant={displayMode === mode ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => setDisplayMode(mode)}
+              title={label}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </Button>
+          ))}
         </div>
+
+        {/* New chat */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0"
+          onClick={handleNewChat}
+          disabled={chat.isStreaming}
+          title="New chat"
+        >
+          <MessageSquarePlus className="h-3.5 w-3.5" />
+        </Button>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="flex flex-wrap items-start gap-1 p-3">
-          {displayMessages.length === 0 && !kickoffMessage && (
-            <p className="text-center text-xs text-muted-foreground py-8">
-              Send a message to begin
-            </p>
-          )}
-
-          {displayMessages.map((msg, idx) => {
-            if (msg.info.role === 'user') {
-              return <UserMessageView key={msg.info.id} message={msg} />;
-            }
-
-            const isLastAssistant = idx === displayMessages.length - 1;
-            return (
-              <AssistantView
-                key={msg.info.id}
-                message={msg}
-                isStreaming={isBusy && isLastAssistant}
-                pages={pages}
-              />
-            );
-          })}
-
-          {chat.pendingPermissions.map((pp) => (
-            <PermissionCard
-              key={pp.permission.id}
-              permission={pp.permission}
-              responding={pp.responding}
-              onReply={chat.replyPermission}
-            />
-          ))}
-        </div>
+      <div className="flex-1 overflow-auto">
+        <MessageList
+          messages={chat.messages}
+          streamingText={chat.streamingText}
+          streamingToolCalls={chat.streamingToolCalls}
+          isStreaming={chat.isStreaming}
+          displayMode={displayMode}
+          pages={pages}
+          hideFirstUserMessage={hideFirstUserMessage}
+        />
       </div>
 
       {/* Error */}
       {chat.error && (
-        <div className="flex items-center gap-1.5 border-t px-3 py-1.5 text-xs text-destructive">
-          <AlertCircle className="h-3 w-3 shrink-0" />
-          <span className="truncate">{chat.error}</span>
+        <div className="border-t border-destructive/30 bg-destructive/5 px-4 py-2 text-xs text-destructive">
+          {chat.error}
         </div>
       )}
 
       {/* Input */}
-      <div className="border-t p-2">
-        <div className="flex gap-1.5">
+      <div className="border-t p-3">
+        <div className="flex gap-2">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
-            className="min-h-[36px] max-h-24 resize-none text-sm"
+            placeholder="Type your message..."
+            className="min-h-[40px] flex-1 resize-none text-sm"
             rows={1}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
           />
-          {isBusy ? (
-            <Button
-              size="icon-sm"
-              variant="destructive"
-              onClick={chat.abort}
-              disabled={chat.isAborting}
-            >
-              {chat.isAborting ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Square className="h-3 w-3 fill-current" />
-              )}
+          {chat.isStreaming ? (
+            <Button size="sm" variant="destructive" onClick={handleAbort} className="self-end">
+              <Square className="mr-1 h-3.5 w-3.5" />
+              Stop
             </Button>
           ) : (
-            <Button size="icon-sm" onClick={handleSend} disabled={!input.trim() || chat.sending}>
-              {chat.sending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
+            <Button
+              size="sm"
+              onClick={handleSend}
+              disabled={!input.trim() || !providerId || !modelId}
+              className="self-end"
+            >
+              <Send className="mr-1 h-3.5 w-3.5" />
+              Send
             </Button>
           )}
         </div>

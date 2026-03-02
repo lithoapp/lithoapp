@@ -8,16 +8,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useOpencode } from '@/hooks/use-opencode';
+import type { ProviderInfo } from '@/hooks/use-provider-list';
 import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
-import type { OpencodeClient, ProviderInfo } from '@/lib/opencode-client-types';
 import { ProviderList } from '@/pages/settings/provider-list';
 
-function DefaultModelSelector({ client }: { client: OpencodeClient }): React.JSX.Element {
+interface ModelEntry {
+  id: string;
+  name: string;
+}
+
+function DefaultModelSelector(): React.JSX.Element {
   const [providerId, setProviderId] = useState('');
   const [modelId, setModelId] = useState('');
-  const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [connectedIds, setConnectedIds] = useState<string[]>([]);
+  const [connectedProviders, setConnectedProviders] = useState<ProviderInfo[]>([]);
+  const [models, setModels] = useState<ModelEntry[]>([]);
   const [error, setError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -31,25 +35,31 @@ function DefaultModelSelector({ client }: { client: OpencodeClient }): React.JSX
     setIsLoading(true);
     setError(false);
     try {
-      const { data } = await client.provider.list();
-      if (data) {
-        setProviders(data.all);
-        setConnectedIds(data.connected);
-      }
+      const result = await window.litho.aiProvider.list();
+      const connected = result.providers.filter((p) => result.connected.includes(p.id));
+      setConnectedProviders(connected);
     } catch {
       setError(true);
     } finally {
       setIsLoading(false);
     }
-  }, [client]);
+  }, []);
 
   useEffect(() => {
     void fetchProviders();
   }, [fetchProviders]);
 
-  const connectedProviders = providers.filter((p) => connectedIds.includes(p.id));
-  const selectedProvider = connectedProviders.find((p) => p.id === providerId);
-  const models = selectedProvider ? Object.values(selectedProvider.models) : [];
+  // Fetch models when provider changes
+  useEffect(() => {
+    if (!providerId) {
+      setModels([]);
+      return;
+    }
+    window.litho.aiProvider
+      .models(providerId)
+      .then((list) => setModels(list.map((m) => ({ id: m.id, name: m.name }))))
+      .catch(() => setModels([]));
+  }, [providerId]);
 
   if (error) {
     return (
@@ -132,8 +142,6 @@ function DefaultModelSelector({ client }: { client: OpencodeClient }): React.JSX
 }
 
 export function AiProvidersSection(): React.JSX.Element {
-  const { client, baseUrl, status } = useOpencode();
-
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -143,16 +151,12 @@ export function AiProvidersSection(): React.JSX.Element {
         </p>
       </div>
 
-      {status === 'connected' && client && baseUrl && (
-        <>
-          <div className="flex max-w-lg flex-col gap-3">
-            <h3 className="text-sm font-medium">Default model</h3>
-            <DefaultModelSelector client={client} />
-          </div>
+      <div className="flex max-w-lg flex-col gap-3">
+        <h3 className="text-sm font-medium">Default model</h3>
+        <DefaultModelSelector />
+      </div>
 
-          <ProviderList client={client} baseUrl={baseUrl} />
-        </>
-      )}
+      <ProviderList />
     </div>
   );
 }

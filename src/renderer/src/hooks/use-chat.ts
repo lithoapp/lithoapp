@@ -1,303 +1,328 @@
-import type { Event, Permission, SessionStatus } from '@opencode-ai/sdk/client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ChatMessage, PendingPermission } from '@/lib/opencode-types';
-import {
-  addPermission,
-  extractSessionError,
-  removeMessage,
-  removeMessagePart,
-  removePermission,
-  updateMessage,
-  updateMessagePart,
-} from '@/lib/sse-message-handlers';
-import { accumulateStepFinishStats, extractStepFinishStats } from '@/lib/step-finish-stats';
-import type { OpencodeClient } from '../lib/opencode-client-types';
+import type { AgentContext, StoredMessage } from '../../../shared/types';
+import type { StreamingToolCall } from '../components/chat/types';
 
-export type { ChatMessage, PendingPermission };
+export type { AgentContext };
 
-interface UseChatInput {
-  client: OpencodeClient | null;
-  baseUrl: string | null;
-  directory: string;
-  systemPrompt: string;
-  agentName?: string;
-  sessionId: string | null;
-  providerId: string;
-  modelId: string;
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface UseChatV2Input {
+  workspaceName: string;
+  documentId: string;
+  agentId: 'document' | 'design-system';
+  agentContext: AgentContext;
+  providerModelRef: React.RefObject<{ providerId: string; modelId: string }>;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
 }
 
-export interface UseChatReturn {
-  messages: ChatMessage[];
-  pendingPermissions: PendingPermission[];
-  sessionStatus: SessionStatus | null;
-  totalCost: number;
-  totalTokens: { input: number; output: number; reasoning: number };
-  sending: boolean;
-  isAborting: boolean;
+export interface UseChatV2Return {
+  messages: StoredMessage[];
+  streamingText: string;
+  streamingReasoning: string;
+  streamingToolCalls: StreamingToolCall[];
+  isStreaming: boolean;
+  isLoading: boolean;
   error: string | null;
+  usage: { inputTokens: number; outputTokens: number; totalTokens: number };
   sendMessage: (text: string) => Promise<void>;
   abort: () => Promise<void>;
-  replyPermission: (id: string, response: 'once' | 'always' | 'reject') => Promise<void>;
-  loadMessages: () => Promise<void>;
+  clearConversation: () => Promise<void>;
 }
 
-export function useChat({
-  client,
-  baseUrl,
-  directory,
-  systemPrompt,
-  agentName,
-  sessionId,
-  providerId,
-  modelId,
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const MUTATING_TOOLS = new Set([
+  'writePage',
+  'editPage',
+  'createPage',
+  'deletePage',
+  'updatePageDetails',
+  'movePage',
+  'writeMainCss',
+  'editMainCss',
+]);
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
+export function useChatV2({
+  workspaceName,
+  documentId,
+  agentId,
+  agentContext,
+  providerModelRef,
   onToolComplete,
-}: UseChatInput): UseChatReturn {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [pendingPermissions, setPendingPermissions] = useState<PendingPermission[]>([]);
-  const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
-  const [sending, setSending] = useState(false);
-  const [isAborting, setIsAborting] = useState(false);
+}: UseChatV2Input): UseChatV2Return {
+  // Persisted messages (source of truth)
+  const [messages, setMessages] = useState<StoredMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Streaming state (transient, reset each turn)
+  const [streamingText, setStreamingText] = useState('');
+  const [streamingReasoning, setStreamingReasoning] = useState('');
+  const [streamingToolCalls, setStreamingToolCalls] = useState<StreamingToolCall[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const costRef = useRef(0);
-  const tokensRef = useRef({ input: 0, output: 0, reasoning: 0 });
-  const [totalCost, setTotalCost] = useState(0);
-  const [totalTokens, setTotalTokens] = useState({ input: 0, output: 0, reasoning: 0 });
+  // Accumulated usage across all turns
+  const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, totalTokens: 0 });
 
-  const directoryRef = useRef(directory);
-  directoryRef.current = directory;
-
+  // Refs for streaming accumulation (avoid stale closures)
+  const pendingTextRef = useRef('');
+  const pendingReasoningRef = useRef('');
+  const toolCallArgsRef = useRef(new Map<string, { toolName: string; input: unknown }>());
+  const chatIdRef = useRef<string | null>(null);
   const onToolCompleteRef = useRef(onToolComplete);
   onToolCompleteRef.current = onToolComplete;
 
-  // Reset state when sessionId changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on sessionId change
-  useEffect(() => {
-    setMessages([]);
-    setPendingPermissions([]);
-    setSessionStatus(null);
-    setSending(false);
-    setError(null);
-    costRef.current = 0;
-    tokensRef.current = { input: 0, output: 0, reasoning: 0 };
-    setTotalCost(0);
-    setTotalTokens({ input: 0, output: 0, reasoning: 0 });
-  }, [sessionId]);
+  // Stable refs for context (avoid re-subscribing on every render)
+  const agentContextRef = useRef(agentContext);
+  agentContextRef.current = agentContext;
+
+  // ---------------------------------------------------------------------------
+  // Load conversation from DB
+  // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (!baseUrl || !sessionId) return;
-
-    const url = `${baseUrl}/global/event`;
-    const es = new EventSource(url);
-
-    es.onerror = (ev) => {
-      console.error('[chat] SSE error', ev);
-    };
-
-    es.onmessage = (ev) => {
-      try {
-        const raw = JSON.parse(ev.data) as {
-          directory?: string;
-          payload: Event;
-        };
-        const event = raw.payload;
-        const eventDir = raw.directory ?? '';
-
-        const configDir = directoryRef.current.trim();
-        if (configDir && eventDir && eventDir !== configDir) return;
-
-        switch (event.type) {
-          case 'message.part.updated': {
-            const { part } = event.properties;
-            setMessages((prev) => updateMessagePart(prev, part, { createPlaceholder: true }));
-            const stats = extractStepFinishStats(part);
-            if (stats) {
-              costRef.current += stats.cost;
-              setTotalCost(costRef.current);
-              tokensRef.current.input += stats.tokens.input;
-              tokensRef.current.output += stats.tokens.output;
-              tokensRef.current.reasoning += stats.tokens.reasoning;
-              setTotalTokens({ ...tokensRef.current });
-            }
-            if (part.type === 'tool' && part.state.status === 'completed') {
-              const mutatingTools = [
-                'writePage',
-                'editPage',
-                'createPage',
-                'deletePage',
-                'updatePageDetails',
-                'movePage',
-                'writeMainCss',
-                'editMainCss',
-              ];
-              if (mutatingTools.includes(part.tool)) {
-                onToolCompleteRef.current?.(
-                  part.tool,
-                  (part.state.input as Record<string, unknown>) ?? {},
-                );
-              }
-            }
-            break;
-          }
-          case 'message.part.removed': {
-            const { messageID, partID } = event.properties;
-            setMessages((prev) => removeMessagePart(prev, messageID, partID));
-            break;
-          }
-          case 'message.updated': {
-            const { info } = event.properties;
-            setMessages((prev) => updateMessage(prev, info));
-            break;
-          }
-          case 'message.removed': {
-            const { messageID } = event.properties;
-            setMessages((prev) => removeMessage(prev, messageID));
-            break;
-          }
-          case 'session.status': {
-            setSessionStatus(event.properties.status);
-            break;
-          }
-          case 'session.updated': {
-            break;
-          }
-          case 'session.error': {
-            const errMsg = extractSessionError(event.properties);
-            if (errMsg) setError(errMsg);
-            break;
-          }
-          case 'permission.updated': {
-            const permission = event.properties as Permission;
-            setPendingPermissions((prev) => addPermission(prev, permission));
-            break;
-          }
-          case 'permission.replied': {
-            const { permissionID } = event.properties;
-            setPendingPermissions((prev) => removePermission(prev, permissionID));
-            break;
-          }
-        }
-      } catch {
-        /* SSE parse errors are transient — not user-actionable */
-      }
-    };
-
-    return () => {
-      es.close();
-    };
-  }, [baseUrl, sessionId]);
-
-  const loadMessages = useCallback(async () => {
-    if (!client || !sessionId) return;
-    try {
-      const msgsResult = await client.session.messages({ path: { id: sessionId } });
-      if (msgsResult.data) {
-        const msgs = msgsResult.data as ChatMessage[];
-        setMessages(msgs);
-        const stats = accumulateStepFinishStats(msgs);
-        costRef.current = stats.cost;
-        tokensRef.current = { ...stats.tokens };
-        setTotalCost(stats.cost);
-        setTotalTokens({ ...stats.tokens });
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load messages');
+    if (!workspaceName || !documentId) {
+      setMessages([]);
+      setIsLoading(false);
+      return;
     }
-  }, [client, sessionId]);
+
+    setIsLoading(true);
+    void (async () => {
+      try {
+        const loaded = await window.litho.conversation.load(workspaceName, documentId);
+        setMessages(loaded);
+      } catch {
+        setMessages([]);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+
+    // Abort active stream when document changes
+    return () => {
+      if (chatIdRef.current) {
+        void window.litho.chat.abort(chatIdRef.current);
+        chatIdRef.current = null;
+      }
+    };
+  }, [workspaceName, documentId]);
+
+  // ---------------------------------------------------------------------------
+  // Event subscription
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const cleanup = window.litho.chat.onDelta((id, data) => {
+      if (id !== chatIdRef.current) return;
+
+      const event = data as {
+        type: string;
+        text?: string;
+        toolCallId?: string;
+        toolName?: string;
+        input?: unknown;
+        output?: unknown;
+        finishReason?: string;
+        usage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+        responseMessages?: StoredMessage[];
+        error?: string;
+      };
+
+      switch (event.type) {
+        case 'text-delta': {
+          pendingTextRef.current += event.text ?? '';
+          setStreamingText(pendingTextRef.current);
+          break;
+        }
+        case 'reasoning-delta': {
+          pendingReasoningRef.current += event.text ?? '';
+          setStreamingReasoning(pendingReasoningRef.current);
+          break;
+        }
+        case 'tool-call': {
+          const callId = event.toolCallId!;
+          const callToolName = event.toolName!;
+          toolCallArgsRef.current.set(callId, { toolName: callToolName, input: event.input });
+          setStreamingToolCalls((prev) => [
+            ...prev,
+            {
+              toolCallId: callId,
+              toolName: callToolName,
+              input: event.input,
+              status: 'calling',
+            },
+          ]);
+          break;
+        }
+        case 'tool-result': {
+          const resultCallId = event.toolCallId!;
+          const tracked = toolCallArgsRef.current.get(resultCallId);
+          const toolName = event.toolName ?? tracked?.toolName ?? 'unknown';
+          const args = (tracked?.input ?? {}) as Record<string, unknown>;
+
+          setStreamingToolCalls((prev) =>
+            prev.map((tc) =>
+              tc.toolCallId === event.toolCallId
+                ? { ...tc, status: 'completed' as const, output: event.output }
+                : tc,
+            ),
+          );
+
+          if (MUTATING_TOOLS.has(toolName)) {
+            onToolCompleteRef.current?.(toolName, args);
+          }
+          break;
+        }
+        case 'finish': {
+          setIsStreaming(false);
+          chatIdRef.current = null;
+
+          // Accumulate usage
+          if (event.usage) {
+            setUsage((prev) => ({
+              inputTokens: prev.inputTokens + event.usage!.inputTokens,
+              outputTokens: prev.outputTokens + event.usage!.outputTokens,
+              totalTokens: prev.totalTokens + event.usage!.totalTokens,
+            }));
+          }
+
+          // Append response messages and persist
+          const responseMessages = event.responseMessages ?? [];
+          if (responseMessages.length > 0) {
+            setMessages((prev) => {
+              const updated = [...prev, ...responseMessages];
+              void window.litho.conversation.save(workspaceName, documentId, updated);
+              return updated;
+            });
+          }
+
+          // Clear streaming state
+          pendingTextRef.current = '';
+          pendingReasoningRef.current = '';
+          toolCallArgsRef.current.clear();
+          setStreamingText('');
+          setStreamingReasoning('');
+          setStreamingToolCalls([]);
+          break;
+        }
+        case 'error': {
+          setError(event.error ?? 'Unknown error');
+          setIsStreaming(false);
+          chatIdRef.current = null;
+          pendingTextRef.current = '';
+          pendingReasoningRef.current = '';
+          toolCallArgsRef.current.clear();
+          setStreamingText('');
+          setStreamingReasoning('');
+          setStreamingToolCalls([]);
+          break;
+        }
+      }
+    });
+
+    return cleanup;
+  }, [workspaceName, documentId]);
+
+  // ---------------------------------------------------------------------------
+  // Send message
+  // ---------------------------------------------------------------------------
 
   const sendMessage = useCallback(
     async (text: string) => {
-      if (!client || !sessionId || !text.trim()) return;
+      if (isStreaming) return;
+
+      const userMsg: StoredMessage = { role: 'user', content: text };
+      const updatedMessages = [...messages, userMsg];
+      setMessages(updatedMessages);
+
+      // Reset streaming state
       setError(null);
-      setSending(true);
+      pendingTextRef.current = '';
+      pendingReasoningRef.current = '';
+      toolCallArgsRef.current.clear();
+      setStreamingText('');
+      setStreamingReasoning('');
+      setStreamingToolCalls([]);
+      setIsStreaming(true);
 
-      const body: Record<string, unknown> = {
-        parts: [{ type: 'text', text: text.trim() }],
-      };
-      if (agentName) body.agent = agentName;
-      if (systemPrompt.trim()) body.system = systemPrompt.trim();
-      if (providerId && modelId) {
-        body.model = { providerID: providerId, modelID: modelId };
-      }
-
-      const dir = directory.trim();
-      const query = dir ? { directory: dir } : undefined;
-      const headers = dir ? { 'x-opencode-directory': encodeURIComponent(dir) } : undefined;
       try {
-        const result = await client.session.promptAsync({
-          path: { id: sessionId },
-          body: body as Parameters<typeof client.session.promptAsync>[0]['body'],
-          query,
-          headers,
+        const { providerId, modelId } = providerModelRef.current!;
+        const { chatId } = await window.litho.chat.start({
+          providerId,
+          modelId,
+          messages: updatedMessages,
+          agentId,
+          agentContext: agentContextRef.current,
         });
-        if (result.error) {
-          const errPayload = result.error;
-          const msg =
-            typeof errPayload === 'object' && errPayload !== null && 'error' in errPayload
-              ? JSON.stringify((errPayload as Record<string, unknown>).error, null, 2)
-              : JSON.stringify(errPayload);
-          setError(`promptAsync rejected: ${msg}`);
-        }
+        chatIdRef.current = chatId;
       } catch (err) {
-        console.error('[chat] promptAsync threw', err);
-        setError(err instanceof Error ? err.message : 'Failed to send message');
-      } finally {
-        setSending(false);
+        setError(err instanceof Error ? err.message : String(err));
+        setIsStreaming(false);
       }
     },
-    [client, sessionId, directory, systemPrompt, agentName, providerId, modelId],
+    [isStreaming, messages, providerModelRef, agentId],
   );
+
+  // ---------------------------------------------------------------------------
+  // Abort
+  // ---------------------------------------------------------------------------
 
   const abort = useCallback(async () => {
-    if (!client || !sessionId) return;
-    setIsAborting(true);
-    const dir = directory.trim();
-    const query = dir ? { directory: dir } : undefined;
-    const headers = dir ? { 'x-opencode-directory': encodeURIComponent(dir) } : undefined;
+    if (!chatIdRef.current) return;
     try {
-      await client.session.abort({ path: { id: sessionId }, query, headers });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to abort');
-    } finally {
-      setIsAborting(false);
+      await window.litho.chat.abort(chatIdRef.current);
+    } catch {
+      // ignore
     }
-  }, [client, sessionId, directory]);
+  }, []);
 
-  const replyPermission = useCallback(
-    async (permissionId: string, response: 'once' | 'always' | 'reject') => {
-      if (!client || !sessionId) return;
-      setPendingPermissions((prev) =>
-        prev.map((p) => (p.permission.id === permissionId ? { ...p, responding: true } : p)),
-      );
-      try {
-        await client.postSessionIdPermissionsPermissionId({
-          path: { id: sessionId, permissionID: permissionId },
-          body: { response },
-        });
-        setPendingPermissions((prev) => prev.filter((p) => p.permission.id !== permissionId));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to reply permission');
-        setPendingPermissions((prev) =>
-          prev.map((p) => (p.permission.id === permissionId ? { ...p, responding: false } : p)),
-        );
-      }
-    },
-    [client, sessionId],
-  );
+  // ---------------------------------------------------------------------------
+  // Clear conversation
+  // ---------------------------------------------------------------------------
+
+  const clearConversation = useCallback(async () => {
+    // Abort active stream
+    if (chatIdRef.current) {
+      void window.litho.chat.abort(chatIdRef.current);
+      chatIdRef.current = null;
+    }
+
+    setMessages([]);
+    setStreamingText('');
+    setStreamingReasoning('');
+    setStreamingToolCalls([]);
+    setIsStreaming(false);
+    setError(null);
+    setUsage({ inputTokens: 0, outputTokens: 0, totalTokens: 0 });
+    pendingTextRef.current = '';
+    pendingReasoningRef.current = '';
+    toolCallArgsRef.current.clear();
+
+    if (workspaceName && documentId) {
+      await window.litho.conversation.clear(workspaceName, documentId);
+    }
+  }, [workspaceName, documentId]);
 
   return {
     messages,
-    pendingPermissions,
-    sessionStatus,
-    totalCost,
-    totalTokens,
-    sending,
-    isAborting,
+    streamingText,
+    streamingReasoning,
+    streamingToolCalls,
+    isStreaming,
+    isLoading,
     error,
+    usage,
     sendMessage,
     abort,
-    replyPermission,
-    loadMessages,
+    clearConversation,
   };
 }

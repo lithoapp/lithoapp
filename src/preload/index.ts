@@ -29,17 +29,6 @@ contextBridge.exposeInMainWorld('litho', {
     exportSource: (): Promise<{ success: boolean; path?: string; error?: string }> =>
       ipcRenderer.invoke('advancedTools:exportSource'),
   },
-  opencode: {
-    getStatus: (): Promise<unknown> => ipcRenderer.invoke('opencode:status'),
-    start: (): Promise<void> => ipcRenderer.invoke('opencode:start'),
-    restart: (): Promise<void> => ipcRenderer.invoke('opencode:restart'),
-    stop: (): Promise<void> => ipcRenderer.invoke('opencode:stop'),
-    onStatusChange: (callback: (data: unknown) => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
-      ipcRenderer.on('opencode:status-change', listener);
-      return () => ipcRenderer.removeListener('opencode:status-change', listener);
-    },
-  },
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
     getPlatform: (): Promise<string> => ipcRenderer.invoke('app:getPlatform'),
@@ -133,6 +122,54 @@ contextBridge.exposeInMainWorld('litho', {
     }): Promise<unknown> => ipcRenderer.invoke('renderer:export', options),
     validateCss: (workspace: string): Promise<{ ok: true } | { ok: false; errors: string[] }> =>
       ipcRenderer.invoke('renderer:validateCss', workspace),
+  },
+  aiProvider: {
+    list: (): Promise<unknown> => ipcRenderer.invoke('ai-provider:list'),
+    models: (providerId: string): Promise<unknown> =>
+      ipcRenderer.invoke('ai-provider:models', providerId),
+    authMethods: (providerId: string): Promise<unknown> =>
+      ipcRenderer.invoke('ai-provider:auth-methods', providerId),
+    connectApiKey: (providerId: string, key: string): Promise<void> =>
+      ipcRenderer.invoke('ai-provider:connect-api-key', providerId, key),
+    disconnect: (providerId: string): Promise<void> =>
+      ipcRenderer.invoke('ai-provider:disconnect', providerId),
+    startOAuth: (
+      providerId: string,
+      mode?: string,
+    ): Promise<{ url: string; verifier?: string; method: 'auto' | 'code' }> =>
+      ipcRenderer.invoke('ai-provider:start-oauth', providerId, mode),
+    completeOAuth: (
+      providerId: string,
+      code?: string,
+      verifier?: string,
+      mode?: string,
+    ): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('ai-provider:complete-oauth', providerId, code, verifier, mode),
+    connectFree: (providerId: string): Promise<void> =>
+      ipcRenderer.invoke('ai-provider:connect-free', providerId),
+    ping: (providerId: string, modelId: string): Promise<unknown> =>
+      ipcRenderer.invoke('ai-provider:ping', providerId, modelId),
+    refreshModelsDev: (): Promise<{ loaded: boolean; error: string | null }> =>
+      ipcRenderer.invoke('ai-provider:refresh-models-dev'),
+  },
+  chat: {
+    start: (params: unknown): Promise<{ chatId: string }> =>
+      ipcRenderer.invoke('chat:start', params),
+    abort: (chatId: string): Promise<void> => ipcRenderer.invoke('chat:abort', chatId),
+    onDelta: (callback: (chatId: string, data: unknown) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, chatId: string, data: unknown): void =>
+        callback(chatId, data);
+      ipcRenderer.on('chat:delta', listener);
+      return () => ipcRenderer.removeListener('chat:delta', listener);
+    },
+  },
+  conversation: {
+    load: (workspace: string, documentId: string): Promise<unknown> =>
+      ipcRenderer.invoke('conversation:load', workspace, documentId),
+    save: (workspace: string, documentId: string, messages: unknown): Promise<void> =>
+      ipcRenderer.invoke('conversation:save', workspace, documentId, messages),
+    clear: (workspace: string, documentId: string): Promise<void> =>
+      ipcRenderer.invoke('conversation:clear', workspace, documentId),
   },
   assets: {
     list: (workspaceName: string, dirPath: string, recursive?: boolean): Promise<unknown> =>

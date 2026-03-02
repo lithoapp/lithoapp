@@ -1,0 +1,41 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index a740f1650ff7cf157bd5b7dc78b1256e5a204292..8ceefc5e696acfbe1bad8167d11ff355968c1746 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -2266,7 +2266,7 @@ async function convertToOpenAIResponsesInput({
+               input.push({
+                 role: "assistant",
+                 content: [{ type: "output_text", text: part.text }],
+-                id
++                id: id ?? `msg_${part.toolCallId || crypto.randomUUID()}`
+               });
+               break;
+             }
+@@ -2288,7 +2288,7 @@ async function convertToOpenAIResponsesInput({
+                 input.push({
+                   type: "local_shell_call",
+                   call_id: part.toolCallId,
+-                  id,
++                  id: id ?? `lsc_${part.toolCallId}`,
+                   action: {
+                     type: "exec",
+                     command: parsedInput.action.command,
+@@ -2305,7 +2305,7 @@ async function convertToOpenAIResponsesInput({
+                 call_id: part.toolCallId,
+                 name: part.toolName,
+                 arguments: JSON.stringify(part.input),
+-                id
++                id: id ?? `fc_${part.toolCallId}`
+               });
+               break;
+             }
+@@ -2427,7 +2427,8 @@ async function convertToOpenAIResponsesInput({
+           input.push({
+             type: "function_call_output",
+             call_id: part.toolCallId,
+-            output: contentValue
++            output: contentValue,
++            id: `fco_${part.toolCallId}`
+           });
+         }
+         break;

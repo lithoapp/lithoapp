@@ -10,6 +10,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DocumentChat } from '@/components/chat/document-chat';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
@@ -21,7 +22,6 @@ import type { PageAudit } from '@/lib/page-audit-types';
 import { runPageAudits } from '@/lib/page-auditors/run-page-audits';
 import { cn } from '@/lib/utils';
 import type { DocumentInfo } from '../../../../shared/types';
-import { DocumentChat } from './document-chat';
 import { ExportDialog } from './export-dialog';
 import { PageAuditBar } from './page-audit-bar';
 

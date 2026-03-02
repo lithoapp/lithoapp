@@ -1,14 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type {
-  OpencodeClient,
-  ProviderAuthMethod,
-  ProviderInfo,
-  ProviderListData,
-} from '../lib/opencode-client-types';
+
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  env: string[];
+  npm?: string;
+  api?: string;
+  modelCount: number;
+}
+
+export interface AuthMethod {
+  type: 'api' | 'oauth' | 'free';
+  label: string;
+  id?: string;
+}
 
 export interface ProviderListState {
-  providers: ProviderListData | null;
-  authMethods: Record<string, ProviderAuthMethod[]>;
+  providers: ProviderInfo[];
+  connected: string[];
+  authMethods: Record<string, AuthMethod[]>;
   connectedProviders: ProviderInfo[];
   availableProviders: ProviderInfo[];
   loading: boolean;
@@ -16,9 +26,10 @@ export interface ProviderListState {
   refetch(): void;
 }
 
-export function useProviderList(client: OpencodeClient): ProviderListState {
-  const [providers, setProviders] = useState<ProviderListData | null>(null);
-  const [authMethods, setAuthMethods] = useState<Record<string, ProviderAuthMethod[]>>({});
+export function useProviderList(): ProviderListState {
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [connected, setConnected] = useState<string[]>([]);
+  const [authMethods, setAuthMethods] = useState<Record<string, AuthMethod[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -26,37 +37,46 @@ export function useProviderList(client: OpencodeClient): ProviderListState {
     setLoading(true);
     setError('');
     try {
-      const [listResult, authResult] = await Promise.all([
-        client.provider.list(),
-        client.provider.auth(),
-      ]);
-      if (listResult.error || !listResult.data) throw new Error('Provider list failed');
-      if (authResult.error || !authResult.data) throw new Error('Auth methods failed');
-      setProviders(listResult.data);
-      setAuthMethods(authResult.data);
+      const listResult = await window.litho.aiProvider.list();
+      setProviders(listResult.providers);
+      setConnected(listResult.connected);
+
+      // Fetch auth methods for each provider
+      const methods: Record<string, AuthMethod[]> = {};
+      await Promise.all(
+        listResult.providers.map(async (p) => {
+          try {
+            methods[p.id] = await window.litho.aiProvider.authMethods(p.id);
+          } catch {
+            methods[p.id] = [];
+          }
+        }),
+      );
+      setAuthMethods(methods);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load providers');
     } finally {
       setLoading(false);
     }
-  }, [client]);
+  }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const connectedProviders = useMemo(
-    () => providers?.all.filter((p) => providers.connected.includes(p.id)) ?? [],
-    [providers],
+    () => providers.filter((p) => connected.includes(p.id)),
+    [providers, connected],
   );
 
   const availableProviders = useMemo(
-    () => providers?.all.filter((p) => !providers.connected.includes(p.id)) ?? [],
-    [providers],
+    () => providers.filter((p) => !connected.includes(p.id)),
+    [providers, connected],
   );
 
   return {
     providers,
+    connected,
     authMethods,
     connectedProviders,
     availableProviders,

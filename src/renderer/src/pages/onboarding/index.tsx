@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { LithoLogo } from '@/components/litho-logo';
@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useOpencode } from '@/hooks/use-opencode';
 import { cn } from '@/lib/utils';
 import { ProviderPicker } from './provider-picker';
 
@@ -28,8 +27,6 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
   const [totalModels, setTotalModels] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
-
-  const { client, status } = useOpencode();
 
   function validateStep1(): boolean {
     const next: { name?: string; email?: string } = {};
@@ -205,32 +202,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
-              {status === 'error' ? (
-                <div className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-5">
-                  <div className="flex items-center gap-2 text-base text-destructive">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    Couldn&apos;t connect to AI
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    You can retry or skip this and set it up later in Settings.
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="w-fit"
-                    onClick={() => void window.litho.opencode.restart()}
-                  >
-                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                    Retry
-                  </Button>
-                </div>
-              ) : status !== 'connected' || !client ? (
-                <div className="flex items-center gap-2.5 py-8 text-muted-foreground">
-                  <Loader2 className="size-5 animate-spin" />
-                  <span className="text-base">Connecting to AI...</span>
-                </div>
-              ) : (
-                <ProviderPicker client={client} onModelsChange={setTotalModels} />
-              )}
+              <ProviderPicker onModelsChange={setTotalModels} />
             </div>
 
             <Button

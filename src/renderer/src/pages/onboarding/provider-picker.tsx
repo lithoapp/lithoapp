@@ -2,8 +2,7 @@ import { AlertCircle, Check, Loader2, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useProviderList } from '@/hooks/use-provider-list';
-import type { OpencodeClient, ProviderInfo } from '@/lib/opencode-client-types';
+import { type ProviderInfo, useProviderList } from '@/hooks/use-provider-list';
 import { cn } from '@/lib/utils';
 import { ConnectDialog } from '../settings/connect-dialog';
 
@@ -17,7 +16,6 @@ function ZenCard({
   provider: ProviderInfo;
   isConnected: boolean;
 }): React.JSX.Element {
-  const modelNames = Object.values(provider.models).map((m) => m.name);
   return (
     <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
       <div className="flex items-center justify-between">
@@ -34,7 +32,11 @@ function ZenCard({
           </span>
         )}
       </div>
-      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{modelNames.join(' · ')}</p>
+      {provider.modelCount > 0 && (
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          {provider.modelCount} model{provider.modelCount !== 1 ? 's' : ''} included
+        </p>
+      )}
     </div>
   );
 }
@@ -48,7 +50,7 @@ function FeaturedCard({
   isConnected: boolean;
   onConnect: () => void;
 }): React.JSX.Element {
-  const modelCount = Object.keys(provider.models).length;
+  const modelCount = provider.modelCount;
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: interactive only when not connected (role is set conditionally)
     <div
@@ -86,37 +88,34 @@ function FeaturedCard({
 }
 
 export function ProviderPicker({
-  client,
   onModelsChange,
 }: {
-  client: OpencodeClient;
   onModelsChange?: (count: number) => void;
 }): React.JSX.Element {
-  const { providers, authMethods, loading, error, refetch } = useProviderList(client);
+  const { providers, connected, authMethods, loading, error, refetch } = useProviderList();
   const [dialogProvider, setDialogProvider] = useState<ProviderInfo | null>(null);
 
   const zenProvider = useMemo(
-    () => providers?.all.find((p) => p.id === ZEN_ID) ?? null,
+    () => providers.find((p) => p.id === ZEN_ID) ?? null,
     [providers],
   );
 
   const featuredProviders = useMemo(
-    () => FEATURED_IDS.flatMap((id) => providers?.all.find((p) => p.id === id) ?? []),
+    () => FEATURED_IDS.flatMap((id) => providers.find((p) => p.id === id) ?? []),
     [providers],
   );
 
   const otherCount = useMemo(
-    () => providers?.all.filter((p) => p.id !== ZEN_ID && !FEATURED_IDS.includes(p.id)).length ?? 0,
+    () => providers.filter((p) => p.id !== ZEN_ID && !FEATURED_IDS.includes(p.id)).length,
     [providers],
   );
 
   const totalModels = useMemo(() => {
-    if (!providers) return 0;
-    return providers.connected.reduce((sum, id) => {
-      const p = providers.all.find((pr) => pr.id === id);
-      return sum + (p ? Object.keys(p.models).length : 0);
+    return connected.reduce((sum, id) => {
+      const p = providers.find((pr) => pr.id === id);
+      return sum + (p ? p.modelCount : 0);
     }, 0);
-  }, [providers]);
+  }, [providers, connected]);
 
   useEffect(() => {
     onModelsChange?.(totalModels);
@@ -131,7 +130,7 @@ export function ProviderPicker({
     );
   }
 
-  if (error || !providers) {
+  if (error) {
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 text-base text-destructive">
@@ -146,7 +145,7 @@ export function ProviderPicker({
     );
   }
 
-  const isConnected = (id: string): boolean => providers.connected.includes(id);
+  const isConnected = (id: string): boolean => connected.includes(id);
 
   return (
     <div className="flex flex-col gap-6">
@@ -187,7 +186,6 @@ export function ProviderPicker({
         <ConnectDialog
           provider={dialogProvider}
           authMethods={authMethods[dialogProvider.id] ?? []}
-          client={client}
           open
           onOpenChange={(open) => {
             if (!open) setDialogProvider(null);

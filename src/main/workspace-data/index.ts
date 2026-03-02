@@ -7,6 +7,7 @@
 
 export { closeAllDbs, closeWorkspaceDb, generateId, getWorkspaceDb } from './db';
 export {
+  clearConversation,
   createDocument,
   createNewWorkspace,
   deleteDocument,
@@ -18,6 +19,7 @@ export {
   listDocumentsFull,
   listPages,
   listWorkspaces,
+  loadConversation,
   readAssetFile,
   readDesignSystem,
   readDocumentConfig,
@@ -25,6 +27,7 @@ export {
   readPageSource,
   readStyles,
   renameDocument,
+  saveConversation,
   updateDesignTokens,
   updateDocumentFolder,
   updatePageDetails,

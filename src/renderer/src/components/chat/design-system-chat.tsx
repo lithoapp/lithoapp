@@ -1,11 +1,11 @@
-import { Loader2, MessageSquare, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Chat } from '@/components/chat/chat';
-import { Button } from '@/components/ui/button';
-import { useOpencode } from '@/hooks/use-opencode';
-import { useSessionInit } from '@/hooks/use-session-init';
 import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 import type { DocumentConfig } from '../../../../shared/types';
+import { Chat } from './chat';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type SendMessageFn = ((text: string) => void) | null;
 
@@ -18,18 +18,18 @@ interface DesignSystemChatProps {
   onBusyChange?: (isBusy: boolean) => void;
 }
 
-function buildStorageKey(workspaceName: string): string {
-  return `litho-ds-session:${workspaceName}`;
-}
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function DesignSystemChat({
   workspaceName,
-  workspacePath,
   onToolComplete,
   sendMessageRef,
   parentSendMessageRef,
   onBusyChange,
 }: DesignSystemChatProps): React.JSX.Element {
+  // Merged ref so both parent (CSS diagnostics) and child (TSX diagnostics) can inject messages
   const mergedSendRef = useMemo(() => {
     let value: SendMessageFn = null;
     return {
@@ -43,13 +43,13 @@ export function DesignSystemChat({
       },
     } satisfies React.RefObject<SendMessageFn>;
   }, [sendMessageRef, parentSendMessageRef]);
-  const { client, baseUrl, status } = useOpencode();
-  const [resetKey, setResetKey] = useState(0);
+
   const [fontContext, setFontContext] = useState('');
   const [userName, setUserName] = useState('');
   const [dsDocId, setDsDocId] = useState<string | null>(null);
   const [docConfig, setDocConfig] = useState<DocumentConfig | null>(null);
 
+  // User name
   useEffect(() => {
     window.litho.preferences
       .getUserProfile()
@@ -57,13 +57,14 @@ export function DesignSystemChat({
       .catch(() => {});
   }, []);
 
+  // Design system doc ID + config
   useEffect(() => {
     void (async () => {
       try {
         const id = await window.litho.workspace.getDesignSystemDocId(workspaceName);
         setDsDocId(id);
         if (id) {
-          const config = await window.litho.document.read(workspaceName, id);
+          const config = (await window.litho.document.read(workspaceName, id)) as DocumentConfig;
           setDocConfig(config);
         }
       } catch {
@@ -72,43 +73,34 @@ export function DesignSystemChat({
     })();
   }, [workspaceName]);
 
+  // Font context
   useEffect(() => {
     const fontExts = new Set(['.woff2', '.woff', '.ttf', '.otf']);
     window.litho.assets
       .list(workspaceName, '', true)
       .then((entries) => {
-        const fonts = entries.filter((e) => e.type === 'file' && fontExts.has(e.ext));
+        const fonts = (entries as Array<{ type: string; ext: string; path: string }>).filter(
+          (e) => e.type === 'file' && fontExts.has(e.ext),
+        );
         if (fonts.length === 0) return;
         const fontPaths = fonts.map((f) => `@assets/${f.path}`).join('\n');
         setFontContext(`\n\nAvailable font files:\n${fontPaths}`);
       })
-      .catch(() => {
-        // keep empty
-      });
+      .catch(() => {});
   }, [workspaceName]);
 
-  const { sessionId, creating, createError } = useSessionInit({
-    client,
-    storageKey: buildStorageKey(workspaceName),
-    sessionTitle: `Design System — ${workspaceName}`,
-    resetKey,
-  });
-
-  const handleNewChat = () => {
-    localStorage.removeItem(buildStorageKey(workspaceName));
-    setResetKey((k) => k + 1);
-  };
-
+  // Refetch doc config when pages change
   const refetchDocConfig = useCallback(async () => {
     if (!dsDocId) return;
     try {
-      const config = await window.litho.document.read(workspaceName, dsDocId);
+      const config = (await window.litho.document.read(workspaceName, dsDocId)) as DocumentConfig;
       setDocConfig(config);
     } catch {
       // non-fatal
     }
   }, [workspaceName, dsDocId]);
 
+  // Wrap onToolComplete to refetch doc config on page changes
   const handleToolComplete = useCallback(
     (tool: string, args: Record<string, unknown>) => {
       if (tool === 'createPage' || tool === 'deletePage') {
@@ -119,80 +111,37 @@ export function DesignSystemChat({
     [onToolComplete, refetchDocConfig],
   );
 
-  const { system, kickoff } = promptTemplates['design-system'];
-
-  const systemPrompt = useMemo(
-    () => renderTemplate(system, { fontContext, docId: dsDocId }),
-    [fontContext, system, dsDocId],
+  // Build agent context
+  const agentContext = useMemo(
+    () => ({
+      docId: dsDocId ?? '',
+      fontContext: fontContext || undefined,
+      userName: userName || undefined,
+    }),
+    [dsDocId, fontContext, userName],
   );
 
+  // Kickoff message
+  const { kickoff } = promptTemplates['design-system'];
   const kickoffMessage = useMemo(() => renderTemplate(kickoff, { userName }), [userName, kickoff]);
 
-  if (status === 'error') {
+  // Wait for design system doc to resolve
+  if (!dsDocId) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3">
-        <p className="text-base text-destructive">
-          The AI server failed to start after multiple attempts.
-        </p>
-        <Button
-          variant="outline"
-          className="h-10 px-4 text-sm"
-          onClick={() => window.litho.opencode.restart()}
-        >
-          <RefreshCw className="mr-1.5 h-4 w-4" />
-          Retry
-        </Button>
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        Loading design system...
       </div>
     );
   }
-
-  if (!client || !baseUrl) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-        <MessageSquare className="size-8" />
-        <p className="text-base">Waiting for AI server...</p>
-      </div>
-    );
-  }
-
-  if (creating) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-        <Loader2 className="size-8 animate-spin" />
-        <p className="text-base">Starting session...</p>
-      </div>
-    );
-  }
-
-  if (createError) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-destructive">
-        <p className="text-base">{createError}</p>
-        <Button
-          variant="outline"
-          className="h-10 px-4 text-sm"
-          onClick={() => setResetKey((k) => k + 1)}
-        >
-          <RefreshCw className="mr-1.5 h-4 w-4" />
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
-  if (!sessionId) return <div />;
 
   return (
     <Chat
-      directory={workspacePath}
-      systemPrompt={systemPrompt}
-      agentName="design-system"
-      sessionId={sessionId}
-      client={client}
-      baseUrl={baseUrl}
-      onToolComplete={handleToolComplete}
-      onNewChat={handleNewChat}
+      workspaceName={workspaceName}
+      documentId={dsDocId}
+      agentId="design-system"
+      agentContext={agentContext}
       kickoffMessage={kickoffMessage}
+      onToolComplete={handleToolComplete}
       sendMessageRef={mergedSendRef}
       onBusyChange={onBusyChange}
       pages={docConfig?.pages}

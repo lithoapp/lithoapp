@@ -16,10 +16,6 @@ extraResources:
     to: bin
     filter:
       - "**/*"
-  - from: resources/opencode-plugin
-    to: opencode-plugin
-    filter:
-      - "**/*"
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:

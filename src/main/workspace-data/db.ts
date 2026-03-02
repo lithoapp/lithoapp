@@ -13,7 +13,7 @@ import { insertDesignSystemDocument } from './design-system-pages';
 
 const connections = new Map<string, Database.Database>();
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS documents (
@@ -67,6 +67,12 @@ CREATE TABLE IF NOT EXISTS styles (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS conversations (
+  document_id TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+  messages TEXT NOT NULL DEFAULT '[]',
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 `;
 
 function applyMigrations(db: Database.Database, workspaceName: string): void {
@@ -85,6 +91,15 @@ function applyMigrations(db: Database.Database, workspaceName: string): void {
     if (currentVersion < 3) {
       db.exec("ALTER TABLE documents ADD COLUMN type TEXT NOT NULL DEFAULT 'normal'");
       insertDesignSystemDocument(db, generateId, workspaceName);
+    }
+    if (currentVersion < 4) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS conversations (
+          document_id TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+          messages TEXT NOT NULL DEFAULT '[]',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
     }
   }
 

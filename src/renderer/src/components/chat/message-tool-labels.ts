@@ -54,12 +54,12 @@ export function resolveToolLabel(
       return { label: 'Updating page details', icon: 'pencil' };
 
     case 'movePage': {
-      const pageLabel = resolvePageLabel(input.pageId as string | undefined, pages);
+      const movePageLabel = resolvePageLabel(input.pageId as string | undefined, pages);
       const targetLabel = resolvePageLabel(input.targetPageId as string | undefined, pages);
       const position = input.position as 'before' | 'after' | undefined;
-      if (pageLabel && targetLabel) {
+      if (movePageLabel && targetLabel) {
         return {
-          label: `Moving page ${pageLabel} ${position ?? ''} ${targetLabel}`,
+          label: `Moving page ${movePageLabel} ${position ?? ''} ${targetLabel}`,
           icon: 'pencil',
         };
       }
