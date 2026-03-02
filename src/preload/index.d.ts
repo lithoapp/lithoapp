@@ -189,8 +189,19 @@ interface LithoAPI {
     ) => () => void;
   };
   conversation: {
-    load: (workspace: string, documentId: string) => Promise<StoredMessage[]>;
-    save: (workspace: string, documentId: string, messages: StoredMessage[]) => Promise<void>;
+    load: (
+      workspace: string,
+      documentId: string,
+    ) => Promise<{
+      messages: StoredMessage[];
+      usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+    }>;
+    save: (
+      workspace: string,
+      documentId: string,
+      messages: StoredMessage[],
+      usage: { inputTokens: number; outputTokens: number },
+    ) => Promise<void>;
     clear: (workspace: string, documentId: string) => Promise<void>;
   };
   assets: {

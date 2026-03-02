@@ -1,4 +1,4 @@
-import { AlertCircle, Brain, Eye, Loader2, Pencil, Plus, Search, Terminal } from 'lucide-react';
+import { AlertCircle, Eye, Loader2, Pencil, Plus, Search, Terminal } from 'lucide-react';
 import {
   resolveToolLabel,
   type ToolIcon,
@@ -6,7 +6,7 @@ import {
 } from './message-tool-labels';
 import type { PageInfo, StoredAssistantMessage } from '../../../../shared/types';
 import { StreamingMarkdown } from './streaming-markdown';
-import type { StreamingToolCall } from './types';
+import type { StreamingPart, StreamingToolCallPart } from './types';
 
 // ---------------------------------------------------------------------------
 // Icon map
@@ -34,16 +34,16 @@ function ToolLine({ label, isActive }: { label: ToolLabel; isActive: boolean }):
       ) : (
         <Icon className="h-3 w-3 shrink-0" />
       )}
-      <span>{label.label}</span>
+      <span>{isActive ? label.activeLabel : label.doneLabel}</span>
     </div>
   );
 }
 
 function ThinkingIndicator(): React.JSX.Element {
   return (
-    <div className="flex animate-pulse items-center gap-1.5 py-0.5 text-xs text-muted-foreground">
-      <Brain className="h-3 w-3 shrink-0" />
-      <span>Thinking…</span>
+    <div className="flex items-center gap-1.5 py-0.5 text-xs text-muted-foreground">
+      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+      <span>Working on it…</span>
     </div>
   );
 }
@@ -63,26 +63,29 @@ export function PersistedActivityLog({
     return <StreamingMarkdown text={message.content} isStreaming={false} />;
   }
 
-  const toolCalls = message.content.filter((p) => p.type === 'tool-call');
-  const textParts = message.content.filter((p) => p.type === 'text');
-  const text = textParts.map((p) => (p as { text: string }).text).join('');
-
   return (
     <div className="w-full">
-      {toolCalls.map((tc) => {
-        const call = tc as { toolCallId: string; toolName: string; input: unknown };
-        const label = resolveToolLabel(
-          call.toolName,
-          (call.input ?? {}) as Record<string, unknown>,
-          pages,
-        );
-        return <ToolLine key={call.toolCallId} label={label} isActive={false} />;
+      {message.content.map((part, i) => {
+        if (part.type === 'tool-call') {
+          const call = part as { toolCallId: string; toolName: string; input: unknown };
+          const label = resolveToolLabel(
+            call.toolName,
+            (call.input ?? {}) as Record<string, unknown>,
+            pages,
+          );
+          return <ToolLine key={call.toolCallId} label={label} isActive={false} />;
+        }
+        if (part.type === 'text') {
+          const text = (part as { text: string }).text;
+          if (!text) return null;
+          return (
+            <div key={`text-${String(i)}`} className="w-full pt-1">
+              <StreamingMarkdown text={text} isStreaming={false} />
+            </div>
+          );
+        }
+        return null;
       })}
-      {text && (
-        <div className="w-full pt-1">
-          <StreamingMarkdown text={text} isStreaming={false} />
-        </div>
-      )}
     </div>
   );
 }
@@ -92,41 +95,43 @@ export function PersistedActivityLog({
 // ---------------------------------------------------------------------------
 
 export function StreamingActivityLog({
-  streamingText,
-  streamingToolCalls,
+  streamingParts,
   pages,
 }: {
-  streamingText: string;
-  streamingToolCalls: StreamingToolCall[];
+  streamingParts: StreamingPart[];
   pages?: PageInfo[];
 }): React.JSX.Element {
-  const hasTools = streamingToolCalls.length > 0;
-  const hasText = streamingText.length > 0;
-
-  if (!hasTools && !hasText) {
+  if (streamingParts.length === 0) {
     return <ThinkingIndicator />;
   }
 
+  // Show trailing spinner when all tool calls are done and no text is actively streaming
+  const lastPart = streamingParts[streamingParts.length - 1];
+  const allToolsDone = streamingParts
+    .filter((p): p is StreamingToolCallPart => p.type === 'tool-call')
+    .every((tc) => tc.status === 'completed');
+  const showTrailingSpinner = lastPart.type === 'tool-call' && allToolsDone;
+
   return (
     <div className="w-full">
-      {streamingToolCalls.map((tc) => {
-        const label = resolveToolLabel(
-          tc.toolName,
-          (tc.input ?? {}) as Record<string, unknown>,
-          pages,
+      {streamingParts.map((part, i) => {
+        if (part.type === 'tool-call') {
+          const label = resolveToolLabel(
+            part.toolName,
+            (part.input ?? {}) as Record<string, unknown>,
+            pages,
+          );
+          return <ToolLine key={part.toolCallId} label={label} isActive={part.status === 'calling'} />;
+        }
+        // Text — only mark as streaming if it's the last part (still being appended to)
+        const isLastPart = i === streamingParts.length - 1;
+        return (
+          <div key={`text-${String(i)}`} className="w-full pt-1">
+            <StreamingMarkdown text={part.text} isStreaming={isLastPart} />
+          </div>
         );
-        return <ToolLine key={tc.toolCallId} label={label} isActive={tc.status === 'calling'} />;
       })}
-
-      {!hasText && hasTools && streamingToolCalls.every((tc) => tc.status === 'completed') && (
-        <ThinkingIndicator />
-      )}
-
-      {hasText && (
-        <div className="w-full pt-1">
-          <StreamingMarkdown text={streamingText} isStreaming />
-        </div>
-      )}
+      {showTrailingSpinner && <ThinkingIndicator />}
     </div>
   );
 }

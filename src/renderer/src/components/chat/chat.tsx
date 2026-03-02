@@ -1,5 +1,16 @@
-import { Bug, Loader2, MessageSquarePlus, Send, Square, Workflow } from 'lucide-react';
+import { ArrowUp, Loader2, MessageSquarePlus, Square, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { type AgentContext, useChatV2 } from '@/hooks/use-chat';
@@ -8,8 +19,6 @@ import type { PageInfo } from '../../../../shared/types';
 import { ChatCover } from './chat-cover';
 import { MessageList } from './message-list';
 import { ModelSelector } from './model-selector';
-import type { DisplayMode } from './types';
-
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -27,13 +36,14 @@ export interface ChatProps {
 }
 
 // ---------------------------------------------------------------------------
-// Display mode icons
+// Helpers
 // ---------------------------------------------------------------------------
 
-const DISPLAY_MODES: Array<{ mode: DisplayMode; icon: React.ElementType; label: string }> = [
-  { mode: 'activity', icon: Workflow, label: 'Activity' },
-  { mode: 'debug', icon: Bug, label: 'Debug' },
-];
+function formatTokens(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  return String(count);
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -53,9 +63,22 @@ export function Chat({
   // Provider / model from localStorage
   const [providerId, setProviderId] = useState(() => loadChatPrefs().providerId);
   const [modelId, setModelId] = useState(() => loadChatPrefs().modelId);
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('activity');
   const [input, setInput] = useState('');
   const [kickoffSent, setKickoffSent] = useState(false);
+  const [pendingKickoff, setPendingKickoff] = useState(false);
+
+  // Offline detection
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  useEffect(() => {
+    const goOnline = () => setIsOffline(false);
+    const goOffline = () => setIsOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   // Ref for provider/model so the hook can read at send time without re-subscribing
   const providerModelRef = useRef({ providerId, modelId });
@@ -128,14 +151,27 @@ export function Chat({
   }, [kickoffMessage, chat]);
 
   const handleNewChat = useCallback(() => {
-    setKickoffSent(false);
     void chat.clearConversation();
-  }, [chat]);
+    if (kickoffMessage) {
+      setPendingKickoff(true);
+    }
+  }, [chat, kickoffMessage]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset on document change
   useEffect(() => {
     setKickoffSent(false);
+    setPendingKickoff(false);
   }, [documentId]);
+
+  // Send kickoff after conversation has been cleared (avoids stale closure)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fire once messages are empty
+  useEffect(() => {
+    if (pendingKickoff && chat.messages.length === 0 && !chat.isStreaming && kickoffMessage) {
+      setPendingKickoff(false);
+      setKickoffSent(true);
+      void chat.sendMessage(kickoffMessage);
+    }
+  }, [pendingKickoff, chat.messages.length, chat.isStreaming]);
 
   // ---------------------------------------------------------------------------
   // Derived state
@@ -185,52 +221,65 @@ export function Chat({
 
         {/* Usage */}
         {chat.usage.totalTokens > 0 && (
-          <span className="text-[10px] tabular-nums text-muted-foreground">
-            {chat.usage.totalTokens.toLocaleString()} tokens
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {formatTokens(chat.usage.totalTokens)} tokens
           </span>
         )}
 
-        {/* Display mode toggle */}
-        <div className="flex gap-0.5">
-          {DISPLAY_MODES.map(({ mode, icon: Icon, label }) => (
+        {/* New chat */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
             <Button
-              key={mode}
-              variant={displayMode === mode ? 'secondary' : 'ghost'}
+              variant="ghost"
               size="sm"
               className="h-7 w-7 p-0"
-              onClick={() => setDisplayMode(mode)}
-              title={label}
+              disabled={chat.isStreaming || isConversationEmpty}
+              title="New chat"
             >
-              <Icon className="h-3.5 w-3.5" />
+              <MessageSquarePlus className="h-3.5 w-3.5" />
             </Button>
-          ))}
-        </div>
-
-        {/* New chat */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleNewChat}
-          disabled={chat.isStreaming}
-          title="New chat"
-        >
-          <MessageSquarePlus className="h-3.5 w-3.5" />
-        </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Start new chat?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will clear the current conversation. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleNewChat}>Start new chat</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-auto">
         <MessageList
           messages={chat.messages}
-          streamingText={chat.streamingText}
-          streamingToolCalls={chat.streamingToolCalls}
+          streamingParts={chat.streamingParts}
           isStreaming={chat.isStreaming}
-          displayMode={displayMode}
           pages={pages}
           hideFirstUserMessage={hideFirstUserMessage}
         />
       </div>
+
+      {/* Offline */}
+      {isOffline && (
+        <div className="flex items-center gap-2 border-t border-amber-500/30 bg-amber-500/5 px-4 py-2 text-xs text-amber-600 dark:text-amber-400">
+          <WifiOff className="h-3.5 w-3.5 shrink-0" />
+          You're offline. Reconnect to continue.
+        </div>
+      )}
+
+      {/* Retrying */}
+      {chat.retryState && (
+        <div className="flex items-center gap-2 border-t border-amber-500/30 bg-amber-500/5 px-4 py-2 text-xs text-amber-600 dark:text-amber-400">
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+          Retrying… ({chat.retryState.attempt}/{chat.retryState.maxAttempts})
+        </div>
+      )}
 
       {/* Error */}
       {chat.error && (
@@ -241,34 +290,39 @@ export function Chat({
 
       {/* Input */}
       <div className="border-t p-3">
-        <div className="flex gap-2">
+        <div className="flex items-end gap-2">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your message..."
-            className="min-h-[40px] flex-1 resize-none text-sm"
+            className="max-h-[120px] min-h-[40px] flex-1 resize-none text-sm"
             rows={1}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
           />
           {chat.isStreaming ? (
-            <Button size="sm" variant="destructive" onClick={handleAbort} className="self-end">
-              <Square className="mr-1 h-3.5 w-3.5" />
-              Stop
+            <Button
+              size="icon"
+              variant="destructive"
+              onClick={handleAbort}
+              className="h-8 w-8 shrink-0 rounded-full"
+              title="Stop"
+            >
+              <Square className="h-3.5 w-3.5" />
             </Button>
           ) : (
             <Button
-              size="sm"
+              size="icon"
               onClick={handleSend}
-              disabled={!input.trim() || !providerId || !modelId}
-              className="self-end"
+              disabled={!input.trim() || !providerId || !modelId || isOffline}
+              className="h-8 w-8 shrink-0 rounded-full"
+              title="Send (Enter)"
             >
-              <Send className="mr-1 h-3.5 w-3.5" />
-              Send
+              <ArrowUp className="h-4 w-4" />
             </Button>
           )}
         </div>

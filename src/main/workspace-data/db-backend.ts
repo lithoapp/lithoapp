@@ -568,34 +568,45 @@ export async function readAssetFile(
 // Conversation persistence
 // ---------------------------------------------------------------------------
 
+export interface ConversationData {
+  messages: StoredMessage[];
+  usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+}
+
 export async function loadConversation(
   workspace: string,
   documentId: string,
-): Promise<StoredMessage[]> {
+): Promise<ConversationData> {
   const db = getWorkspaceDb(workspace);
   const row = db
-    .prepare('SELECT messages FROM conversations WHERE document_id = ?')
-    .get(documentId) as { messages: string } | undefined;
+    .prepare('SELECT messages, usage_input_tokens, usage_output_tokens FROM conversations WHERE document_id = ?')
+    .get(documentId) as { messages: string; usage_input_tokens: number; usage_output_tokens: number } | undefined;
 
-  if (!row) return [];
+  if (!row) return { messages: [], usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 } };
 
-  return JSON.parse(row.messages) as StoredMessage[];
+  const inputTokens = row.usage_input_tokens;
+  const outputTokens = row.usage_output_tokens;
+  return {
+    messages: JSON.parse(row.messages) as StoredMessage[],
+    usage: { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens },
+  };
 }
 
 export async function saveConversation(
   workspace: string,
   documentId: string,
   messages: StoredMessage[],
+  usage: { inputTokens: number; outputTokens: number },
 ): Promise<void> {
   const db = getWorkspaceDb(workspace);
   const json = JSON.stringify(messages);
 
   db.prepare(
-    `INSERT INTO conversations (document_id, messages, updated_at)
-     VALUES (?, ?, datetime('now'))
+    `INSERT INTO conversations (document_id, messages, usage_input_tokens, usage_output_tokens, updated_at)
+     VALUES (?, ?, ?, ?, datetime('now'))
      ON CONFLICT(document_id)
-     DO UPDATE SET messages = excluded.messages, updated_at = excluded.updated_at`,
-  ).run(documentId, json);
+     DO UPDATE SET messages = excluded.messages, usage_input_tokens = excluded.usage_input_tokens, usage_output_tokens = excluded.usage_output_tokens, updated_at = excluded.updated_at`,
+  ).run(documentId, json, usage.inputTokens, usage.outputTokens);
 }
 
 export async function clearConversation(workspace: string, documentId: string): Promise<void> {

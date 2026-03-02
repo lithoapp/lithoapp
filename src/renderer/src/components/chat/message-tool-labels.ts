@@ -3,7 +3,8 @@ import type { PageInfo } from '../../../../shared/types';
 export type ToolIcon = 'search' | 'eye' | 'pencil' | 'plus' | 'error' | 'terminal';
 
 export interface ToolLabel {
-  label: string;
+  activeLabel: string;
+  doneLabel: string;
   icon: ToolIcon;
 }
 
@@ -21,37 +22,41 @@ export function resolveToolLabel(
 
   switch (tool) {
     case 'listPages':
-      return { label: 'Listing pages', icon: 'search' };
+      return { activeLabel: 'Listing pages', doneLabel: 'Listed pages', icon: 'search' };
 
     case 'readPage':
       return {
-        label: pageLabel ? `Reading page ${pageLabel}` : 'Reading a page',
+        activeLabel: pageLabel ? `Reading page ${pageLabel}` : 'Reading a page',
+        doneLabel: pageLabel ? `Read page ${pageLabel}` : 'Read a page',
         icon: 'eye',
       };
 
     case 'writePage':
       return {
-        label: pageLabel ? `Writing page ${pageLabel}` : 'Writing a page',
+        activeLabel: pageLabel ? `Writing page ${pageLabel}` : 'Writing a page',
+        doneLabel: pageLabel ? `Wrote page ${pageLabel}` : 'Wrote a page',
         icon: 'pencil',
       };
 
     case 'editPage':
       return {
-        label: pageLabel ? `Editing page ${pageLabel}` : 'Editing a page',
+        activeLabel: pageLabel ? `Editing page ${pageLabel}` : 'Editing a page',
+        doneLabel: pageLabel ? `Edited page ${pageLabel}` : 'Edited a page',
         icon: 'pencil',
       };
 
     case 'createPage':
-      return { label: 'Adding a new page', icon: 'plus' };
+      return { activeLabel: 'Adding a new page', doneLabel: 'Added a new page', icon: 'plus' };
 
     case 'deletePage':
       return {
-        label: pageLabel ? `Removing page ${pageLabel}` : 'Removing a page',
+        activeLabel: pageLabel ? `Removing page ${pageLabel}` : 'Removing a page',
+        doneLabel: pageLabel ? `Removed page ${pageLabel}` : 'Removed a page',
         icon: 'error',
       };
 
     case 'updatePageDetails':
-      return { label: 'Updating page details', icon: 'pencil' };
+      return { activeLabel: 'Updating page details', doneLabel: 'Updated page details', icon: 'pencil' };
 
     case 'movePage': {
       const movePageLabel = resolvePageLabel(input.pageId as string | undefined, pages);
@@ -59,24 +64,25 @@ export function resolveToolLabel(
       const position = input.position as 'before' | 'after' | undefined;
       if (movePageLabel && targetLabel) {
         return {
-          label: `Moving page ${movePageLabel} ${position ?? ''} ${targetLabel}`,
+          activeLabel: `Moving page ${movePageLabel} ${position ?? ''} ${targetLabel}`,
+          doneLabel: `Moved page ${movePageLabel} ${position ?? ''} ${targetLabel}`,
           icon: 'pencil',
         };
       }
-      return { label: 'Reordering page', icon: 'pencil' };
+      return { activeLabel: 'Reordering page', doneLabel: 'Reordered page', icon: 'pencil' };
     }
 
     case 'readMainCss':
-      return { label: 'Reading styles', icon: 'eye' };
+      return { activeLabel: 'Reading styles', doneLabel: 'Read styles', icon: 'eye' };
 
     case 'writeMainCss':
-      return { label: 'Writing styles', icon: 'pencil' };
+      return { activeLabel: 'Writing styles', doneLabel: 'Wrote styles', icon: 'pencil' };
 
     case 'editMainCss':
-      return { label: 'Editing styles', icon: 'pencil' };
+      return { activeLabel: 'Editing styles', doneLabel: 'Edited styles', icon: 'pencil' };
 
     default:
-      return { label: tool, icon: 'terminal' };
+      return { activeLabel: tool, doneLabel: tool, icon: 'terminal' };
   }
 }
 

@@ -166,8 +166,13 @@ contextBridge.exposeInMainWorld('litho', {
   conversation: {
     load: (workspace: string, documentId: string): Promise<unknown> =>
       ipcRenderer.invoke('conversation:load', workspace, documentId),
-    save: (workspace: string, documentId: string, messages: unknown): Promise<void> =>
-      ipcRenderer.invoke('conversation:save', workspace, documentId, messages),
+    save: (
+      workspace: string,
+      documentId: string,
+      messages: unknown,
+      usage: { inputTokens: number; outputTokens: number },
+    ): Promise<void> =>
+      ipcRenderer.invoke('conversation:save', workspace, documentId, messages, usage),
     clear: (workspace: string, documentId: string): Promise<void> =>
       ipcRenderer.invoke('conversation:clear', workspace, documentId),
   },

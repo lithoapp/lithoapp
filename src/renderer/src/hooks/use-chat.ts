@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentContext, StoredMessage } from '../../../shared/types';
-import type { StreamingToolCall } from '../components/chat/types';
+import type { StreamingPart, StreamingToolCallPart } from '../components/chat/types';
 
 export type { AgentContext };
 
@@ -17,14 +17,19 @@ export interface UseChatV2Input {
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
 }
 
+export interface RetryState {
+  attempt: number;
+  maxAttempts: number;
+}
+
 export interface UseChatV2Return {
   messages: StoredMessage[];
-  streamingText: string;
+  streamingParts: StreamingPart[];
   streamingReasoning: string;
-  streamingToolCalls: StreamingToolCall[];
   isStreaming: boolean;
   isLoading: boolean;
   error: string | null;
+  retryState: RetryState | null;
   usage: { inputTokens: number; outputTokens: number; totalTokens: number };
   sendMessage: (text: string) => Promise<void>;
   abort: () => Promise<void>;
@@ -34,6 +39,8 @@ export interface UseChatV2Return {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+const MAX_RETRY_ATTEMPTS = 5;
 
 const MUTATING_TOOLS = new Set([
   'writePage',
@@ -63,26 +70,78 @@ export function useChatV2({
   const [isLoading, setIsLoading] = useState(true);
 
   // Streaming state (transient, reset each turn)
-  const [streamingText, setStreamingText] = useState('');
+  const [streamingParts, setStreamingParts] = useState<StreamingPart[]>([]);
   const [streamingReasoning, setStreamingReasoning] = useState('');
-  const [streamingToolCalls, setStreamingToolCalls] = useState<StreamingToolCall[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Accumulated usage across all turns
   const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, totalTokens: 0 });
+  const usageRef = useRef(usage);
+  usageRef.current = usage;
+
+  // Retry state
+  const [retryState, setRetryState] = useState<RetryState | null>(null);
+  const retryAttemptRef = useRef(0);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs for streaming accumulation (avoid stale closures)
-  const pendingTextRef = useRef('');
+  const streamingPartsRef = useRef<StreamingPart[]>([]);
   const pendingReasoningRef = useRef('');
-  const toolCallArgsRef = useRef(new Map<string, { toolName: string; input: unknown }>());
   const chatIdRef = useRef<string | null>(null);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   const onToolCompleteRef = useRef(onToolComplete);
   onToolCompleteRef.current = onToolComplete;
 
   // Stable refs for context (avoid re-subscribing on every render)
   const agentContextRef = useRef(agentContext);
   agentContextRef.current = agentContext;
+
+  // ---------------------------------------------------------------------------
+  // Retry helpers
+  // ---------------------------------------------------------------------------
+
+  const clearRetry = useCallback(() => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    retryAttemptRef.current = 0;
+    setRetryState(null);
+  }, []);
+
+  const attemptStart = useCallback(
+    async (msgs: StoredMessage[]) => {
+      try {
+        const { providerId, modelId } = providerModelRef.current!;
+        const { chatId } = await window.litho.chat.start({
+          providerId,
+          modelId,
+          messages: msgs,
+          agentId,
+          agentContext: agentContextRef.current,
+        });
+        chatIdRef.current = chatId;
+        clearRetry();
+      } catch (err) {
+        const attempt = retryAttemptRef.current + 1;
+        if (attempt < MAX_RETRY_ATTEMPTS) {
+          retryAttemptRef.current = attempt;
+          setRetryState({ attempt, maxAttempts: MAX_RETRY_ATTEMPTS });
+          const delay = Math.pow(2, attempt - 1) * 1000;
+          retryTimeoutRef.current = setTimeout(() => {
+            void attemptStart(messagesRef.current);
+          }, delay);
+        } else {
+          clearRetry();
+          setError(err instanceof Error ? err.message : String(err));
+          setIsStreaming(false);
+        }
+      }
+    },
+    [providerModelRef, agentId, clearRetry],
+  );
 
   // ---------------------------------------------------------------------------
   // Load conversation from DB
@@ -99,7 +158,8 @@ export function useChatV2({
     void (async () => {
       try {
         const loaded = await window.litho.conversation.load(workspaceName, documentId);
-        setMessages(loaded);
+        setMessages(loaded.messages);
+        setUsage(loaded.usage);
       } catch {
         setMessages([]);
       } finally {
@@ -139,8 +199,14 @@ export function useChatV2({
 
       switch (event.type) {
         case 'text-delta': {
-          pendingTextRef.current += event.text ?? '';
-          setStreamingText(pendingTextRef.current);
+          const parts = streamingPartsRef.current;
+          const last = parts[parts.length - 1];
+          if (last?.type === 'text') {
+            last.text += event.text ?? '';
+          } else {
+            parts.push({ type: 'text', text: event.text ?? '' });
+          }
+          setStreamingParts([...parts]);
           break;
         }
         case 'reasoning-delta': {
@@ -151,31 +217,30 @@ export function useChatV2({
         case 'tool-call': {
           const callId = event.toolCallId!;
           const callToolName = event.toolName!;
-          toolCallArgsRef.current.set(callId, { toolName: callToolName, input: event.input });
-          setStreamingToolCalls((prev) => [
-            ...prev,
-            {
-              toolCallId: callId,
-              toolName: callToolName,
-              input: event.input,
-              status: 'calling',
-            },
-          ]);
+          streamingPartsRef.current.push({
+            type: 'tool-call',
+            toolCallId: callId,
+            toolName: callToolName,
+            input: event.input,
+            status: 'calling',
+          });
+          setStreamingParts([...streamingPartsRef.current]);
           break;
         }
         case 'tool-result': {
           const resultCallId = event.toolCallId!;
-          const tracked = toolCallArgsRef.current.get(resultCallId);
-          const toolName = event.toolName ?? tracked?.toolName ?? 'unknown';
-          const args = (tracked?.input ?? {}) as Record<string, unknown>;
-
-          setStreamingToolCalls((prev) =>
-            prev.map((tc) =>
-              tc.toolCallId === event.toolCallId
-                ? { ...tc, status: 'completed' as const, output: event.output }
-                : tc,
-            ),
+          const toolPart = streamingPartsRef.current.find(
+            (p): p is StreamingToolCallPart =>
+              p.type === 'tool-call' && p.toolCallId === resultCallId,
           );
+          const toolName = event.toolName ?? toolPart?.toolName ?? 'unknown';
+          const args = ((toolPart?.input ?? {}) as Record<string, unknown>);
+
+          if (toolPart) {
+            toolPart.status = 'completed';
+            toolPart.output = event.output;
+          }
+          setStreamingParts([...streamingPartsRef.current]);
 
           if (MUTATING_TOOLS.has(toolName)) {
             onToolCompleteRef.current?.(toolName, args);
@@ -187,43 +252,58 @@ export function useChatV2({
           chatIdRef.current = null;
 
           // Accumulate usage
-          if (event.usage) {
-            setUsage((prev) => ({
-              inputTokens: prev.inputTokens + event.usage!.inputTokens,
-              outputTokens: prev.outputTokens + event.usage!.outputTokens,
-              totalTokens: prev.totalTokens + event.usage!.totalTokens,
-            }));
-          }
+          const newUsage = event.usage
+            ? {
+                inputTokens: usageRef.current.inputTokens + event.usage.inputTokens,
+                outputTokens: usageRef.current.outputTokens + event.usage.outputTokens,
+                totalTokens:
+                  usageRef.current.totalTokens + event.usage.inputTokens + event.usage.outputTokens,
+              }
+            : usageRef.current;
+          usageRef.current = newUsage;
+          setUsage(newUsage);
 
           // Append response messages and persist
           const responseMessages = event.responseMessages ?? [];
           if (responseMessages.length > 0) {
             setMessages((prev) => {
               const updated = [...prev, ...responseMessages];
-              void window.litho.conversation.save(workspaceName, documentId, updated);
+              void window.litho.conversation.save(workspaceName, documentId, updated, {
+                inputTokens: newUsage.inputTokens,
+                outputTokens: newUsage.outputTokens,
+              });
               return updated;
             });
           }
 
           // Clear streaming state
-          pendingTextRef.current = '';
+          streamingPartsRef.current = [];
           pendingReasoningRef.current = '';
-          toolCallArgsRef.current.clear();
-          setStreamingText('');
+          setStreamingParts([]);
           setStreamingReasoning('');
-          setStreamingToolCalls([]);
           break;
         }
         case 'error': {
-          setError(event.error ?? 'Unknown error');
-          setIsStreaming(false);
           chatIdRef.current = null;
-          pendingTextRef.current = '';
+          streamingPartsRef.current = [];
           pendingReasoningRef.current = '';
-          toolCallArgsRef.current.clear();
-          setStreamingText('');
+          setStreamingParts([]);
           setStreamingReasoning('');
-          setStreamingToolCalls([]);
+
+          // Retry with exponential backoff
+          const attempt = retryAttemptRef.current + 1;
+          if (attempt < MAX_RETRY_ATTEMPTS) {
+            retryAttemptRef.current = attempt;
+            setRetryState({ attempt, maxAttempts: MAX_RETRY_ATTEMPTS });
+            const delay = Math.pow(2, attempt - 1) * 1000;
+            retryTimeoutRef.current = setTimeout(() => {
+              void attemptStart(messagesRef.current);
+            }, delay);
+          } else {
+            clearRetry();
+            setError(event.error ?? 'Unknown error');
+            setIsStreaming(false);
+          }
           break;
         }
       }
@@ -244,32 +324,18 @@ export function useChatV2({
       const updatedMessages = [...messages, userMsg];
       setMessages(updatedMessages);
 
-      // Reset streaming state
+      // Reset streaming & retry state
       setError(null);
-      pendingTextRef.current = '';
+      clearRetry();
+      streamingPartsRef.current = [];
       pendingReasoningRef.current = '';
-      toolCallArgsRef.current.clear();
-      setStreamingText('');
+      setStreamingParts([]);
       setStreamingReasoning('');
-      setStreamingToolCalls([]);
       setIsStreaming(true);
 
-      try {
-        const { providerId, modelId } = providerModelRef.current!;
-        const { chatId } = await window.litho.chat.start({
-          providerId,
-          modelId,
-          messages: updatedMessages,
-          agentId,
-          agentContext: agentContextRef.current,
-        });
-        chatIdRef.current = chatId;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-        setIsStreaming(false);
-      }
+      void attemptStart(updatedMessages);
     },
-    [isStreaming, messages, providerModelRef, agentId],
+    [isStreaming, messages, attemptStart, clearRetry],
   );
 
   // ---------------------------------------------------------------------------
@@ -277,35 +343,35 @@ export function useChatV2({
   // ---------------------------------------------------------------------------
 
   const abort = useCallback(async () => {
+    clearRetry();
     if (!chatIdRef.current) return;
     try {
       await window.litho.chat.abort(chatIdRef.current);
     } catch {
       // ignore
     }
-  }, []);
+  }, [clearRetry]);
 
   // ---------------------------------------------------------------------------
   // Clear conversation
   // ---------------------------------------------------------------------------
 
   const clearConversation = useCallback(async () => {
-    // Abort active stream
+    // Abort active stream & retry
+    clearRetry();
     if (chatIdRef.current) {
       void window.litho.chat.abort(chatIdRef.current);
       chatIdRef.current = null;
     }
 
     setMessages([]);
-    setStreamingText('');
+    setStreamingParts([]);
     setStreamingReasoning('');
-    setStreamingToolCalls([]);
     setIsStreaming(false);
     setError(null);
     setUsage({ inputTokens: 0, outputTokens: 0, totalTokens: 0 });
-    pendingTextRef.current = '';
+    streamingPartsRef.current = [];
     pendingReasoningRef.current = '';
-    toolCallArgsRef.current.clear();
 
     if (workspaceName && documentId) {
       await window.litho.conversation.clear(workspaceName, documentId);
@@ -314,10 +380,10 @@ export function useChatV2({
 
   return {
     messages,
-    streamingText,
+    streamingParts,
     streamingReasoning,
-    streamingToolCalls,
     isStreaming,
+    retryState,
     isLoading,
     error,
     usage,

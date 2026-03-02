@@ -259,8 +259,15 @@ ipcMain.handle(
 ipcMain.handle('conversation:load', (_event, ws: string, docId: string) =>
   loadConversation(ws, docId),
 );
-ipcMain.handle('conversation:save', (_event, ws: string, docId: string, messages: unknown) =>
-  saveConversation(ws, docId, messages as import('../shared/types').StoredMessage[]),
+ipcMain.handle(
+  'conversation:save',
+  (
+    _event,
+    ws: string,
+    docId: string,
+    messages: unknown,
+    usage: { inputTokens: number; outputTokens: number },
+  ) => saveConversation(ws, docId, messages as import('../shared/types').StoredMessage[], usage),
 );
 ipcMain.handle('conversation:clear', (_event, ws: string, docId: string) =>
   clearConversation(ws, docId),

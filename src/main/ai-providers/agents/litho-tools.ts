@@ -21,6 +21,15 @@ function numberLines(content: string): string {
 export function createLithoTools(workspace: string) {
   const db = () => getWorkspaceDb(workspace);
 
+  function getPageLabel(docId: string, pageId: string): string {
+    const pages = db()
+      .prepare('SELECT id, name, position FROM pages WHERE document_id = ? ORDER BY position')
+      .all(docId) as Array<{ id: string; name: string; position: number }>;
+    const idx = pages.findIndex((p) => p.id === pageId);
+    if (idx === -1) return pageId;
+    return `page ${idx + 1} "${pages[idx].name}"`;
+  }
+
   return {
     // ── listPages ──────────────────────────────────────────────────────
     listPages: tool({
@@ -98,7 +107,7 @@ export function createLithoTools(workspace: string) {
         }
 
         const lineCount = content.split('\n').length;
-        return `Wrote ${pageId} (${lineCount} lines)`;
+        return `Wrote ${getPageLabel(docId, pageId)} (${lineCount} lines)`;
       },
     }),
 
@@ -131,7 +140,7 @@ export function createLithoTools(workspace: string) {
           )
           .run(updated, pageId, docId);
 
-        return `Edited ${pageId}`;
+        return `Edited ${getPageLabel(docId, pageId)}`;
       },
     }),
 
@@ -203,7 +212,8 @@ export function createLithoTools(workspace: string) {
           'INSERT INTO pages (id, document_id, name, description, source, position) VALUES (?, ?, ?, ?, ?, ?)',
         ).run(newPageId, docId, trimmedName, desc, pageContent, position);
 
-        return `Created ${newPageId} (blank). Use writePage to add content.`;
+        const pageNumber = pages.filter((p) => p.position < position).length + 1;
+        return `Created page ${pageNumber} "${trimmedName}" (${newPageId}, blank). Use writePage to add content.`;
       },
     }),
 

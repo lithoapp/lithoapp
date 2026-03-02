@@ -31,6 +31,7 @@ export function DesignSystemDocPage({
   const cssValidator: PostTurnValidator = useMemo(
     () => ({
       tools: ['writeMainCss', 'editMainCss'],
+      severity: 'error',
       getDirtyKey: () => 'css',
       validate: async () => {
         const result = await window.litho.renderer.validateCss(workspaceName);

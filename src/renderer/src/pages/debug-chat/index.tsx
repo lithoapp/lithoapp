@@ -282,8 +282,8 @@ function DebugChatPage(): React.JSX.Element {
     void (async () => {
       try {
         const loaded = await window.litho.conversation.load(workspaceName, selectedDocId);
-        setStoredMessages(loaded);
-        setMessages(extractDisplayMessages(loaded));
+        setStoredMessages(loaded.messages);
+        setMessages(extractDisplayMessages(loaded.messages));
       } catch {
         setStoredMessages([]);
         setMessages([]);
@@ -410,7 +410,10 @@ function DebugChatPage(): React.JSX.Element {
         setStoredMessages((prev) => {
           const updated = responseMessages.length > 0 ? [...prev, ...responseMessages] : prev;
           if (workspaceName && selectedDocId && responseMessages.length > 0) {
-            void window.litho.conversation.save(workspaceName, selectedDocId, updated);
+            void window.litho.conversation.save(workspaceName, selectedDocId, updated, {
+              inputTokens: 0,
+              outputTokens: 0,
+            });
           }
           // Derive display messages from the updated stored state
           setMessages(extractDisplayMessages(updated));

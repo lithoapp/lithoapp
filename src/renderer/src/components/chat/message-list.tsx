@@ -1,6 +1,6 @@
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CircleAlert } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { isDiagnosticMessage, stripDiagnosticPrefix } from '@/hooks/use-post-turn-diagnostics';
+import { getDiagnosticSeverity, stripDiagnosticPrefix } from '@/hooks/use-post-turn-diagnostics';
 import type {
   PageInfo,
   StoredAssistantMessage,
@@ -8,8 +8,7 @@ import type {
   StoredUserMessage,
 } from '../../../../shared/types';
 import { PersistedActivityLog, StreamingActivityLog } from './activity-log';
-import { DebugView } from './debug-view';
-import type { DisplayMode, StreamingToolCall } from './types';
+import type { StreamingPart } from './types';
 
 // ---------------------------------------------------------------------------
 // Turn grouping
@@ -71,10 +70,19 @@ function UserMessageView({
 }): React.JSX.Element | null {
   if (isHidden) return null;
 
-  const isDiagnostic = isDiagnosticMessage(message.content);
-  const displayText = isDiagnostic ? stripDiagnosticPrefix(message.content) : message.content;
+  const severity = getDiagnosticSeverity(message.content);
+  const displayText = severity ? stripDiagnosticPrefix(message.content) : message.content;
 
-  if (isDiagnostic) {
+  if (severity === 'error') {
+    return (
+      <div className="flex gap-2 rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+        <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+        <div className="text-sm whitespace-pre-wrap">{displayText}</div>
+      </div>
+    );
+  }
+
+  if (severity === 'warning') {
     return (
       <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
@@ -94,29 +102,15 @@ function UserMessageView({
 
 function AssistantTurnView({
   messages,
-  displayMode,
   pages,
 }: {
   messages: StoredMessage[];
-  displayMode: DisplayMode;
   pages?: PageInfo[];
 }): React.JSX.Element {
-  // Extract assistant messages from the group
   const assistantMessages = messages.filter(
     (m): m is StoredAssistantMessage => m.role === 'assistant',
   );
 
-  if (displayMode === 'debug') {
-    return (
-      <div className="flex flex-col gap-1">
-        {messages.map((msg, i) => (
-          <DebugView key={`debug-${msg.role}-${String(i)}`} message={msg} />
-        ))}
-      </div>
-    );
-  }
-
-  // Activity mode: render each assistant message as activity log
   return (
     <div className="flex flex-col gap-1">
       {assistantMessages.map((msg, i) => (
@@ -132,27 +126,29 @@ function AssistantTurnView({
 
 export function MessageList({
   messages,
-  streamingText,
-  streamingToolCalls,
+  streamingParts,
   isStreaming,
-  displayMode,
   pages,
   hideFirstUserMessage,
 }: {
   messages: StoredMessage[];
-  streamingText: string;
-  streamingToolCalls: StreamingToolCall[];
+  streamingParts: StreamingPart[];
   isStreaming: boolean;
-  displayMode: DisplayMode;
   pages?: PageInfo[];
   hideFirstUserMessage?: boolean;
 }): React.JSX.Element {
   const endRef = useRef<HTMLDivElement>(null);
 
+  // Derive scroll trigger from parts content
+  const streamingContentSize = streamingParts.reduce(
+    (acc, p) => acc + (p.type === 'text' ? p.text.length : 1),
+    0,
+  );
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on message changes
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, streamingText.length, streamingToolCalls.length]);
+  }, [messages.length, streamingContentSize]);
 
   const turns = groupMessagesIntoTurns(messages);
 
@@ -172,7 +168,6 @@ export function MessageList({
           <AssistantTurnView
             key={`assistant-${String(i)}`}
             messages={turn.messages}
-            displayMode={displayMode}
             pages={pages}
           />
         );
@@ -180,11 +175,7 @@ export function MessageList({
 
       {/* Streaming turn */}
       {isStreaming && (
-        <StreamingActivityLog
-          streamingText={streamingText}
-          streamingToolCalls={streamingToolCalls}
-          pages={pages}
-        />
+        <StreamingActivityLog streamingParts={streamingParts} pages={pages} />
       )}
 
       <div ref={endRef} />

@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 
+export type DiagnosticSeverity = 'error' | 'warning';
+
 export interface PostTurnValidator {
   /** Tool names that trigger this validator */
   tools: string[];
+  /** Severity level for the diagnostic message */
+  severity: DiagnosticSeverity;
   /** Extract a dirty key from tool args (e.g. 'css' or a pageId) */
   getDirtyKey(tool: string, args: Record<string, unknown>): string;
   /** Validate dirty keys, return error strings (empty = clean) */
@@ -11,18 +15,27 @@ export interface PostTurnValidator {
   formatMessage(errors: string[]): string;
 }
 
-const DIAGNOSTIC_PREFIX = '[diagnostic] ';
+const ERROR_PREFIX = '[error] ';
+const WARNING_PREFIX = '[warning] ';
 
-export function addDiagnosticPrefix(message: string): string {
-  return DIAGNOSTIC_PREFIX + message;
+export function addDiagnosticPrefix(message: string, severity: DiagnosticSeverity): string {
+  return severity === 'error' ? ERROR_PREFIX + message : WARNING_PREFIX + message;
 }
 
 export function isDiagnosticMessage(text: string): boolean {
-  return text.startsWith(DIAGNOSTIC_PREFIX);
+  return text.startsWith(ERROR_PREFIX) || text.startsWith(WARNING_PREFIX);
+}
+
+export function getDiagnosticSeverity(text: string): DiagnosticSeverity | null {
+  if (text.startsWith(ERROR_PREFIX)) return 'error';
+  if (text.startsWith(WARNING_PREFIX)) return 'warning';
+  return null;
 }
 
 export function stripDiagnosticPrefix(text: string): string {
-  return text.slice(DIAGNOSTIC_PREFIX.length);
+  if (text.startsWith(ERROR_PREFIX)) return text.slice(ERROR_PREFIX.length);
+  if (text.startsWith(WARNING_PREFIX)) return text.slice(WARNING_PREFIX.length);
+  return text;
 }
 
 /**
@@ -74,7 +87,7 @@ export function usePostTurnDiagnostics(
         try {
           const errors = await validator.validate(dirtyKeys);
           if (errors.length === 0) continue;
-          send(addDiagnosticPrefix(validator.formatMessage(errors)));
+          send(addDiagnosticPrefix(validator.formatMessage(errors), validator.severity));
         } catch {
           // validation failure is non-fatal
         }

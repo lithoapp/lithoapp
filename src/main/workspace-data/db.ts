@@ -13,7 +13,7 @@ import { insertDesignSystemDocument } from './design-system-pages';
 
 const connections = new Map<string, Database.Database>();
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS documents (
@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS styles (
 CREATE TABLE IF NOT EXISTS conversations (
   document_id TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
   messages TEXT NOT NULL DEFAULT '[]',
+  usage_input_tokens INTEGER NOT NULL DEFAULT 0,
+  usage_output_tokens INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -97,8 +99,16 @@ function applyMigrations(db: Database.Database, workspaceName: string): void {
         CREATE TABLE IF NOT EXISTS conversations (
           document_id TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
           messages TEXT NOT NULL DEFAULT '[]',
+          usage_input_tokens INTEGER NOT NULL DEFAULT 0,
+          usage_output_tokens INTEGER NOT NULL DEFAULT 0,
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
+      `);
+    }
+    if (currentVersion < 5) {
+      db.exec(`
+        ALTER TABLE conversations ADD COLUMN usage_input_tokens INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE conversations ADD COLUMN usage_output_tokens INTEGER NOT NULL DEFAULT 0;
       `);
     }
   }

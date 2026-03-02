@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/electron/renderer';
 import {
+  AlertTriangle,
   ArrowLeft,
-  CircleAlert,
   Download,
   Loader2,
   Maximize2,
@@ -17,7 +17,11 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { type PostTurnValidator, usePostTurnDiagnostics } from '@/hooks/use-post-turn-diagnostics';
+import {
+  type PostTurnValidator,
+  addDiagnosticPrefix,
+  usePostTurnDiagnostics,
+} from '@/hooks/use-post-turn-diagnostics';
 import type { PageAudit } from '@/lib/page-audit-types';
 import { runPageAudits } from '@/lib/page-auditors/run-page-audits';
 import { cn } from '@/lib/utils';
@@ -87,6 +91,7 @@ export function DocumentPage({
   const tsxValidator: PostTurnValidator = useMemo(
     () => ({
       tools: ['writePage', 'editPage'],
+      severity: 'error',
       getDirtyKey: (_tool, args) => args.pageId as string,
       validate: async (dirtyKeys) => {
         const errors: string[] = [];
@@ -360,7 +365,7 @@ export function DocumentPage({
   );
 
   const handleAuditFix = useCallback((audit: PageAudit) => {
-    sendMessageRef.current?.(audit.fixMessage);
+    sendMessageRef.current?.(addDiagnosticPrefix(audit.fixMessage, 'warning'));
   }, []);
 
   const handleBusyChange = useCallback((busy: boolean) => {
@@ -517,7 +522,7 @@ export function DocumentPage({
                           index={index}
                           name={page.name}
                           isActive={currentPage === index}
-                          hasAuditError={(pageAudits.get(page.id)?.length ?? 0) > 0}
+                          hasAuditWarning={(pageAudits.get(page.id)?.length ?? 0) > 0}
                           onClick={handleThumbnailClick}
                         />
                       ))
@@ -682,13 +687,13 @@ function PageListItem({
   index,
   name,
   isActive,
-  hasAuditError,
+  hasAuditWarning,
   onClick,
 }: {
   index: number;
   name: string;
   isActive: boolean;
-  hasAuditError: boolean;
+  hasAuditWarning: boolean;
   onClick: (index: number) => void;
 }): React.JSX.Element {
   const itemRef = useRef<HTMLButtonElement>(null);
@@ -708,8 +713,8 @@ function PageListItem({
         'flex w-full items-center gap-2.5 rounded-md border-l-2 px-2.5 py-1.5 text-left transition-colors hover:bg-muted/50',
         isActive
           ? 'border-primary bg-muted'
-          : hasAuditError
-            ? 'border-red-500 bg-red-500/5'
+          : hasAuditWarning
+            ? 'border-amber-500 bg-amber-500/5'
             : 'border-transparent',
       )}
       onClick={() => onClick(index)}
@@ -719,8 +724,8 @@ function PageListItem({
           'shrink-0 text-xs tabular-nums',
           isActive
             ? 'font-semibold text-primary'
-            : hasAuditError
-              ? 'text-red-500'
+            : hasAuditWarning
+              ? 'text-amber-500'
               : 'text-muted-foreground',
         )}
       >
@@ -738,7 +743,7 @@ function PageListItem({
       >
         {name || 'Untitled'}
       </span>
-      {hasAuditError && <CircleAlert className="h-3 w-3 shrink-0 text-red-500" />}
+      {hasAuditWarning && <AlertTriangle className="h-3 w-3 shrink-0 text-amber-500" />}
     </button>
   );
 }

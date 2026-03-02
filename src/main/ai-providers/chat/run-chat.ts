@@ -27,7 +27,7 @@ const activeStreams = new Map<string, AbortController>();
 // Constants
 // ---------------------------------------------------------------------------
 
-const MAX_STEPS = 25;
+const MAX_STEPS = 50;
 
 // ---------------------------------------------------------------------------
 // Public API
