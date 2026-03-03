@@ -350,18 +350,6 @@ nativeTheme.on('updated', () => {
 });
 
 app.whenReady().then(async () => {
-  if (process.argv.includes('--batch-export')) {
-    const { runBatchExport } = await import('./exporter/batch-export');
-    try {
-      await runBatchExport();
-    } catch (err) {
-      console.error('[batch-export] Fatal:', err);
-      process.exit(1);
-    }
-    app.quit();
-    return;
-  }
-
   electronApp.setAppUserModelId('com.litho');
 
   app.on('browser-window-created', (_, window) => {
