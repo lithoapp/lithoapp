@@ -18,8 +18,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  type PostTurnValidator,
   addDiagnosticPrefix,
+  type PostTurnValidator,
   usePostTurnDiagnostics,
 } from '@/hooks/use-post-turn-diagnostics';
 import type { PageAudit } from '@/lib/page-audit-types';
@@ -323,6 +323,7 @@ export function DocumentPage({
 
       // Check caller-provided tools that require a full rebuild
       if (rebuildAllOnToolsRef.current?.includes(tool)) {
+        setPageAudits(new Map());
         void buildPages();
         return;
       }
@@ -798,6 +799,7 @@ const PageFrame = forwardRef<
           ref={iframeRef}
           srcDoc={html}
           title={`Page ${index + 1}`}
+          scrolling="no"
           className={cn(
             'absolute top-0 left-0 origin-top-left',
             !editMode && 'pointer-events-none',
