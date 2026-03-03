@@ -1,12 +1,4 @@
-import {
-  Files,
-  FlaskConical,
-  Home,
-  Images,
-  Loader2,
-  Palette,
-  Settings2,
-} from 'lucide-react';
+import { Files, FlaskConical, Home, Images, Loader2, Palette, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { ThemeSwitcher } from '@/components/theme-switcher';

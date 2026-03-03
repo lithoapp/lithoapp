@@ -13,7 +13,7 @@ import { insertDesignSystemDocument } from './design-system-pages';
 
 const connections = new Map<string, Database.Database>();
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS documents (
@@ -75,6 +75,20 @@ CREATE TABLE IF NOT EXISTS conversations (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS document_snapshots (
+  id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  user_message_id TEXT NOT NULL,
+  pages_json TEXT NOT NULL,
+  styles_css TEXT NOT NULL,
+  messages_json TEXT NOT NULL,
+  usage_input_tokens INTEGER NOT NULL DEFAULT 0,
+  usage_output_tokens INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_doc_id ON document_snapshots(document_id);
+
 `;
 
 function applyMigrations(db: Database.Database, workspaceName: string): void {
@@ -109,6 +123,22 @@ function applyMigrations(db: Database.Database, workspaceName: string): void {
       db.exec(`
         ALTER TABLE conversations ADD COLUMN usage_input_tokens INTEGER NOT NULL DEFAULT 0;
         ALTER TABLE conversations ADD COLUMN usage_output_tokens INTEGER NOT NULL DEFAULT 0;
+      `);
+    }
+    if (currentVersion < 6) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS document_snapshots (
+          id TEXT PRIMARY KEY,
+          document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+          user_message_id TEXT NOT NULL,
+          pages_json TEXT NOT NULL,
+          styles_css TEXT NOT NULL,
+          messages_json TEXT NOT NULL,
+          usage_input_tokens INTEGER NOT NULL DEFAULT 0,
+          usage_output_tokens INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_snapshots_doc_id ON document_snapshots(document_id);
       `);
     }
   }

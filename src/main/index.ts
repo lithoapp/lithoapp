@@ -39,6 +39,7 @@ import {
   closeAllDbs,
   createDocument,
   createNewWorkspace,
+  createSnapshot,
   deleteDocument,
   duplicateDocument,
   exportWorkspaceSource,
@@ -53,6 +54,7 @@ import {
   readDocumentConfig,
   readStyles,
   renameDocument,
+  revertToSnapshot,
   saveConversation,
   updateDesignTokens,
   updateDocumentFolder,
@@ -276,6 +278,29 @@ ipcMain.handle(
 );
 ipcMain.handle('conversation:clear', (_event, ws: string, docId: string) =>
   clearConversation(ws, docId),
+);
+
+// Snapshot IPC handlers
+ipcMain.handle(
+  'snapshot:create',
+  (
+    _event,
+    ws: string,
+    docId: string,
+    userMessageId: string,
+    messages: unknown,
+    usage: { inputTokens: number; outputTokens: number },
+  ) =>
+    createSnapshot(
+      ws,
+      docId,
+      userMessageId,
+      messages as import('../shared/types').StoredMessage[],
+      usage,
+    ),
+);
+ipcMain.handle('snapshot:revert', (_event, ws: string, docId: string, userMessageId: string) =>
+  revertToSnapshot(ws, docId, userMessageId),
 );
 
 ipcMain.handle(

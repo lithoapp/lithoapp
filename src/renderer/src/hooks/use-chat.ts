@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AgentContext, ChatError, ChatErrorType, StoredMessage } from '../../../shared/types';
+import type {
+  AgentContext,
+  ChatError,
+  ChatErrorType,
+  RevertResult,
+  StoredMessage,
+} from '../../../shared/types';
 import type { StreamingPart, StreamingToolCallPart } from '../components/chat/types';
 
 export type { AgentContext };
@@ -33,6 +39,7 @@ export interface UseChatV2Return {
     contextWindow?: number;
   };
   sendMessage: (text: string) => Promise<void>;
+  revertToMessage: (userMessageId: string) => Promise<void>;
   retry: () => Promise<void>;
   abort: () => Promise<void>;
   clearConversation: () => Promise<void>;
@@ -52,6 +59,10 @@ const MUTATING_TOOLS = new Set([
   'writeMainCss',
   'editMainCss',
 ]);
+
+function generateMessageId(): string {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+}
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -309,7 +320,18 @@ export function useChatV2({
     async (text: string) => {
       if (isStreaming) return;
 
-      const userMsg: StoredMessage = { role: 'user', content: text };
+      const isKickoff = messages.length === 0;
+      const userMessageId = generateMessageId();
+      const userMsg: StoredMessage = { role: 'user', id: userMessageId, content: text };
+
+      // Snapshot document state before agent processes this message (skip kickoff)
+      if (!isKickoff) {
+        await window.litho.snapshot.create(workspaceName, documentId, userMessageId, messages, {
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+        });
+      }
+
       const updatedMessages = [...messages, userMsg];
       setMessages(updatedMessages);
 
@@ -326,7 +348,41 @@ export function useChatV2({
 
       await startChat(updatedMessages);
     },
-    [isStreaming, messages, startChat],
+    [isStreaming, messages, usage, startChat, workspaceName, documentId],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Revert to before a user message
+  // ---------------------------------------------------------------------------
+
+  const revertToMessage = useCallback(
+    async (userMessageId: string) => {
+      if (isStreaming) return;
+
+      const result = (await window.litho.snapshot.revert(
+        workspaceName,
+        documentId,
+        userMessageId,
+      )) as RevertResult;
+
+      setMessages(result.messages);
+      setUsage({
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.totalTokens,
+        contextWindow: undefined,
+      });
+
+      setError(null);
+      streamingPartsRef.current = [];
+      pendingReasoningRef.current = '';
+      setStreamingParts([]);
+      setStreamingReasoning('');
+      lastUserMessageRef.current = null;
+
+      onToolCompleteRef.current?.('__revert__', {});
+    },
+    [isStreaming, workspaceName, documentId],
   );
 
   // ---------------------------------------------------------------------------
@@ -395,6 +451,7 @@ export function useChatV2({
     error,
     usage,
     sendMessage,
+    revertToMessage,
     retry,
     abort,
     clearConversation,

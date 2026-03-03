@@ -20,9 +20,9 @@ export function loadCacheFromDb(): void {
 }
 
 function isCacheStale(): boolean {
-  const row = getAiDb()
-    .prepare('SELECT fetched_at FROM ai_models_cache WHERE id = 1')
-    .get() as { fetched_at: string } | undefined;
+  const row = getAiDb().prepare('SELECT fetched_at FROM ai_models_cache WHERE id = 1').get() as
+    | { fetched_at: string }
+    | undefined;
   if (!row) return true;
   const fetchedAt = new Date(`${row.fetched_at}Z`).getTime();
   return Date.now() - fetchedAt > STALE_MS;

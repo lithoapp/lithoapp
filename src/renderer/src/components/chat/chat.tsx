@@ -295,6 +295,13 @@ export function Chat({
     void chat.abort();
   }, [chat]);
 
+  const handleRevert = useCallback(
+    (userMessageId: string) => {
+      void chat.revertToMessage(userMessageId);
+    },
+    [chat],
+  );
+
   // ---------------------------------------------------------------------------
   // Expose send for diagnostic injection
   // ---------------------------------------------------------------------------
@@ -430,6 +437,7 @@ export function Chat({
           isStreaming={chat.isStreaming}
           pages={pages}
           hideFirstUserMessage={hideFirstUserMessage}
+          onRevert={handleRevert}
         />
       </div>
 

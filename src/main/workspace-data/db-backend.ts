@@ -6,6 +6,7 @@ import type {
   DocumentInfo,
   PageInfo,
   PageSize,
+  RevertResult,
   StoredMessage,
   WorkspaceInfo,
 } from '../../shared/types';
@@ -630,4 +631,160 @@ export async function saveConversation(
 export async function clearConversation(workspace: string, documentId: string): Promise<void> {
   const db = getWorkspaceDb(workspace);
   db.prepare('DELETE FROM conversations WHERE document_id = ?').run(documentId);
+}
+
+// ---------------------------------------------------------------------------
+// Snapshots
+// ---------------------------------------------------------------------------
+
+const MAX_SNAPSHOTS_PER_DOCUMENT = 20;
+
+export function createSnapshot(
+  workspace: string,
+  documentId: string,
+  userMessageId: string,
+  currentMessages: StoredMessage[],
+  currentUsage: { inputTokens: number; outputTokens: number },
+): void {
+  const db = getWorkspaceDb(workspace);
+
+  const pages = db
+    .prepare(
+      'SELECT id, name, description, source, position FROM pages WHERE document_id = ? ORDER BY position',
+    )
+    .all(documentId) as Array<{
+    id: string;
+    name: string;
+    description: string;
+    source: string;
+    position: number;
+  }>;
+
+  const styleRow = db.prepare('SELECT css FROM styles WHERE id = 1').get() as
+    | { css: string }
+    | undefined;
+  const stylesCss = styleRow?.css ?? '';
+
+  const snapshotId = generateId();
+  db.prepare(
+    `INSERT INTO document_snapshots (id, document_id, user_message_id, pages_json, styles_css, messages_json, usage_input_tokens, usage_output_tokens)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    snapshotId,
+    documentId,
+    userMessageId,
+    JSON.stringify(pages),
+    stylesCss,
+    JSON.stringify(currentMessages),
+    currentUsage.inputTokens,
+    currentUsage.outputTokens,
+  );
+
+  // Prune oldest snapshots beyond the limit
+  const { count } = db
+    .prepare('SELECT COUNT(*) as count FROM document_snapshots WHERE document_id = ?')
+    .get(documentId) as { count: number };
+
+  if (count > MAX_SNAPSHOTS_PER_DOCUMENT) {
+    db.prepare(
+      `DELETE FROM document_snapshots
+       WHERE id IN (
+         SELECT id FROM document_snapshots
+         WHERE document_id = ?
+         ORDER BY created_at ASC
+         LIMIT ?
+       )`,
+    ).run(documentId, count - MAX_SNAPSHOTS_PER_DOCUMENT);
+  }
+}
+
+export function revertToSnapshot(
+  workspace: string,
+  documentId: string,
+  userMessageId: string,
+): RevertResult {
+  const db = getWorkspaceDb(workspace);
+
+  const snapshot = db
+    .prepare(
+      'SELECT id, pages_json, styles_css, messages_json, usage_input_tokens, usage_output_tokens FROM document_snapshots WHERE document_id = ? AND user_message_id = ?',
+    )
+    .get(documentId, userMessageId) as
+    | {
+        id: string;
+        pages_json: string;
+        styles_css: string;
+        messages_json: string;
+        usage_input_tokens: number;
+        usage_output_tokens: number;
+      }
+    | undefined;
+
+  if (!snapshot) {
+    throw new Error(
+      `Snapshot not found for message "${userMessageId}" in document "${documentId}"`,
+    );
+  }
+
+  const snapshotPages = JSON.parse(snapshot.pages_json) as Array<{
+    id: string;
+    name: string;
+    description: string;
+    source: string;
+    position: number;
+  }>;
+  const snapshotMessages = JSON.parse(snapshot.messages_json) as StoredMessage[];
+
+  const restoreTransaction = db.transaction(() => {
+    // Restore pages (delete + re-insert; FTS triggers handle index)
+    db.prepare('DELETE FROM pages WHERE document_id = ?').run(documentId);
+
+    const insertPage = db.prepare(
+      `INSERT INTO pages (id, document_id, name, description, source, position, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+    );
+    for (const page of snapshotPages) {
+      insertPage.run(page.id, documentId, page.name, page.description, page.source, page.position);
+    }
+
+    // Restore styles
+    db.prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1").run(
+      snapshot.styles_css,
+    );
+
+    // Restore conversation
+    db.prepare(
+      `INSERT INTO conversations (document_id, messages, usage_input_tokens, usage_output_tokens, updated_at)
+       VALUES (?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(document_id)
+       DO UPDATE SET messages = excluded.messages,
+         usage_input_tokens = excluded.usage_input_tokens,
+         usage_output_tokens = excluded.usage_output_tokens,
+         updated_at = excluded.updated_at`,
+    ).run(
+      documentId,
+      snapshot.messages_json,
+      snapshot.usage_input_tokens,
+      snapshot.usage_output_tokens,
+    );
+
+    // Delete this snapshot and all newer ones (invalidated timeline)
+    db.prepare(
+      `DELETE FROM document_snapshots
+       WHERE document_id = ? AND created_at >= (
+         SELECT created_at FROM document_snapshots WHERE id = ?
+       )`,
+    ).run(documentId, snapshot.id);
+  });
+
+  restoreTransaction();
+
+  return {
+    messages: snapshotMessages,
+    usage: {
+      inputTokens: snapshot.usage_input_tokens,
+      outputTokens: snapshot.usage_output_tokens,
+      totalTokens: snapshot.usage_input_tokens + snapshot.usage_output_tokens,
+    },
+  };
 }

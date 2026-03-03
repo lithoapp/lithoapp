@@ -7,6 +7,7 @@
       "!**/out",
       "!**/node_modules",
       "!.claude",
+      "!references",
       "!**/components/ui",
       "!resources/opencode-plugin"
     ]

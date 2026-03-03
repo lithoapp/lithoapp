@@ -266,6 +266,7 @@ export interface StoredToolResultPart {
 
 export interface StoredUserMessage {
   role: 'user';
+  id?: string;
   content: string;
 }
 
@@ -282,6 +283,13 @@ export interface StoredToolMessage {
 }
 
 export type StoredMessage = StoredUserMessage | StoredAssistantMessage | StoredToolMessage;
+
+// --- Snapshot Revert ---
+
+export interface RevertResult {
+  messages: StoredMessage[];
+  usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+}
 
 // --- Chat Error ---
 

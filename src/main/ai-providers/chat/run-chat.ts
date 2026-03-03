@@ -1,9 +1,9 @@
 import { type LanguageModel, type ModelMessage, streamText, type Tool } from 'ai';
 import { getActiveWorkspace } from '../../active-workspace-store';
 import { renderSystemPrompt, resolveAgentTools } from '../agents/config';
+import { parseError } from '../lib/parse-error';
 import { createModel, OUTPUT_TOKEN_MAX } from '../providers/create-model';
 import { getCredential } from '../providers/credential-store';
-import { parseError } from '../lib/parse-error';
 import { getModelInfo } from '../providers/models-cache';
 import type { ChatStartParams } from '../types';
 import {

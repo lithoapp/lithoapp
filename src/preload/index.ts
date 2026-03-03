@@ -176,6 +176,18 @@ contextBridge.exposeInMainWorld('litho', {
     clear: (workspace: string, documentId: string): Promise<void> =>
       ipcRenderer.invoke('conversation:clear', workspace, documentId),
   },
+  snapshot: {
+    create: (
+      workspace: string,
+      documentId: string,
+      userMessageId: string,
+      messages: unknown,
+      usage: { inputTokens: number; outputTokens: number },
+    ): Promise<void> =>
+      ipcRenderer.invoke('snapshot:create', workspace, documentId, userMessageId, messages, usage),
+    revert: (workspace: string, documentId: string, userMessageId: string): Promise<unknown> =>
+      ipcRenderer.invoke('snapshot:revert', workspace, documentId, userMessageId),
+  },
   assets: {
     list: (workspaceName: string, dirPath: string, recursive?: boolean): Promise<unknown> =>
       ipcRenderer.invoke('assets:list', workspaceName, dirPath, recursive),

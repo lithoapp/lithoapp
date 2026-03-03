@@ -321,6 +321,18 @@ export function DocumentPage({
     (tool: string, args: Record<string, unknown>) => {
       tsxDiagnosticComplete(tool, args);
 
+      // Handle revert — full rebuild of all pages + refresh page list
+      if (tool === '__revert__') {
+        setPageAudits(new Map());
+        void buildPages();
+        if (refetchDocOnPageChange) {
+          void refetchDocConfig();
+        } else {
+          onDocumentsChangeRef.current?.();
+        }
+        return;
+      }
+
       // Check caller-provided tools that require a full rebuild
       if (rebuildAllOnToolsRef.current?.includes(tool)) {
         setPageAudits(new Map());

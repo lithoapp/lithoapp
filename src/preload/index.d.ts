@@ -9,7 +9,7 @@ import type {
 } from '../shared/types';
 import type { PageBuildData, PageExportOptions, RendererResult } from '../shared/types';
 import type { UpdateState } from '../shared/types';
-import type { StoredMessage, WorkspaceInfo, WorkspaceState } from '../shared/types';
+import type { RevertResult, StoredMessage, WorkspaceInfo, WorkspaceState } from '../shared/types';
 
 interface LithoAPI {
   preferences: {
@@ -215,6 +215,16 @@ interface LithoAPI {
       usage: { inputTokens: number; outputTokens: number },
     ) => Promise<void>;
     clear: (workspace: string, documentId: string) => Promise<void>;
+  };
+  snapshot: {
+    create: (
+      workspace: string,
+      documentId: string,
+      userMessageId: string,
+      messages: StoredMessage[],
+      usage: { inputTokens: number; outputTokens: number },
+    ) => Promise<void>;
+    revert: (workspace: string, documentId: string, userMessageId: string) => Promise<RevertResult>;
   };
   assets: {
     list: (workspaceName: string, dirPath: string, recursive?: boolean) => Promise<AssetEntry[]>;
