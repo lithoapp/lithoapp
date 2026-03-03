@@ -7,6 +7,7 @@ import type { PageExportOptions } from '../../shared/types';
 const PAGE_READY_TIMEOUT_MS = 15_000;
 const CAPTURE_TIMEOUT_MS = 30_000;
 const PAINT_SETTLE_MS = 500;
+const ANIMATION_TIMEOUT_MS = 5_000;
 
 function mmToCssPx(mm: number): number {
   return mm * 3.7795;
@@ -89,6 +90,7 @@ export async function exportPage(options: PageExportOptions): Promise<Buffer> {
     // CSR: poll for React to mount into #root. SSR: static HTML is ready on load.
     if (approach === 'csr') {
       await waitForCsrReady(win);
+      await waitForAnimations(win);
     }
 
     // Paint settle
@@ -174,6 +176,50 @@ export async function exportPage(options: PageExportOptions): Promise<Buffer> {
     win.destroy();
     await fs.unlink(tmpPath).catch(() => {});
   }
+}
+
+async function waitForAnimations(win: BrowserWindow): Promise<void> {
+  log('Waiting for DOM to stabilize (JS + CSS animations)...');
+  const startTime = Date.now();
+
+  // MutationObserver approach: Recharts and other JS-driven chart libraries animate
+  // by mutating SVG attributes (e.g. path `d`) via requestAnimationFrame every ~16ms.
+  // document.getAnimations() only catches CSS animations, not these JS-driven ones.
+  // We wait until no DOM mutations occur for STABLE_MS, then consider rendering done.
+  await win.webContents.executeJavaScript(`
+    new Promise((resolve) => {
+      const STABLE_MS = 300;
+      const TIMEOUT_MS = ${ANIMATION_TIMEOUT_MS};
+
+      let timer = setTimeout(() => {
+        observer.disconnect();
+        resolve(undefined);
+      }, STABLE_MS);
+
+      const observer = new MutationObserver(() => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          observer.disconnect();
+          resolve(undefined);
+        }, STABLE_MS);
+      });
+
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        characterData: true,
+      });
+
+      setTimeout(() => {
+        clearTimeout(timer);
+        observer.disconnect();
+        resolve(undefined);
+      }, TIMEOUT_MS);
+    })
+  `);
+
+  log(`DOM stabilized after ${Date.now() - startTime}ms`);
 }
 
 async function waitForCsrReady(win: BrowserWindow): Promise<void> {
