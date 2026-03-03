@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Litho desktop application",
+  "author": "Kareem Elbahrawy <kareem@kareemelbahrawy.com>",
+  "homepage": "https://lithoapp.com",
+  "license": "UNLICENSED",
   "main": "./out/main/index.js",
   "packageManager": "pnpm@10.29.3",
   "engines": {

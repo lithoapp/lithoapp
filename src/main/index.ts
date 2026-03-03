@@ -10,6 +10,8 @@ import {
   protocol,
   shell,
 } from 'electron';
+app.setName('Litho');
+
 import type { WorkspaceState } from '../shared/types';
 import { getActiveWorkspace, setActiveWorkspace } from './active-workspace-store';
 import { registerAiProviderHandlers } from './ai-providers';

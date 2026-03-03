@@ -1,5 +1,6 @@
 appId: com.kareemaly.litho
 productName: Litho
+copyright: Copyright © 2026 Kareem Elbahrawy
 directories:
   buildResources: build
 files:
@@ -17,10 +18,14 @@ extraResources:
     filter:
       - "**/*"
 mac:
+  category: public.app-category.productivity
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    - CFBundleDisplayName: Litho
+    - CFBundleGetInfoString: Litho - PDF Design Tool
+    - NSHumanReadableCopyright: Copyright © 2026 Kareem Elbahrawy
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
@@ -38,6 +43,8 @@ linux:
     - deb
   maintainer: kareemaly
   category: Utility
+  synopsis: PDF Design Tool
+  description: Design and export beautiful PDFs with AI assistance
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: true
