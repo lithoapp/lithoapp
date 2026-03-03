@@ -1,4 +1,4 @@
-import { Files, FlaskConical, Home, Images, Loader2, Palette, Settings2 } from 'lucide-react';
+import { Files, Home, Images, Loader2, Palette, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { ThemeSwitcher } from '@/components/theme-switcher';
@@ -12,7 +12,6 @@ import { DesignSystemDocPage } from './pages/design-system-doc';
 import { DocumentPage } from './pages/document';
 import { DocumentsPage } from './pages/documents';
 import { OnboardingPage } from './pages/onboarding';
-import { RendererPocPage } from './pages/renderer-poc';
 import { SettingsV2Page } from './pages/settings-v2';
 import { WorkspaceTransitionPage } from './pages/workspace-transition';
 import { WorkspacesPage } from './pages/workspaces';
@@ -24,7 +23,6 @@ type Page =
   | 'design-system-doc'
   | 'assets'
   | 'settings'
-  | 'renderer-poc'
   | 'workspace-loading'
   | 'workspace-closing';
 
@@ -165,7 +163,6 @@ function App(): React.JSX.Element {
       'document',
       'design-system-doc',
       'assets',
-      'renderer-poc',
     ].includes(page);
     if (onWorkspacePage && workspaceInfo.status === 'inactive') {
       setPage('workspaces');
@@ -267,11 +264,6 @@ function App(): React.JSX.Element {
                     target: 'design-system-doc' as Page,
                   },
                   { p: ['assets'] satisfies Page[], icon: Images, target: 'assets' as Page },
-                  {
-                    p: ['renderer-poc'] satisfies Page[],
-                    icon: FlaskConical,
-                    target: 'renderer-poc' as Page,
-                  },
                   { p: ['settings'] satisfies Page[], icon: Settings2, target: 'settings' as Page },
                 ] as { p: Page[]; icon: typeof Files; target: Page }[]
               ).map(({ p, icon: Icon, target }) => {
@@ -313,7 +305,7 @@ function App(): React.JSX.Element {
 
       {/* Main content */}
       <div
-        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' || page === 'renderer-poc' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
+        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
       >
         {page === 'workspaces' && (
           <WorkspacesPage
@@ -378,7 +370,6 @@ function App(): React.JSX.Element {
             onBack={() => setPage('documents')}
           />
         )}
-        {page === 'renderer-poc' && <RendererPocPage />}
         {page === 'settings' && (
           <SettingsV2Page
             onBack={() => setPage(workspaceInfo.status === 'active' ? 'documents' : 'workspaces')}
