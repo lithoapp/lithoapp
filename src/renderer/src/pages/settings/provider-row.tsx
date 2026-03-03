@@ -109,13 +109,7 @@ export function ProviderRow({
         onConnected={onRefresh}
       />
 
-      {isConnected && (
-        <PingDialog
-          provider={provider}
-          open={pingOpen}
-          onOpenChange={setPingOpen}
-        />
-      )}
+      {isConnected && <PingDialog provider={provider} open={pingOpen} onOpenChange={setPingOpen} />}
     </>
   );
 }

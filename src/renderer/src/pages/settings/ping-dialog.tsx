@@ -60,9 +60,7 @@ export function PingDialog({
   const filteredModels = useMemo(() => {
     if (!modelSearch.trim()) return models;
     const q = modelSearch.toLowerCase();
-    return models.filter(
-      (m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q),
-    );
+    return models.filter((m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q));
   }, [models, modelSearch]);
 
   const handlePing = useCallback(async () => {
@@ -79,8 +77,7 @@ export function PingDialog({
     }
   }, [provider.id, selectedModel]);
 
-  const selectedModelName =
-    models.find((m) => m.id === selectedModel)?.name ?? selectedModel;
+  const selectedModelName = models.find((m) => m.id === selectedModel)?.name ?? selectedModel;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

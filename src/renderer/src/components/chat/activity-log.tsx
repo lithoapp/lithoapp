@@ -1,10 +1,6 @@
 import { AlertCircle, Eye, Loader2, Pencil, Plus, Search, Terminal } from 'lucide-react';
-import {
-  resolveToolLabel,
-  type ToolIcon,
-  type ToolLabel,
-} from './message-tool-labels';
 import type { PageInfo, StoredAssistantMessage } from '../../../../shared/types';
+import { resolveToolLabel, type ToolIcon, type ToolLabel } from './message-tool-labels';
 import { StreamingMarkdown } from './streaming-markdown';
 import type { StreamingPart, StreamingToolCallPart } from './types';
 
@@ -121,7 +117,9 @@ export function StreamingActivityLog({
             (part.input ?? {}) as Record<string, unknown>,
             pages,
           );
-          return <ToolLine key={part.toolCallId} label={label} isActive={part.status === 'calling'} />;
+          return (
+            <ToolLine key={part.toolCallId} label={label} isActive={part.status === 'calling'} />
+          );
         }
         // Text — only mark as streaming if it's the last part (still being appended to)
         const isLastPart = i === streamingParts.length - 1;

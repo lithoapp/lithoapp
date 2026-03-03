@@ -579,8 +579,12 @@ export async function loadConversation(
 ): Promise<ConversationData> {
   const db = getWorkspaceDb(workspace);
   const row = db
-    .prepare('SELECT messages, usage_input_tokens, usage_output_tokens FROM conversations WHERE document_id = ?')
-    .get(documentId) as { messages: string; usage_input_tokens: number; usage_output_tokens: number } | undefined;
+    .prepare(
+      'SELECT messages, usage_input_tokens, usage_output_tokens FROM conversations WHERE document_id = ?',
+    )
+    .get(documentId) as
+    | { messages: string; usage_input_tokens: number; usage_output_tokens: number }
+    | undefined;
 
   if (!row) return { messages: [], usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 } };
 

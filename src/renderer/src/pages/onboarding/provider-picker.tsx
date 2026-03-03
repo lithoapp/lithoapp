@@ -95,10 +95,7 @@ export function ProviderPicker({
   const { providers, connected, authMethods, loading, error, refetch } = useProviderList();
   const [dialogProvider, setDialogProvider] = useState<ProviderInfo | null>(null);
 
-  const zenProvider = useMemo(
-    () => providers.find((p) => p.id === ZEN_ID) ?? null,
-    [providers],
-  );
+  const zenProvider = useMemo(() => providers.find((p) => p.id === ZEN_ID) ?? null, [providers]);
 
   const featuredProviders = useMemo(
     () => FEATURED_IDS.flatMap((id) => providers.find((p) => p.id === id) ?? []),

@@ -56,7 +56,11 @@ export function resolveToolLabel(
       };
 
     case 'updatePageDetails':
-      return { activeLabel: 'Updating page details', doneLabel: 'Updated page details', icon: 'pencil' };
+      return {
+        activeLabel: 'Updating page details',
+        doneLabel: 'Updated page details',
+        icon: 'pencil',
+      };
 
     case 'movePage': {
       const movePageLabel = resolvePageLabel(input.pageId as string | undefined, pages);

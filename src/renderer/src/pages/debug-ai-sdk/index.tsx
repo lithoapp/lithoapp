@@ -205,8 +205,7 @@ function DebugAiSdkPage(): React.JSX.Element {
     setIsConnecting(true);
     try {
       // Determine mode for Anthropic OAuth
-      const mode =
-        selectedMethod.id === 'anthropic-console' ? 'console' : undefined;
+      const mode = selectedMethod.id === 'anthropic-console' ? 'console' : undefined;
       const result = await window.litho.aiProvider.startOAuth(connectProviderId, mode);
       toast.info('Browser opened for authorization. Complete the flow there.');
 

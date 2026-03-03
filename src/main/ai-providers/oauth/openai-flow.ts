@@ -1,34 +1,23 @@
-import {
-  createServer,
-  type IncomingMessage,
-  type Server,
-  type ServerResponse,
-} from "node:http";
-import { shell } from "electron";
-import type {
-  AuthMethod,
-  CredentialOAuth,
-  OAuthTokenResponse,
-  PkceCodes,
-} from "../types";
-import { generatePKCE, generateState } from "./pkce";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { shell } from 'electron';
+import type { AuthMethod, CredentialOAuth, OAuthTokenResponse, PkceCodes } from '../types';
+import { generatePKCE, generateState } from './pkce';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const OPENAI_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
-const OPENAI_ISSUER = "https://auth.openai.com";
+const OPENAI_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
+const OPENAI_ISSUER = 'https://auth.openai.com';
 const OAUTH_PORT = 1455;
 
-export const CODEX_API_ENDPOINT =
-  "https://chatgpt.com/backend-api/codex/responses";
-export const CODEX_DEFAULT_MODEL = "gpt-5.3-codex";
-export const OAUTH_DUMMY_KEY = "litho-oauth-dummy-key";
+export const CODEX_API_ENDPOINT = 'https://chatgpt.com/backend-api/codex/responses';
+export const CODEX_DEFAULT_MODEL = 'gpt-5.3-codex';
+export const OAUTH_DUMMY_KEY = 'litho-oauth-dummy-key';
 
 export const OPENAI_AUTH_METHODS: AuthMethod[] = [
-  { type: "oauth", label: "ChatGPT Pro/Plus (browser)" },
-  { type: "api", label: "API Key" },
+  { type: 'oauth', label: 'ChatGPT Pro/Plus (browser)' },
+  { type: 'api', label: 'API Key' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -70,29 +59,26 @@ async function exchangeCodeForTokens(
   pkce: PkceCodes,
 ): Promise<OAuthTokenResponse> {
   const response = await fetch(`${OPENAI_ISSUER}/oauth/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type: "authorization_code",
+      grant_type: 'authorization_code',
       code,
       redirect_uri: redirectUri,
       client_id: OPENAI_CLIENT_ID,
       code_verifier: pkce.verifier,
     }).toString(),
   });
-  if (!response.ok)
-    throw new Error(`Token exchange failed: ${response.status}`);
+  if (!response.ok) throw new Error(`Token exchange failed: ${response.status}`);
   return response.json() as Promise<OAuthTokenResponse>;
 }
 
-export async function refreshOpenAIToken(
-  refreshToken: string,
-): Promise<OAuthTokenResponse> {
+export async function refreshOpenAIToken(refreshToken: string): Promise<OAuthTokenResponse> {
   const response = await fetch(`${OPENAI_ISSUER}/oauth/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type: "refresh_token",
+      grant_type: 'refresh_token',
       refresh_token: refreshToken,
       client_id: OPENAI_CLIENT_ID,
     }).toString(),
@@ -106,32 +92,28 @@ export async function refreshOpenAIToken(
 // ---------------------------------------------------------------------------
 
 function parseJwtClaims(token: string): Record<string, unknown> | undefined {
-  const parts = token.split(".");
+  const parts = token.split('.');
   if (parts.length !== 3) return undefined;
   try {
-    return JSON.parse(Buffer.from(parts[1], "base64url").toString());
+    return JSON.parse(Buffer.from(parts[1], 'base64url').toString());
   } catch {
     return undefined;
   }
 }
 
-function extractAccountIdFromClaims(
-  claims: Record<string, unknown>,
-): string | undefined {
+function extractAccountIdFromClaims(claims: Record<string, unknown>): string | undefined {
   return (
     (claims as { chatgpt_account_id?: string }).chatgpt_account_id ||
     (
       claims as {
-        "https://api.openai.com/auth"?: { chatgpt_account_id?: string };
+        'https://api.openai.com/auth'?: { chatgpt_account_id?: string };
       }
-    )["https://api.openai.com/auth"]?.chatgpt_account_id ||
+    )['https://api.openai.com/auth']?.chatgpt_account_id ||
     (claims as { organizations?: Array<{ id: string }> }).organizations?.[0]?.id
   );
 }
 
-export function extractAccountId(
-  tokens: OAuthTokenResponse,
-): string | undefined {
+export function extractAccountId(tokens: OAuthTokenResponse): string | undefined {
   if (tokens.id_token) {
     const claims = parseJwtClaims(tokens.id_token);
     const accountId = claims && extractAccountIdFromClaims(claims);
@@ -158,42 +140,42 @@ function startOAuthServer(): Promise<{ port: number; redirectUri: string }> {
 
   return new Promise((resolve, reject) => {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-      const url = new URL(req.url ?? "/", `http://localhost:${OAUTH_PORT}`);
+      const url = new URL(req.url ?? '/', `http://localhost:${OAUTH_PORT}`);
 
-      if (url.pathname !== "/auth/callback") {
-        res.writeHead(404, { "Content-Type": "text/plain" });
-        res.end("Not found");
+      if (url.pathname !== '/auth/callback') {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not found');
         return;
       }
 
-      const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state");
-      const error = url.searchParams.get("error");
-      const errorDescription = url.searchParams.get("error_description");
+      const code = url.searchParams.get('code');
+      const state = url.searchParams.get('state');
+      const error = url.searchParams.get('error');
+      const errorDescription = url.searchParams.get('error_description');
 
       if (error) {
         const msg = errorDescription || error;
         pendingOAuth?.reject(new Error(msg));
         pendingOAuth = null;
-        res.writeHead(200, { "Content-Type": "text/html" });
+        res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(HTML_ERROR(msg));
         return;
       }
 
       if (!code) {
-        const msg = "Missing authorization code";
+        const msg = 'Missing authorization code';
         pendingOAuth?.reject(new Error(msg));
         pendingOAuth = null;
-        res.writeHead(400, { "Content-Type": "text/html" });
+        res.writeHead(400, { 'Content-Type': 'text/html' });
         res.end(HTML_ERROR(msg));
         return;
       }
 
       if (!pendingOAuth || state !== pendingOAuth.state) {
-        const msg = "Invalid state - potential CSRF attack";
+        const msg = 'Invalid state - potential CSRF attack';
         pendingOAuth?.reject(new Error(msg));
         pendingOAuth = null;
-        res.writeHead(400, { "Content-Type": "text/html" });
+        res.writeHead(400, { 'Content-Type': 'text/html' });
         res.end(HTML_ERROR(msg));
         return;
       }
@@ -201,19 +183,17 @@ function startOAuthServer(): Promise<{ port: number; redirectUri: string }> {
       const current = pendingOAuth;
       pendingOAuth = null;
 
-      res.writeHead(200, { "Content-Type": "text/html" });
+      res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(HTML_SUCCESS);
 
       const redirectUri = `http://localhost:${OAUTH_PORT}/auth/callback`;
       exchangeCodeForTokens(code, redirectUri, current.pkce)
         .then((tokens) => current.resolve(tokens))
-        .catch((err) =>
-          current.reject(err instanceof Error ? err : new Error(String(err))),
-        );
+        .catch((err) => current.reject(err instanceof Error ? err : new Error(String(err))));
     });
 
-    server.on("error", reject);
-    server.listen(OAUTH_PORT, "127.0.0.1", () => {
+    server.on('error', reject);
+    server.listen(OAUTH_PORT, '127.0.0.1', () => {
       oauthServer = server;
       resolve({
         port: OAUTH_PORT,
@@ -242,16 +222,16 @@ export async function startOpenAIOAuth(
   const state = generateState();
 
   const params = new URLSearchParams({
-    response_type: "code",
+    response_type: 'code',
     client_id: OPENAI_CLIENT_ID,
     redirect_uri: redirectUri,
-    scope: "openid profile email offline_access",
+    scope: 'openid profile email offline_access',
     code_challenge: pkce.challenge,
-    code_challenge_method: "S256",
-    id_token_add_organizations: "true",
-    codex_cli_simplified_flow: "true",
+    code_challenge_method: 'S256',
+    id_token_add_organizations: 'true',
+    codex_cli_simplified_flow: 'true',
     state,
-    originator: "opencode",
+    originator: 'opencode',
   });
 
   const url = `${OPENAI_ISSUER}/oauth/authorize?${params.toString()}`;
@@ -262,9 +242,7 @@ export async function startOpenAIOAuth(
       () => {
         if (pendingOAuth) {
           pendingOAuth = null;
-          reject(
-            new Error("OAuth callback timeout - authorization took too long"),
-          );
+          reject(new Error('OAuth callback timeout - authorization took too long'));
         }
       },
       5 * 60 * 1000,
@@ -288,8 +266,8 @@ export async function startOpenAIOAuth(
     .then((tokens) => {
       stopOpenAIOAuthServer();
       const accountId = extractAccountId(tokens);
-      persistCredential("openai", {
-        type: "oauth",
+      persistCredential('openai', {
+        type: 'oauth',
         refresh: tokens.refresh_token,
         access: tokens.access_token,
         expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
@@ -308,9 +286,9 @@ export async function completeOpenAIOAuth(
 ): Promise<{ success: boolean; error?: string }> {
   const deadline = Date.now() + 5 * 60 * 1000;
   while (Date.now() < deadline) {
-    const cred = getCredential("openai") as { type?: string } | undefined;
-    if (cred?.type === "oauth") return { success: true };
+    const cred = getCredential('openai') as { type?: string } | undefined;
+    if (cred?.type === 'oauth') return { success: true };
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  return { success: false, error: "OAuth flow timed out" };
+  return { success: false, error: 'OAuth flow timed out' };
 }

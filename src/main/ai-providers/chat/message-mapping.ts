@@ -4,70 +4,64 @@ import type {
   ModelMessage,
   ToolContent,
   ToolModelMessage,
-} from "ai";
-import type { StoredMessage } from "../../../shared/types";
+} from 'ai';
+import type { StoredMessage } from '../../../shared/types';
 
 // ---------------------------------------------------------------------------
 // StoredMessage[] → ai-sdk ModelMessage[]
 // ---------------------------------------------------------------------------
 
-export function storedToModelMessages(
-  messages: StoredMessage[],
-): ModelMessage[] {
+export function storedToModelMessages(messages: StoredMessage[]): ModelMessage[] {
   return messages.map((msg): ModelMessage => {
     switch (msg.role) {
-      case "user":
-        return { role: "user", content: msg.content };
-      case "assistant": {
-        if (typeof msg.content === "string") {
-          return { role: "assistant", content: msg.content };
+      case 'user':
+        return { role: 'user', content: msg.content };
+      case 'assistant': {
+        if (typeof msg.content === 'string') {
+          return { role: 'assistant', content: msg.content };
         }
         // Strip reasoning parts from history — we don't store the providerMetadata
         // (itemId, encrypted_content) needed by the OpenAI Responses API to round-trip
         // reasoning. Sending them without metadata causes SDK warnings and they get
         // silently dropped anyway. Reasoning still streams to the UI in real time.
         const parts = msg.content
-          .filter((p) => p.type !== "reasoning")
+          .filter((p) => p.type !== 'reasoning')
           .map((p) => {
             switch (p.type) {
-              case "text":
-                return { type: "text" as const, text: p.text };
-              case "tool-call":
+              case 'text':
+                return { type: 'text' as const, text: p.text };
+              case 'tool-call':
                 return {
-                  type: "tool-call" as const,
+                  type: 'tool-call' as const,
                   toolCallId: p.toolCallId,
                   toolName: p.toolName,
                   input: p.input,
                 };
-              case "tool-result":
+              case 'tool-result':
                 return {
-                  type: "tool-result" as const,
+                  type: 'tool-result' as const,
                   toolCallId: p.toolCallId,
                   toolName: p.toolName,
                   output: p.output,
                 };
               default:
-                throw new Error(
-                  `Unknown part type: ${(p as { type: string }).type}`,
-                );
+                throw new Error(`Unknown part type: ${(p as { type: string }).type}`);
             }
           });
-        return { role: "assistant", content: parts as AssistantContent };
+        return { role: 'assistant', content: parts as AssistantContent };
       }
-      case "tool":
+      case 'tool':
         return {
-          role: "tool",
+          role: 'tool',
           content: msg.content.map((p) => ({
-            type: "tool-result" as const,
+            type: 'tool-result' as const,
             toolCallId: p.toolCallId,
             toolName: p.toolName,
             output: p.output,
           })) as ToolContent,
         };
       default:
-        throw new Error(
-          `Unknown message role: ${(msg as { role: string }).role}`,
-        );
+        throw new Error(`Unknown message role: ${(msg as { role: string }).role}`);
     }
   });
 }
@@ -78,63 +72,57 @@ export function storedToModelMessages(
 
 export type ResponseMessage = AssistantModelMessage | ToolModelMessage;
 
-export function responseToStoredMessages(
-  messages: ResponseMessage[],
-): StoredMessage[] {
+export function responseToStoredMessages(messages: ResponseMessage[]): StoredMessage[] {
   return messages.map((msg): StoredMessage => {
-    if (msg.role === "assistant") {
-      if (typeof msg.content === "string") {
-        return { role: "assistant", content: msg.content };
+    if (msg.role === 'assistant') {
+      if (typeof msg.content === 'string') {
+        return { role: 'assistant', content: msg.content };
       }
       const parts = msg.content
         .filter(
           (p) =>
-            p.type === "text" ||
-            p.type === "reasoning" ||
-            p.type === "tool-call" ||
-            p.type === "tool-result",
+            p.type === 'text' ||
+            p.type === 'reasoning' ||
+            p.type === 'tool-call' ||
+            p.type === 'tool-result',
         )
         .map((p) => {
           switch (p.type) {
-            case "text":
-              return { type: "text" as const, text: p.text };
-            case "reasoning":
-              return { type: "reasoning" as const, text: p.text };
-            case "tool-call":
+            case 'text':
+              return { type: 'text' as const, text: p.text };
+            case 'reasoning':
+              return { type: 'reasoning' as const, text: p.text };
+            case 'tool-call':
               return {
-                type: "tool-call" as const,
+                type: 'tool-call' as const,
                 toolCallId: p.toolCallId,
                 toolName: p.toolName,
                 input: p.input,
               };
-            case "tool-result":
+            case 'tool-result':
               return {
-                type: "tool-result" as const,
+                type: 'tool-result' as const,
                 toolCallId: p.toolCallId,
                 toolName: p.toolName,
                 output: p.output,
               };
             default:
-              throw new Error(
-                `Unexpected part type: ${(p as { type: string }).type}`,
-              );
+              throw new Error(`Unexpected part type: ${(p as { type: string }).type}`);
           }
         });
-      return { role: "assistant", content: parts };
+      return { role: 'assistant', content: parts };
     }
-    if (msg.role === "tool") {
+    if (msg.role === 'tool') {
       const content = msg.content
-        .filter((p) => p.type === "tool-result")
+        .filter((p) => p.type === 'tool-result')
         .map((p) => ({
-          type: "tool-result" as const,
+          type: 'tool-result' as const,
           toolCallId: p.toolCallId,
           toolName: p.toolName,
           output: p.output,
         }));
-      return { role: "tool", content };
+      return { role: 'tool', content };
     }
-    throw new Error(
-      `Unexpected response message role: ${(msg as { role: string }).role}`,
-    );
+    throw new Error(`Unexpected response message role: ${(msg as { role: string }).role}`);
   });
 }

@@ -174,9 +174,7 @@ export function MessageList({
       })}
 
       {/* Streaming turn */}
-      {isStreaming && (
-        <StreamingActivityLog streamingParts={streamingParts} pages={pages} />
-      )}
+      {isStreaming && <StreamingActivityLog streamingParts={streamingParts} pages={pages} />}
 
       <div ref={endRef} />
     </div>
