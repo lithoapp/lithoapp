@@ -1,11 +1,9 @@
 import {
-  Cpu,
   Files,
   FlaskConical,
   Home,
   Images,
   Loader2,
-  MessageSquare,
   Palette,
   Settings2,
 } from 'lucide-react';
@@ -18,8 +16,6 @@ import { useWorkspace } from '@/hooks/use-workspace';
 import { cn } from '@/lib/utils';
 import type { DocumentInfo } from '../../shared/types';
 import { AssetsPage } from './pages/assets';
-import { DebugAiSdkPage } from './pages/debug-ai-sdk';
-import { DebugChatPage } from './pages/debug-chat';
 import { DesignSystemDocPage } from './pages/design-system-doc';
 import { DocumentPage } from './pages/document';
 import { DocumentsPage } from './pages/documents';
@@ -38,9 +34,7 @@ type Page =
   | 'settings'
   | 'renderer-poc'
   | 'workspace-loading'
-  | 'workspace-closing'
-  | 'debug-ai-sdk'
-  | 'debug-chat';
+  | 'workspace-closing';
 
 /** Parse a hex color (#rgb or #rrggbb) to [r, g, b] in 0–255. */
 function parseHex(hex: string): [number, number, number] {
@@ -287,16 +281,6 @@ function App(): React.JSX.Element {
                     target: 'renderer-poc' as Page,
                   },
                   { p: ['settings'] satisfies Page[], icon: Settings2, target: 'settings' as Page },
-                  {
-                    p: ['debug-ai-sdk'] satisfies Page[],
-                    icon: Cpu,
-                    target: 'debug-ai-sdk' as Page,
-                  },
-                  {
-                    p: ['debug-chat'] satisfies Page[],
-                    icon: MessageSquare,
-                    target: 'debug-chat' as Page,
-                  },
                 ] as { p: Page[]; icon: typeof Files; target: Page }[]
               ).map(({ p, icon: Icon, target }) => {
                 const isActive = p.includes(page);
@@ -316,16 +300,6 @@ function App(): React.JSX.Element {
                 [
                   { p: ['workspaces'] satisfies Page[], icon: Home, target: 'workspaces' as Page },
                   { p: ['settings'] satisfies Page[], icon: Settings2, target: 'settings' as Page },
-                  {
-                    p: ['debug-ai-sdk'] satisfies Page[],
-                    icon: Cpu,
-                    target: 'debug-ai-sdk' as Page,
-                  },
-                  {
-                    p: ['debug-chat'] satisfies Page[],
-                    icon: MessageSquare,
-                    target: 'debug-chat' as Page,
-                  },
                 ] as { p: Page[]; icon: typeof Home; target: Page }[]
               ).map(({ p, icon: Icon, target }) => {
                 const isActive = p.includes(page);
@@ -347,7 +321,7 @@ function App(): React.JSX.Element {
 
       {/* Main content */}
       <div
-        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' || page === 'renderer-poc' || page === 'debug-ai-sdk' || page === 'debug-chat' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
+        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' || page === 'renderer-poc' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
       >
         {page === 'workspaces' && (
           <WorkspacesPage
@@ -418,8 +392,6 @@ function App(): React.JSX.Element {
             onBack={() => setPage(workspaceInfo.status === 'active' ? 'documents' : 'workspaces')}
           />
         )}
-        {page === 'debug-ai-sdk' && <DebugAiSdkPage />}
-        {page === 'debug-chat' && <DebugChatPage />}
       </div>
     </div>
   );
