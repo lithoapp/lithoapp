@@ -104,6 +104,19 @@ export async function exportPage(options: PageExportOptions): Promise<Buffer> {
       })();
     `);
 
+    // PDF export: fix box-shadow rendering (Chromium bug crbug.com/174583)
+    // Workaround: -webkit-filter: blur(0) forces proper shadow rasterization
+    // See: https://github.com/puppeteer/puppeteer/issues/5284
+    if (isPdf) {
+      await win.webContents.executeJavaScript(`
+        (() => {
+          const s = document.createElement('style');
+          s.textContent = '[style*="box-shadow"],[class*="shadow"] { -webkit-print-color-adjust: exact; -webkit-filter: blur(0); }';
+          document.head.appendChild(s);
+        })();
+      `);
+    }
+
     let buffer: Buffer;
 
     if (isPdf) {
