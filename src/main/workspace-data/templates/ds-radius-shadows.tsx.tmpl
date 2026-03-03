@@ -4,8 +4,12 @@ function RadiusBox({ label, className }: { label: string; className: string }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex flex-col items-center gap-2">
-        <div className={`h-[100px] w-[100px] border border-neutral-200 bg-neutral-50 shadow-sm ${className}`} />
-        <div className={`h-12 w-[180px] border border-neutral-200 bg-neutral-50 shadow-sm ${className}`} />
+        <div
+          className={`h-[100px] w-[100px] border border-neutral-200 bg-neutral-50 shadow-sm ${className}`}
+        />
+        <div
+          className={`h-12 w-[180px] border border-neutral-200 bg-neutral-50 shadow-sm ${className}`}
+        />
       </div>
       <p className="font-mono text-[10px] text-neutral-500">{label}</p>
     </div>
@@ -15,44 +19,48 @@ function RadiusBox({ label, className }: { label: string; className: string }) {
 function ShadowBox({ label, className }: { label: string; className: string }) {
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className={`h-[110px] w-[200px] rounded-xl bg-white ${className}`} />
+      <div className={`h-[90px] w-[170px] rounded-xl bg-white ${className}`} />
       <p className="font-mono text-[10px] text-neutral-500">{label}</p>
     </div>
   );
 }
 
-export default function RadiusShadows() {
+export default function Surfaces() {
   return (
     <div className="h-full bg-white p-14">
       <h1 className="mb-8 border-b border-neutral-200 pb-3 text-3xl font-bold text-neutral-900">
-        Border Radius
+        Surfaces
       </h1>
 
-      <div className="flex flex-wrap gap-8">
-        <RadiusBox label="none" className="rounded-none" />
+      {/* Border Radius */}
+      <p className="mb-5 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+        Border Radius
+      </p>
+      <div className="flex flex-wrap gap-6">
         <RadiusBox label="sm" className="rounded-sm" />
         <RadiusBox label="md" className="rounded-md" />
         <RadiusBox label="lg" className="rounded-lg" />
         <RadiusBox label="xl" className="rounded-xl" />
         <RadiusBox label="2xl" className="rounded-2xl" />
-        <RadiusBox label="3xl" className="rounded-3xl" />
         <RadiusBox label="full" className="rounded-full" />
       </div>
 
       <div className="my-8 border-t border-neutral-100" />
 
-      <h1 className="mb-8 border-b border-neutral-200 pb-3 text-3xl font-bold text-neutral-900">
-        Shadows
-      </h1>
-
-      <div className="flex flex-wrap gap-8">
-        <ShadowBox label="shadow-xs" className="shadow-xs" />
-        <ShadowBox label="shadow-sm" className="shadow-sm" />
-        <ShadowBox label="shadow" className="shadow" />
-        <ShadowBox label="shadow-md" className="shadow-md" />
-        <ShadowBox label="shadow-lg" className="shadow-lg" />
-        <ShadowBox label="shadow-xl" className="shadow-xl" />
-        <ShadowBox label="shadow-2xl" className="shadow-2xl" />
+      {/* Shadows */}
+      <p className="mb-5 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+        Elevation
+      </p>
+      <div className="rounded-xl bg-neutral-50 p-6">
+        <div className="flex flex-wrap gap-8">
+          <ShadowBox label="shadow-xs" className="shadow-xs" />
+          <ShadowBox label="shadow-sm" className="shadow-sm" />
+          <ShadowBox label="shadow" className="shadow" />
+          <ShadowBox label="shadow-md" className="shadow-md" />
+          <ShadowBox label="shadow-lg" className="shadow-lg" />
+          <ShadowBox label="shadow-xl" className="shadow-xl" />
+          <ShadowBox label="shadow-2xl" className="shadow-2xl" />
+        </div>
       </div>
     </div>
   );

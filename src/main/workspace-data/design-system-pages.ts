@@ -9,11 +9,11 @@
 import type Database from 'better-sqlite3';
 import Mustache from 'mustache';
 import defaultStylesCssRaw from './templates/default-styles.css?raw';
+import dsBrandInActionRaw from './templates/ds-brand-in-action.tsx.tmpl?raw';
 import dsColorsRaw from './templates/ds-colors.tsx.tmpl?raw';
 import dsCoverRaw from './templates/ds-cover.tsx.tmpl?raw';
 import dsRadiusShadowsRaw from './templates/ds-radius-shadows.tsx.tmpl?raw';
 import dsSpacingRaw from './templates/ds-spacing.tsx.tmpl?raw';
-import dsTypeScaleRaw from './templates/ds-type-scale.tsx.tmpl?raw';
 import dsTypefacesRaw from './templates/ds-typefaces.tsx.tmpl?raw';
 
 /** Re-export for consumers that previously imported from design-system-parser.ts */
@@ -27,15 +27,11 @@ interface PageTemplate {
 
 const PAGE_TEMPLATES: PageTemplate[] = [
   { name: 'Cover', description: 'Brand identity overview', source: dsCoverRaw },
-  { name: 'Colors', description: 'Color palette swatches', source: dsColorsRaw },
-  { name: 'Typefaces', description: 'Font specimens', source: dsTypefacesRaw },
-  { name: 'Type Scale', description: 'Size scale samples', source: dsTypeScaleRaw },
-  { name: 'Spacing', description: 'Spacing visualization', source: dsSpacingRaw },
-  {
-    name: 'Radius & Shadows',
-    description: 'Shape and elevation previews',
-    source: dsRadiusShadowsRaw,
-  },
+  { name: 'Colors', description: 'Color palette and semantic swatches', source: dsColorsRaw },
+  { name: 'Typography', description: 'Font families and type scale', source: dsTypefacesRaw },
+  { name: 'Spacing', description: 'Spatial rhythm visualization', source: dsSpacingRaw },
+  { name: 'Surfaces', description: 'Border radius and elevation', source: dsRadiusShadowsRaw },
+  { name: 'Brand in Action', description: 'Design tokens in context', source: dsBrandInActionRaw },
 ];
 
 /**

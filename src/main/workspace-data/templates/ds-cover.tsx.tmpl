@@ -2,66 +2,44 @@ import '@styles.css';
 
 export default function Cover() {
   return (
-    <div className="h-full flex flex-col bg-white">
-      {/* Top accent bar */}
+    <div className="h-full flex flex-col bg-gradient-dusk">
+      {/* Top accent strip */}
       <div className="flex h-2">
-        <div className="flex-1 bg-primary-500" />
-        <div className="flex-1 bg-primary-700" />
+        <div className="flex-[3] bg-primary-400/30" />
         <div className="flex-1 bg-accent-500" />
-        <div className="flex-1 bg-neutral-800" />
+        <div className="flex-1 bg-primary-300/40" />
       </div>
 
-      <div className="flex flex-1 flex-col justify-between p-14">
+      <div className="flex flex-1 flex-col justify-between px-14 py-10">
         {/* Title area */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary-300">
             Design System
           </p>
-          <h1 className="mt-3 font-display text-6xl font-bold leading-none text-neutral-900">
+          <h1 className="mt-4 font-display text-8xl font-bold leading-none text-white">
             {{workspaceName}}
           </h1>
+          <p className="mt-5 font-display text-3xl text-primary-200/80">
+            Crafted with intention.
+          </p>
+          <p className="mt-1 font-sans text-lg text-primary-300/60">
+            A cohesive system of colors, type, and spacing — ready to build with.
+          </p>
         </div>
 
-        {/* Bottom: font specimen + color strips */}
-        <div className="flex flex-col gap-8">
-          {/* Font specimen */}
-          <div>
-            <p className="mb-2 text-[9px] font-semibold uppercase tracking-widest text-neutral-300">
-              Primary typeface
-            </p>
-            <p className="font-sans text-xl leading-snug text-neutral-700">
-              Aa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz
-            </p>
+        {/* Brand preview card */}
+        <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 p-6">
+          <div className="flex gap-3">
+            <div className="flex-1 h-20 rounded-xl bg-gradient-sunset" />
+            <div className="flex-1 h-20 rounded-xl bg-primary-500" />
+            <div className="flex-1 h-20 rounded-xl bg-accent-500" />
+            <div className="flex-1 h-20 rounded-xl bg-neutral-800" />
           </div>
-
-          {/* Color palette strips */}
-          <div className="flex flex-col gap-1">
-            <div className="flex h-8 overflow-hidden rounded">
-              <div className="flex-1 bg-primary-50" />
-              <div className="flex-1 bg-primary-100" />
-              <div className="flex-1 bg-primary-200" />
-              <div className="flex-1 bg-primary-300" />
-              <div className="flex-1 bg-primary-400" />
-              <div className="flex-1 bg-primary-500" />
-              <div className="flex-1 bg-primary-600" />
-              <div className="flex-1 bg-primary-700" />
-              <div className="flex-1 bg-primary-800" />
-              <div className="flex-1 bg-primary-900" />
-              <div className="flex-1 bg-primary-950" />
-            </div>
-            <div className="flex h-8 overflow-hidden rounded">
-              <div className="flex-1 bg-neutral-50" />
-              <div className="flex-1 bg-neutral-100" />
-              <div className="flex-1 bg-neutral-200" />
-              <div className="flex-1 bg-neutral-300" />
-              <div className="flex-1 bg-neutral-400" />
-              <div className="flex-1 bg-neutral-500" />
-              <div className="flex-1 bg-neutral-600" />
-              <div className="flex-1 bg-neutral-700" />
-              <div className="flex-1 bg-neutral-800" />
-              <div className="flex-1 bg-neutral-900" />
-              <div className="flex-1 bg-neutral-950" />
-            </div>
+          <div className="flex gap-3 mt-3">
+            <div className="flex-1 h-2 rounded-full bg-primary-300/40" />
+            <div className="flex-1 h-2 rounded-full bg-accent-400/40" />
+            <div className="flex-1 h-2 rounded-full bg-neutral-500/40" />
+            <div className="flex-1 h-2 rounded-full bg-primary-200/40" />
           </div>
         </div>
       </div>

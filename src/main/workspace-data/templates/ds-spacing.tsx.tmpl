@@ -1,44 +1,40 @@
 import '@styles.css';
 
-function SpacingBar({ label, size }: { label: string; size: string }) {
-  const barStyle = { width: size, minWidth: 4, maxWidth: 600 };
+function SpacingBar({ label, size, barClass }: { label: string; size: string; barClass: string }) {
+  const barStyle = { width: size };
   return (
     <div className="flex items-center gap-3">
       <div className="w-20 shrink-0 text-right">
-        <p className="font-mono text-[10px] text-neutral-500">{label}</p>
+        <p className="font-mono text-[11px] text-neutral-500">{label}</p>
         <p className="text-[9px] text-neutral-400">{size}</p>
       </div>
-      <div className="h-5 rounded bg-primary-200" style={barStyle} />
+      <div className={barClass} style={barStyle} />
     </div>
   );
 }
 
 export default function Spacing() {
   return (
-    <div className="h-full bg-white p-14">
-      <h1 className="mb-8 border-b border-neutral-200 pb-3 text-3xl font-bold text-neutral-900">
+    <div className="h-full bg-white p-14 flex flex-col">
+      <h1 className="border-b border-neutral-200 pb-3 text-3xl font-bold text-neutral-900">
         Spacing
       </h1>
 
-      <div className="flex flex-col gap-1.5">
-        <SpacingBar label="0.5" size="0.125rem" />
-        <SpacingBar label="1" size="0.25rem" />
-        <SpacingBar label="1.5" size="0.375rem" />
-        <SpacingBar label="2" size="0.5rem" />
-        <SpacingBar label="3" size="0.75rem" />
-        <SpacingBar label="4" size="1rem" />
-        <SpacingBar label="5" size="1.25rem" />
-        <SpacingBar label="6" size="1.5rem" />
-        <SpacingBar label="8" size="2rem" />
-        <SpacingBar label="10" size="2.5rem" />
-        <SpacingBar label="12" size="3rem" />
-        <SpacingBar label="16" size="4rem" />
-        <SpacingBar label="20" size="5rem" />
-        <SpacingBar label="24" size="6rem" />
-        <SpacingBar label="32" size="8rem" />
-        <SpacingBar label="40" size="10rem" />
-        <SpacingBar label="48" size="12rem" />
-        <SpacingBar label="64" size="16rem" />
+      <div className="flex flex-1 flex-col justify-evenly mt-4">
+        <SpacingBar label="1" size="0.25rem" barClass="h-6 rounded bg-primary-200" />
+        <SpacingBar label="2" size="0.5rem" barClass="h-6 rounded bg-primary-200" />
+        <SpacingBar label="3" size="0.75rem" barClass="h-6 rounded bg-primary-200" />
+        <SpacingBar label="4" size="1rem" barClass="h-6 rounded bg-primary-200" />
+        <SpacingBar label="5" size="1.25rem" barClass="h-6 rounded bg-primary-300" />
+        <SpacingBar label="6" size="1.5rem" barClass="h-6 rounded bg-primary-300" />
+        <SpacingBar label="8" size="2rem" barClass="h-6 rounded bg-primary-300" />
+        <SpacingBar label="10" size="2.5rem" barClass="h-6 rounded bg-primary-300" />
+        <SpacingBar label="12" size="3rem" barClass="h-6 rounded bg-primary-400" />
+        <SpacingBar label="16" size="4rem" barClass="h-6 rounded bg-primary-400" />
+        <SpacingBar label="20" size="5rem" barClass="h-6 rounded bg-primary-400" />
+        <SpacingBar label="24" size="6rem" barClass="h-6 rounded bg-primary-500" />
+        <SpacingBar label="32" size="8rem" barClass="h-6 rounded bg-primary-500" />
+        <SpacingBar label="48" size="12rem" barClass="h-6 rounded bg-primary-500" />
       </div>
     </div>
   );

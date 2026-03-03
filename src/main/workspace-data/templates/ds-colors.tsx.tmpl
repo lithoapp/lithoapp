@@ -3,17 +3,26 @@ import '@styles.css';
 function Swatch({ className, label }: { className: string; label: string }) {
   return (
     <div className="flex flex-col items-center">
-      <div className={`h-10 w-full rounded ${className}`} />
+      <div className={`w-full rounded ${className}`} />
       <span className="mt-1 text-[8px] text-neutral-400">{label}</span>
     </div>
   );
 }
 
-function Palette({ name, children }: { name: string; children: React.ReactNode }) {
+function BrandPalette({ name, children }: { name: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-1.5 text-xs font-semibold capitalize text-neutral-500">{name}</p>
+      <p className="mb-2 text-sm font-semibold text-neutral-600">{name}</p>
       <div className="grid grid-cols-11 gap-px">{children}</div>
+    </div>
+  );
+}
+
+function SemanticPalette({ name, children }: { name: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold text-neutral-500">{name}</p>
+      <div className="grid grid-cols-5 gap-px">{children}</div>
     </div>
   );
 }
@@ -25,118 +34,114 @@ export default function Colors() {
         Colors
       </h1>
 
-      <div className="flex flex-col gap-5">
-        <Palette name="Primary">
-          <Swatch className="bg-primary-50" label="50" />
-          <Swatch className="bg-primary-100" label="100" />
-          <Swatch className="bg-primary-200" label="200" />
-          <Swatch className="bg-primary-300" label="300" />
-          <Swatch className="bg-primary-400" label="400" />
-          <Swatch className="bg-primary-500" label="500" />
-          <Swatch className="bg-primary-600" label="600" />
-          <Swatch className="bg-primary-700" label="700" />
-          <Swatch className="bg-primary-800" label="800" />
-          <Swatch className="bg-primary-900" label="900" />
-          <Swatch className="bg-primary-950" label="950" />
-        </Palette>
+      {/* Brand colors — full palettes */}
+      <div className="flex flex-col gap-6">
+        <BrandPalette name="Primary">
+          <Swatch className="h-12 bg-primary-50" label="50" />
+          <Swatch className="h-12 bg-primary-100" label="100" />
+          <Swatch className="h-12 bg-primary-200" label="200" />
+          <Swatch className="h-12 bg-primary-300" label="300" />
+          <Swatch className="h-12 bg-primary-400" label="400" />
+          <Swatch className="h-12 bg-primary-500" label="500" />
+          <Swatch className="h-12 bg-primary-600" label="600" />
+          <Swatch className="h-12 bg-primary-700" label="700" />
+          <Swatch className="h-12 bg-primary-800" label="800" />
+          <Swatch className="h-12 bg-primary-900" label="900" />
+          <Swatch className="h-12 bg-primary-950" label="950" />
+        </BrandPalette>
 
-        <Palette name="Secondary">
-          <Swatch className="bg-secondary-50" label="50" />
-          <Swatch className="bg-secondary-100" label="100" />
-          <Swatch className="bg-secondary-200" label="200" />
-          <Swatch className="bg-secondary-300" label="300" />
-          <Swatch className="bg-secondary-400" label="400" />
-          <Swatch className="bg-secondary-500" label="500" />
-          <Swatch className="bg-secondary-600" label="600" />
-          <Swatch className="bg-secondary-700" label="700" />
-          <Swatch className="bg-secondary-800" label="800" />
-          <Swatch className="bg-secondary-900" label="900" />
-          <Swatch className="bg-secondary-950" label="950" />
-        </Palette>
+        <BrandPalette name="Accent">
+          <Swatch className="h-12 bg-accent-50" label="50" />
+          <Swatch className="h-12 bg-accent-100" label="100" />
+          <Swatch className="h-12 bg-accent-200" label="200" />
+          <Swatch className="h-12 bg-accent-300" label="300" />
+          <Swatch className="h-12 bg-accent-400" label="400" />
+          <Swatch className="h-12 bg-accent-500" label="500" />
+          <Swatch className="h-12 bg-accent-600" label="600" />
+          <Swatch className="h-12 bg-accent-700" label="700" />
+          <Swatch className="h-12 bg-accent-800" label="800" />
+          <Swatch className="h-12 bg-accent-900" label="900" />
+          <Swatch className="h-12 bg-accent-950" label="950" />
+        </BrandPalette>
 
-        <Palette name="Accent">
-          <Swatch className="bg-accent-50" label="50" />
-          <Swatch className="bg-accent-100" label="100" />
-          <Swatch className="bg-accent-200" label="200" />
-          <Swatch className="bg-accent-300" label="300" />
-          <Swatch className="bg-accent-400" label="400" />
-          <Swatch className="bg-accent-500" label="500" />
-          <Swatch className="bg-accent-600" label="600" />
-          <Swatch className="bg-accent-700" label="700" />
-          <Swatch className="bg-accent-800" label="800" />
-          <Swatch className="bg-accent-900" label="900" />
-          <Swatch className="bg-accent-950" label="950" />
-        </Palette>
+        <BrandPalette name="Neutral">
+          <Swatch className="h-12 bg-neutral-50" label="50" />
+          <Swatch className="h-12 bg-neutral-100" label="100" />
+          <Swatch className="h-12 bg-neutral-200" label="200" />
+          <Swatch className="h-12 bg-neutral-300" label="300" />
+          <Swatch className="h-12 bg-neutral-400" label="400" />
+          <Swatch className="h-12 bg-neutral-500" label="500" />
+          <Swatch className="h-12 bg-neutral-600" label="600" />
+          <Swatch className="h-12 bg-neutral-700" label="700" />
+          <Swatch className="h-12 bg-neutral-800" label="800" />
+          <Swatch className="h-12 bg-neutral-900" label="900" />
+          <Swatch className="h-12 bg-neutral-950" label="950" />
+        </BrandPalette>
+      </div>
 
-        <Palette name="Neutral">
-          <Swatch className="bg-neutral-50" label="50" />
-          <Swatch className="bg-neutral-100" label="100" />
-          <Swatch className="bg-neutral-200" label="200" />
-          <Swatch className="bg-neutral-300" label="300" />
-          <Swatch className="bg-neutral-400" label="400" />
-          <Swatch className="bg-neutral-500" label="500" />
-          <Swatch className="bg-neutral-600" label="600" />
-          <Swatch className="bg-neutral-700" label="700" />
-          <Swatch className="bg-neutral-800" label="800" />
-          <Swatch className="bg-neutral-900" label="900" />
-          <Swatch className="bg-neutral-950" label="950" />
-        </Palette>
+      {/* Semantic colors — key shades */}
+      <div className="mt-10 border-t border-neutral-100 pt-6">
+        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+          Semantic
+        </p>
+        <div className="grid grid-cols-4 gap-6">
+          <SemanticPalette name="Success">
+            <Swatch className="h-8 bg-success-100" label="100" />
+            <Swatch className="h-8 bg-success-300" label="300" />
+            <Swatch className="h-8 bg-success-500" label="500" />
+            <Swatch className="h-8 bg-success-700" label="700" />
+            <Swatch className="h-8 bg-success-900" label="900" />
+          </SemanticPalette>
 
-        <Palette name="Success">
-          <Swatch className="bg-success-50" label="50" />
-          <Swatch className="bg-success-100" label="100" />
-          <Swatch className="bg-success-200" label="200" />
-          <Swatch className="bg-success-300" label="300" />
-          <Swatch className="bg-success-400" label="400" />
-          <Swatch className="bg-success-500" label="500" />
-          <Swatch className="bg-success-600" label="600" />
-          <Swatch className="bg-success-700" label="700" />
-          <Swatch className="bg-success-800" label="800" />
-          <Swatch className="bg-success-900" label="900" />
-          <Swatch className="bg-success-950" label="950" />
-        </Palette>
+          <SemanticPalette name="Warning">
+            <Swatch className="h-8 bg-warning-100" label="100" />
+            <Swatch className="h-8 bg-warning-300" label="300" />
+            <Swatch className="h-8 bg-warning-500" label="500" />
+            <Swatch className="h-8 bg-warning-700" label="700" />
+            <Swatch className="h-8 bg-warning-900" label="900" />
+          </SemanticPalette>
 
-        <Palette name="Warning">
-          <Swatch className="bg-warning-50" label="50" />
-          <Swatch className="bg-warning-100" label="100" />
-          <Swatch className="bg-warning-200" label="200" />
-          <Swatch className="bg-warning-300" label="300" />
-          <Swatch className="bg-warning-400" label="400" />
-          <Swatch className="bg-warning-500" label="500" />
-          <Swatch className="bg-warning-600" label="600" />
-          <Swatch className="bg-warning-700" label="700" />
-          <Swatch className="bg-warning-800" label="800" />
-          <Swatch className="bg-warning-900" label="900" />
-          <Swatch className="bg-warning-950" label="950" />
-        </Palette>
+          <SemanticPalette name="Error">
+            <Swatch className="h-8 bg-error-100" label="100" />
+            <Swatch className="h-8 bg-error-300" label="300" />
+            <Swatch className="h-8 bg-error-500" label="500" />
+            <Swatch className="h-8 bg-error-700" label="700" />
+            <Swatch className="h-8 bg-error-900" label="900" />
+          </SemanticPalette>
 
-        <Palette name="Error">
-          <Swatch className="bg-error-50" label="50" />
-          <Swatch className="bg-error-100" label="100" />
-          <Swatch className="bg-error-200" label="200" />
-          <Swatch className="bg-error-300" label="300" />
-          <Swatch className="bg-error-400" label="400" />
-          <Swatch className="bg-error-500" label="500" />
-          <Swatch className="bg-error-600" label="600" />
-          <Swatch className="bg-error-700" label="700" />
-          <Swatch className="bg-error-800" label="800" />
-          <Swatch className="bg-error-900" label="900" />
-          <Swatch className="bg-error-950" label="950" />
-        </Palette>
+          <SemanticPalette name="Info">
+            <Swatch className="h-8 bg-info-100" label="100" />
+            <Swatch className="h-8 bg-info-300" label="300" />
+            <Swatch className="h-8 bg-info-500" label="500" />
+            <Swatch className="h-8 bg-info-700" label="700" />
+            <Swatch className="h-8 bg-info-900" label="900" />
+          </SemanticPalette>
+        </div>
+      </div>
 
-        <Palette name="Info">
-          <Swatch className="bg-info-50" label="50" />
-          <Swatch className="bg-info-100" label="100" />
-          <Swatch className="bg-info-200" label="200" />
-          <Swatch className="bg-info-300" label="300" />
-          <Swatch className="bg-info-400" label="400" />
-          <Swatch className="bg-info-500" label="500" />
-          <Swatch className="bg-info-600" label="600" />
-          <Swatch className="bg-info-700" label="700" />
-          <Swatch className="bg-info-800" label="800" />
-          <Swatch className="bg-info-900" label="900" />
-          <Swatch className="bg-info-950" label="950" />
-        </Palette>
+      {/* Gradients */}
+      <div className="mt-10 border-t border-neutral-100 pt-6">
+        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+          Gradients
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col">
+            <div className="h-16 rounded-lg bg-gradient-sunset" />
+            <span className="mt-2 text-xs font-medium text-neutral-600">Sunset</span>
+          </div>
+          <div className="flex flex-col">
+            <div className="h-16 rounded-lg bg-gradient-dusk" />
+            <span className="mt-2 text-xs font-medium text-neutral-600">Dusk</span>
+          </div>
+          <div className="flex flex-col">
+            <div className="h-16 rounded-lg bg-gradient-warmth" />
+            <span className="mt-2 text-xs font-medium text-neutral-600">Warmth</span>
+          </div>
+          <div className="flex flex-col">
+            <div className="h-16 rounded-lg bg-gradient-soft-indigo" />
+            <span className="mt-2 text-xs font-medium text-neutral-600">Soft Indigo</span>
+          </div>
+        </div>
       </div>
     </div>
   );

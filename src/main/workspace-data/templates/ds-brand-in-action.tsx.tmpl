@@ -1,0 +1,203 @@
+import '@styles.css';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, PieChart, Pie, Cell, LineChart, Line,
+} from 'recharts';
+
+const barData = [
+  { month: 'Jan', primary: 4200, accent: 1800 },
+  { month: 'Feb', primary: 3800, accent: 2400 },
+  { month: 'Mar', primary: 5100, accent: 2100 },
+  { month: 'Apr', primary: 4700, accent: 3200 },
+  { month: 'May', primary: 6200, accent: 2800 },
+  { month: 'Jun', primary: 5800, accent: 3600 },
+];
+
+const areaData = [
+  { day: 'Mon', visitors: 1200, conversions: 320 },
+  { day: 'Tue', visitors: 1800, conversions: 480 },
+  { day: 'Wed', visitors: 1600, conversions: 420 },
+  { day: 'Thu', visitors: 2200, conversions: 610 },
+  { day: 'Fri', visitors: 2800, conversions: 780 },
+  { day: 'Sat', visitors: 2400, conversions: 640 },
+  { day: 'Sun', visitors: 1900, conversions: 510 },
+];
+
+const pieData = [
+  { name: 'Primary', value: 42 },
+  { name: 'Accent', value: 24 },
+  { name: 'Success', value: 18 },
+  { name: 'Info', value: 16 },
+];
+
+const lineData = [
+  { week: 'W1', engagement: 64, retention: 78 },
+  { week: 'W2', engagement: 72, retention: 74 },
+  { week: 'W3', engagement: 68, retention: 80 },
+  { week: 'W4', engagement: 81, retention: 82 },
+  { week: 'W5', engagement: 76, retention: 85 },
+  { week: 'W6', engagement: 88, retention: 87 },
+];
+
+const getToken = (name: string) =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+export default function BrandInAction() {
+  const primary = getToken('--color-primary-500');
+  const accent = getToken('--color-accent-500');
+  const success = getToken('--color-success-500');
+  const info = getToken('--color-info-500');
+  const neutral200 = getToken('--color-neutral-200');
+  const neutral500 = getToken('--color-neutral-500');
+  const palColors = [primary, accent, success, info];
+
+  const axisTick = { fontSize: 12, fill: neutral500 };
+  const tooltipStyle = { borderRadius: '0.5rem', border: '1px solid ' + neutral200, fontSize: '0.75rem' };
+  const barRadius = [4, 4, 0, 0] as [number, number, number, number];
+  const yDomain = [50, 100] as [number, number];
+  const engagementDot = { r: 3, fill: success };
+  const retentionDot = { r: 3, fill: info };
+
+  return (
+    <div className="h-full bg-white p-14">
+      <h1 className="text-3xl font-bold text-neutral-900">Brand in Action</h1>
+      <p className="mt-1 mb-8 text-base text-neutral-400">
+        Design tokens working together
+      </p>
+
+      {/* Charts row 1 — Bar + Pie */}
+      <div className="mb-8 grid grid-cols-3 gap-6">
+        <div className="col-span-2 rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-neutral-900 mb-1">Monthly Revenue</h3>
+          <p className="text-xs text-neutral-400 mb-4">Primary vs accent breakdown</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={barData} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" stroke={neutral200} vertical={false} />
+              <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis tick={axisTick} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="primary" fill={primary} radius={barRadius} />
+              <Bar dataKey="accent" fill={accent} radius={barRadius} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col items-center">
+          <h3 className="text-sm font-semibold text-neutral-900 mb-1 self-start">Color Usage</h3>
+          <p className="text-xs text-neutral-400 mb-2 self-start">Token distribution</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={70}
+                paddingAngle={3}
+                dataKey="value"
+                stroke="none"
+              >
+                {pieData.map((_, i) => (
+                  <Cell key={i} fill={palColors[i]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+            {pieData.map((d, i) => {
+              const dotStyle = { background: palColors[i] };
+              return (
+                <span key={i} className="flex items-center gap-1.5 text-xs text-neutral-500">
+                  <span className="inline-block h-2 w-2 rounded-full" style={dotStyle} />
+                  {d.name}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Charts row 2 — Area + Line */}
+      <div className="mb-8 grid grid-cols-2 gap-6">
+        <div className="rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-neutral-900 mb-1">Weekly Traffic</h3>
+          <p className="text-xs text-neutral-400 mb-4">Visitors & conversions</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart data={areaData}>
+              <defs>
+                <linearGradient id="gradPrimary" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={primary} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={primary} stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="gradAccent" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={accent} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={accent} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke={neutral200} vertical={false} />
+              <XAxis dataKey="day" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis tick={axisTick} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Area type="monotone" dataKey="visitors" stroke={primary} strokeWidth={2} fill="url(#gradPrimary)" />
+              <Area type="monotone" dataKey="conversions" stroke={accent} strokeWidth={2} fill="url(#gradAccent)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-neutral-900 mb-1">Engagement Trends</h3>
+          <p className="text-xs text-neutral-400 mb-4">Engagement vs retention</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={lineData}>
+              <CartesianGrid strokeDasharray="3 3" stroke={neutral200} vertical={false} />
+              <XAxis dataKey="week" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis tick={axisTick} axisLine={false} tickLine={false} domain={yDomain} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Line type="monotone" dataKey="engagement" stroke={success} strokeWidth={2} dot={engagementDot} />
+              <Line type="monotone" dataKey="retention" stroke={info} strokeWidth={2} dot={retentionDot} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Card grid */}
+      <div className="mb-8 grid grid-cols-3 gap-4">
+        <div className="rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="mb-3 h-2 w-8 rounded-full bg-primary-500" />
+          <h3 className="text-lg font-semibold text-neutral-900">Colors</h3>
+          <p className="mt-1 text-sm text-neutral-500">
+            Semantic palettes with consistent shading across every context.
+          </p>
+        </div>
+        <div className="rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="mb-3 h-2 w-8 rounded-full bg-accent-500" />
+          <h3 className="text-lg font-semibold text-neutral-900">Typography</h3>
+          <p className="mt-1 text-sm text-neutral-500">
+            Four font families tuned for display, body, and code.
+          </p>
+        </div>
+        <div className="rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="mb-3 h-2 w-8 rounded-full bg-success-500" />
+          <h3 className="text-lg font-semibold text-neutral-900">Surfaces</h3>
+          <p className="mt-1 text-sm text-neutral-500">
+            Radius and elevation tokens for depth and structure.
+          </p>
+        </div>
+      </div>
+
+      {/* Button row */}
+      <div className="flex items-center gap-3">
+        <div className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white">
+          Primary Action
+        </div>
+        <div className="rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-white">
+          Accent
+        </div>
+        <div className="rounded-lg border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-700">
+          Outline
+        </div>
+      </div>
+    </div>
+  );
+}
