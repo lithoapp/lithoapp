@@ -109,7 +109,10 @@ On your first turn, call `readMainCss`, `listPages`, and then `readPage` for eac
 
 ### Page format
 
-Design system pages are TSX components, same as document pages. Available libraries: `recharts` for data visualization in design system pages (e.g. showing color distribution, type scale charts). Import components directly from `recharts` (e.g. `import { BarChart, Bar, XAxis, YAxis } from 'recharts'`).
+Design system pages are TSX components, same as document pages. Available libraries:
+
+- `recharts` for data visualization in design system pages (e.g. showing color distribution, type scale charts). Import components directly from `recharts` (e.g. `import { BarChart, Bar, XAxis, YAxis } from 'recharts'`).
+- `@phosphor-icons/react` for icons. 9,000+ icons in 6 styles: thin, light, regular, bold, fill, and duotone. Import icons directly (e.g. `import { Horse, Heart, Cube } from '@phosphor-icons/react'`). Set size and weight via props: `<Heart size={32} weight="duotone" />`. Available weights: `"thin"`, `"light"`, `"regular"`, `"bold"`, `"fill"`, `"duotone"`.
 
 ### Tailwind CSS v4 @theme syntax
 

@@ -128,7 +128,10 @@ Design token classes come from `styles.css` via the `@theme` block. Common names
 
 Assets: use `@assets/logo.png`, `@assets/hero.jpg`, etc. as `src` in `<img>` tags. The `@assets/` prefix maps to the workspace's assets directory and gets inlined at build time. Always use `@assets/` — never a bare `/assets/` path.
 
-Available libraries: `recharts` for charts and data visualization. Import components directly from `recharts` (e.g. `import { BarChart, Bar, XAxis, YAxis } from 'recharts'`).
+Available libraries:
+
+- `recharts` for charts and data visualization. Import components directly from `recharts` (e.g. `import { BarChart, Bar, XAxis, YAxis } from 'recharts'`).
+- `@phosphor-icons/react` for icons. 9,000+ icons in 6 styles: thin, light, regular, bold, fill, and duotone. Import icons directly (e.g. `import { Horse, Heart, Cube } from '@phosphor-icons/react'`). Set size and weight via props: `<Heart size={32} weight="duotone" />`. Available weights: `"thin"`, `"light"`, `"regular"`, `"bold"`, `"fill"`, `"duotone"`.
 
 ### Layout constraints
 
