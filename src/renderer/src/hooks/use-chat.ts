@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AgentContext, StoredMessage } from '../../../shared/types';
+import type { AgentContext, ChatError, ChatErrorType, StoredMessage } from '../../../shared/types';
 import type { StreamingPart, StreamingToolCallPart } from '../components/chat/types';
 
 export type { AgentContext };
@@ -7,6 +7,8 @@ export type { AgentContext };
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+export type { ChatError } from '../../../shared/types';
 
 export interface UseChatV2Input {
   workspaceName: string;
@@ -17,21 +19,16 @@ export interface UseChatV2Input {
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
 }
 
-export interface RetryState {
-  attempt: number;
-  maxAttempts: number;
-}
-
 export interface UseChatV2Return {
   messages: StoredMessage[];
   streamingParts: StreamingPart[];
   streamingReasoning: string;
   isStreaming: boolean;
   isLoading: boolean;
-  error: string | null;
-  retryState: RetryState | null;
+  error: ChatError | null;
   usage: { inputTokens: number; outputTokens: number; totalTokens: number };
   sendMessage: (text: string) => Promise<void>;
+  retry: () => Promise<void>;
   abort: () => Promise<void>;
   clearConversation: () => Promise<void>;
 }
@@ -39,8 +36,6 @@ export interface UseChatV2Return {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const MAX_RETRY_ATTEMPTS = 5;
 
 const MUTATING_TOOLS = new Set([
   'writePage',
@@ -73,17 +68,15 @@ export function useChatV2({
   const [streamingParts, setStreamingParts] = useState<StreamingPart[]>([]);
   const [streamingReasoning, setStreamingReasoning] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ChatError | null>(null);
 
   // Accumulated usage across all turns
   const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, totalTokens: 0 });
   const usageRef = useRef(usage);
   usageRef.current = usage;
 
-  // Retry state
-  const [retryState, setRetryState] = useState<RetryState | null>(null);
-  const retryAttemptRef = useRef(0);
-  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Store last user message for retry
+  const lastUserMessageRef = useRef<string | null>(null);
 
   // Refs for streaming accumulation (avoid stale closures)
   const streamingPartsRef = useRef<StreamingPart[]>([]);
@@ -97,51 +90,6 @@ export function useChatV2({
   // Stable refs for context (avoid re-subscribing on every render)
   const agentContextRef = useRef(agentContext);
   agentContextRef.current = agentContext;
-
-  // ---------------------------------------------------------------------------
-  // Retry helpers
-  // ---------------------------------------------------------------------------
-
-  const clearRetry = useCallback(() => {
-    if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
-    }
-    retryAttemptRef.current = 0;
-    setRetryState(null);
-  }, []);
-
-  const attemptStart = useCallback(
-    async (msgs: StoredMessage[]) => {
-      try {
-        const { providerId, modelId } = providerModelRef.current!;
-        const { chatId } = await window.litho.chat.start({
-          providerId,
-          modelId,
-          messages: msgs,
-          agentId,
-          agentContext: agentContextRef.current,
-        });
-        chatIdRef.current = chatId;
-        clearRetry();
-      } catch (err) {
-        const attempt = retryAttemptRef.current + 1;
-        if (attempt < MAX_RETRY_ATTEMPTS) {
-          retryAttemptRef.current = attempt;
-          setRetryState({ attempt, maxAttempts: MAX_RETRY_ATTEMPTS });
-          const delay = Math.pow(2, attempt - 1) * 1000;
-          retryTimeoutRef.current = setTimeout(() => {
-            void attemptStart(messagesRef.current);
-          }, delay);
-        } else {
-          clearRetry();
-          setError(err instanceof Error ? err.message : String(err));
-          setIsStreaming(false);
-        }
-      }
-    },
-    [providerModelRef, agentId, clearRetry],
-  );
 
   // ---------------------------------------------------------------------------
   // Load conversation from DB
@@ -177,6 +125,34 @@ export function useChatV2({
   }, [workspaceName, documentId]);
 
   // ---------------------------------------------------------------------------
+  // Start chat request
+  // ---------------------------------------------------------------------------
+
+  const startChat = useCallback(
+    async (msgs: StoredMessage[]) => {
+      try {
+        const { providerId, modelId } = providerModelRef.current!;
+        const { chatId } = await window.litho.chat.start({
+          providerId,
+          modelId,
+          messages: msgs,
+          agentId,
+          agentContext: agentContextRef.current,
+        });
+        chatIdRef.current = chatId;
+      } catch (err) {
+        // Error from IPC call itself (not from streaming)
+        setError({
+          type: 'unknown',
+          message: err instanceof Error ? err.message : String(err),
+        });
+        setIsStreaming(false);
+      }
+    },
+    [providerModelRef, agentId],
+  );
+
+  // ---------------------------------------------------------------------------
   // Event subscription
   // ---------------------------------------------------------------------------
 
@@ -194,7 +170,9 @@ export function useChatV2({
         finishReason?: string;
         usage?: { inputTokens: number; outputTokens: number; totalTokens: number };
         responseMessages?: StoredMessage[];
-        error?: string;
+        errorType?: ChatErrorType;
+        message?: string;
+        retryAfter?: number;
       };
 
       switch (event.type) {
@@ -234,7 +212,7 @@ export function useChatV2({
               p.type === 'tool-call' && p.toolCallId === resultCallId,
           );
           const toolName = event.toolName ?? toolPart?.toolName ?? 'unknown';
-          const args = ((toolPart?.input ?? {}) as Record<string, unknown>);
+          const args = (toolPart?.input ?? {}) as Record<string, unknown>;
 
           if (toolPart) {
             toolPart.status = 'completed';
@@ -289,21 +267,13 @@ export function useChatV2({
           pendingReasoningRef.current = '';
           setStreamingParts([]);
           setStreamingReasoning('');
+          setIsStreaming(false);
 
-          // Retry with exponential backoff
-          const attempt = retryAttemptRef.current + 1;
-          if (attempt < MAX_RETRY_ATTEMPTS) {
-            retryAttemptRef.current = attempt;
-            setRetryState({ attempt, maxAttempts: MAX_RETRY_ATTEMPTS });
-            const delay = Math.pow(2, attempt - 1) * 1000;
-            retryTimeoutRef.current = setTimeout(() => {
-              void attemptStart(messagesRef.current);
-            }, delay);
-          } else {
-            clearRetry();
-            setError(event.error ?? 'Unknown error');
-            setIsStreaming(false);
-          }
+          setError({
+            type: event.errorType ?? 'unknown',
+            message: event.message ?? 'Unknown error',
+            retryAfter: event.retryAfter,
+          });
           break;
         }
       }
@@ -324,41 +294,59 @@ export function useChatV2({
       const updatedMessages = [...messages, userMsg];
       setMessages(updatedMessages);
 
-      // Reset streaming & retry state
+      // Store for retry
+      lastUserMessageRef.current = text;
+
+      // Reset streaming state
       setError(null);
-      clearRetry();
       streamingPartsRef.current = [];
       pendingReasoningRef.current = '';
       setStreamingParts([]);
       setStreamingReasoning('');
       setIsStreaming(true);
 
-      void attemptStart(updatedMessages);
+      await startChat(updatedMessages);
     },
-    [isStreaming, messages, attemptStart, clearRetry],
+    [isStreaming, messages, startChat],
   );
+
+  // ---------------------------------------------------------------------------
+  // Retry last message
+  // ---------------------------------------------------------------------------
+
+  const retry = useCallback(async () => {
+    if (!lastUserMessageRef.current || isStreaming) return;
+
+    // The last user message is already in the messages array — just resend as-is
+    setError(null);
+    streamingPartsRef.current = [];
+    pendingReasoningRef.current = '';
+    setStreamingParts([]);
+    setStreamingReasoning('');
+    setIsStreaming(true);
+
+    await startChat(messagesRef.current);
+  }, [isStreaming, startChat]);
 
   // ---------------------------------------------------------------------------
   // Abort
   // ---------------------------------------------------------------------------
 
   const abort = useCallback(async () => {
-    clearRetry();
     if (!chatIdRef.current) return;
     try {
       await window.litho.chat.abort(chatIdRef.current);
     } catch {
       // ignore
     }
-  }, [clearRetry]);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Clear conversation
   // ---------------------------------------------------------------------------
 
   const clearConversation = useCallback(async () => {
-    // Abort active stream & retry
-    clearRetry();
+    // Abort active stream
     if (chatIdRef.current) {
       void window.litho.chat.abort(chatIdRef.current);
       chatIdRef.current = null;
@@ -369,6 +357,7 @@ export function useChatV2({
     setStreamingReasoning('');
     setIsStreaming(false);
     setError(null);
+    lastUserMessageRef.current = null;
     setUsage({ inputTokens: 0, outputTokens: 0, totalTokens: 0 });
     streamingPartsRef.current = [];
     pendingReasoningRef.current = '';
@@ -383,11 +372,11 @@ export function useChatV2({
     streamingParts,
     streamingReasoning,
     isStreaming,
-    retryState,
     isLoading,
     error,
     usage,
     sendMessage,
+    retry,
     abort,
     clearConversation,
   };

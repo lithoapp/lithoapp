@@ -1,4 +1,7 @@
-import type { StoredMessage } from '../../../shared/types';
+import type { ChatErrorType, StoredMessage } from '../../../shared/types';
+import { parseError } from './run-chat';
+
+export type { ChatErrorType };
 
 // ---------------------------------------------------------------------------
 // Chat stream event types (emitted to renderer via IPC)
@@ -10,7 +13,7 @@ export type ChatStreamEvent =
   | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown }
   | { type: 'tool-result'; toolCallId: string; toolName: string; output: unknown }
   | { type: 'source'; source: unknown }
-  | { type: 'error'; error: string }
+  | { type: 'error'; errorType: ChatErrorType; message: string; retryAfter?: number }
   | {
       type: 'finish';
       finishReason: string;
@@ -45,8 +48,10 @@ export function mapStreamPart(part: any): ChatStreamEvent | null {
       };
     case 'source':
       return { type: 'source', source: part };
-    case 'error':
-      return { type: 'error', error: String(part.error) };
+    case 'error': {
+      const parsed = parseError(part.error);
+      return { type: 'error', ...parsed };
+    }
     default:
       return null;
   }

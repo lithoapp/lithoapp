@@ -283,6 +283,16 @@ export interface StoredToolMessage {
 
 export type StoredMessage = StoredUserMessage | StoredAssistantMessage | StoredToolMessage;
 
+// --- Chat Error ---
+
+export type ChatErrorType = 'rate_limit' | 'auth' | 'server' | 'network' | 'unknown';
+
+export interface ChatError {
+  type: ChatErrorType;
+  message: string;
+  retryAfter?: number;
+}
+
 // --- Document Type ---
 
 export type DocumentType = 'normal' | 'design-system';

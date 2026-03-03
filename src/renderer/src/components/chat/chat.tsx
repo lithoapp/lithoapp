@@ -1,4 +1,12 @@
-import { ArrowUp, Loader2, MessageSquarePlus, Square, WifiOff } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowUp,
+  Loader2,
+  MessageSquarePlus,
+  RefreshCw,
+  Square,
+  WifiOff,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertDialog,
@@ -13,9 +21,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { type AgentContext, useChatV2 } from '@/hooks/use-chat';
+import { type AgentContext, type ChatError, useChatV2 } from '@/hooks/use-chat';
 import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
-import type { PageInfo } from '../../../../shared/types';
+import type { ChatErrorType, PageInfo } from '../../../../shared/types';
 import { ChatCover } from './chat-cover';
 import { MessageList } from './message-list';
 import { ModelSelector } from './model-selector';
@@ -43,6 +51,127 @@ function formatTokens(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   if (count >= 1_000) return `${(count / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
   return String(count);
+}
+
+function getErrorLabel(type: ChatErrorType): string {
+  switch (type) {
+    case 'rate_limit':
+      return 'Rate limit exceeded';
+    case 'auth':
+      return 'Authentication failed';
+    case 'server':
+      return 'Server error';
+    case 'network':
+      return 'Connection failed';
+    default:
+      return 'Error';
+  }
+}
+
+function formatCountdown(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+}
+
+// ---------------------------------------------------------------------------
+// Error Banner Component
+// ---------------------------------------------------------------------------
+
+interface ErrorBannerProps {
+  error: ChatError;
+  onRetry: () => Promise<void>;
+  isStreaming: boolean;
+  providerId: string;
+  modelId: string;
+}
+
+function ErrorBanner({
+  error,
+  onRetry,
+  isStreaming,
+  providerId,
+  modelId,
+}: ErrorBannerProps): React.JSX.Element {
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
+  // Track the provider/model at the time the error occurred
+  const [errorModel, setErrorModel] = useState({ providerId, modelId });
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: capture model at error time
+  useEffect(() => {
+    setErrorModel({ providerId, modelId });
+  }, [error]);
+
+  const modelChanged = providerId !== errorModel.providerId || modelId !== errorModel.modelId;
+
+  // Handle retry-after countdown
+  useEffect(() => {
+    if (error.retryAfter && error.retryAfter > 0) {
+      setCountdown(error.retryAfter);
+      const interval = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(interval);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+    setCountdown(null);
+  }, [error.retryAfter]);
+
+  const handleRetry = useCallback(async () => {
+    if (isStreaming || retrying) return;
+    setRetrying(true);
+    await onRetry();
+    setRetrying(false);
+  }, [isStreaming, retrying, onRetry]);
+
+  const canRetry = (modelChanged || !countdown) && !isStreaming && !retrying;
+
+  return (
+    <div className="flex items-center gap-2 border-t border-destructive/30 bg-destructive/5 px-4 py-2 text-xs text-destructive">
+      <AlertTriangle className="h-3.5 w-3.5 shrink-0 self-start mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <div className="font-medium">{getErrorLabel(error.type)}</div>
+        {error.type === 'rate_limit' ? (
+          <div className="text-destructive/70">
+            {countdown !== null
+              ? `Try again in ${formatCountdown(countdown)}`
+              : 'Please try again later'}
+          </div>
+        ) : (
+          <>
+            <div className="text-destructive/70">{error.message}</div>
+            {countdown !== null && (
+              <div className="text-destructive/70 mt-0.5">
+                Try again in {formatCountdown(countdown)}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 px-2 shrink-0 self-start"
+        onClick={handleRetry}
+        disabled={!canRetry}
+        title="Retry"
+      >
+        {retrying ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <RefreshCw className="h-3.5 w-3.5" />
+        )}
+      </Button>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -273,19 +402,15 @@ export function Chat({
         </div>
       )}
 
-      {/* Retrying */}
-      {chat.retryState && (
-        <div className="flex items-center gap-2 border-t border-amber-500/30 bg-amber-500/5 px-4 py-2 text-xs text-amber-600 dark:text-amber-400">
-          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-          Retrying… ({chat.retryState.attempt}/{chat.retryState.maxAttempts})
-        </div>
-      )}
-
       {/* Error */}
       {chat.error && (
-        <div className="border-t border-destructive/30 bg-destructive/5 px-4 py-2 text-xs text-destructive">
-          {chat.error}
-        </div>
+        <ErrorBanner
+          error={chat.error}
+          onRetry={chat.retry}
+          isStreaming={chat.isStreaming}
+          providerId={providerId}
+          modelId={modelId}
+        />
       )}
 
       {/* Input */}
