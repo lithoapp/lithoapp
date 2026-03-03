@@ -73,8 +73,19 @@ export function resolveAgentTools(agentId: AgentId, workspace: string): Record<s
   return filtered;
 }
 
-export function renderSystemPrompt(agentId: AgentId, context: AgentContext): string {
-  return Mustache.render(AGENTS[agentId].systemTemplate, context);
+export function renderSystemPrompt(
+  agentId: AgentId,
+  context: AgentContext,
+  modelId?: string,
+): string {
+  let prompt = Mustache.render(AGENTS[agentId].systemTemplate, context);
+
+  if (modelId?.toLowerCase().includes('trinity')) {
+    prompt +=
+      '\n\nUse exactly one tool per assistant message. After each tool call, wait for the result before continuing.';
+  }
+
+  return prompt;
 }
 
 export function renderKickoff(agentId: AgentId, context: AgentContext): string {

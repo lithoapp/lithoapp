@@ -1,21 +1,16 @@
-import {
-  type LanguageModel,
-  type ModelMessage,
-  streamText,
-  type Tool,
-} from "ai";
-import { getActiveWorkspace } from "../../active-workspace-store";
-import { renderSystemPrompt, resolveAgentTools } from "../agents/config";
-import { getCredential } from "../providers/credential-store";
-import { createModel, OUTPUT_TOKEN_MAX } from "../providers/create-model";
-import type { ChatStartParams } from "../types";
+import { type LanguageModel, type ModelMessage, streamText, type Tool } from 'ai';
+import { getActiveWorkspace } from '../../active-workspace-store';
+import { renderSystemPrompt, resolveAgentTools } from '../agents/config';
+import { createModel, OUTPUT_TOKEN_MAX } from '../providers/create-model';
+import { getCredential } from '../providers/credential-store';
+import type { ChatStartParams } from '../types';
 import {
   type ResponseMessage,
   responseToStoredMessages,
   storedToModelMessages,
-} from "./message-mapping";
-import { type ChatStreamEvent, mapStreamPart } from "./stream-events";
-import { buildProviderOptions } from "./provider-options";
+} from './message-mapping';
+import { buildProviderOptions } from './provider-options';
+import { type ChatStreamEvent, mapStreamPart } from './stream-events';
 
 // ---------------------------------------------------------------------------
 // Active stream registry
@@ -42,17 +37,17 @@ export function startChat(params: ChatStartParams, emit: Emit): string {
 
   const model = createModel(params.providerId, params.modelId);
   const cred = getCredential(params.providerId);
-  const isOAuthCodex = params.providerId === "openai" && cred?.type === "oauth";
+  const isOAuthCodex = params.providerId === 'openai' && cred?.type === 'oauth';
 
   let tools: Record<string, Tool> | undefined;
   let systemPrompt = params.system;
 
   if (params.agentId) {
     const workspace = getActiveWorkspace();
-    if (!workspace) throw new Error("No active workspace");
+    if (!workspace) throw new Error('No active workspace');
     tools = resolveAgentTools(params.agentId, workspace);
     if (params.agentContext) {
-      systemPrompt = renderSystemPrompt(params.agentId, params.agentContext);
+      systemPrompt = renderSystemPrompt(params.agentId, params.agentContext, params.modelId);
     }
   }
 
@@ -61,7 +56,7 @@ export function startChat(params: ChatStartParams, emit: Emit): string {
 
   console.log(
     `[chat:start] ${chatId.slice(0, 8)} | ${params.providerId}/${params.modelId} | ` +
-      `agent=${params.agentId ?? "none"} | tools=${toolNames.length} | msgs=${params.messages.length}`,
+      `agent=${params.agentId ?? 'none'} | tools=${toolNames.length} | msgs=${params.messages.length}`,
   );
 
   void runStepLoop(
@@ -117,9 +112,7 @@ async function runStepLoop(
       // Build messages array: system prompt as system-role message (like OpenCode),
       // followed by conversation messages.
       const msgs: ModelMessage[] = [
-        ...(systemPrompt
-          ? [{ role: "system" as const, content: systemPrompt }]
-          : []),
+        ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
         ...currentMessages,
       ];
 
@@ -142,8 +135,8 @@ async function runStepLoop(
         headers: {
           ...(isOAuthCodex
             ? {
-                originator: "opencode",
-                "User-Agent": `opencode/litho (${process.platform} ${process.arch})`,
+                originator: 'opencode',
+                'User-Agent': `opencode/litho (${process.platform} ${process.arch})`,
                 session_id: chatId,
               }
             : {}),
@@ -155,37 +148,35 @@ async function runStepLoop(
       // Consume this step's stream
       let hasToolCalls = false;
       let textLength = 0;
-      let stepFinishReason = "unknown";
+      let stepFinishReason = 'unknown';
 
       for await (const part of result.fullStream) {
         // biome-ignore lint/suspicious/noExplicitAny: stream part is a wide union
         const p = part as any;
 
-        if (p.type === "text-delta") {
-          textLength += (p.text ?? "").length;
-        } else if (p.type === "tool-call") {
+        if (p.type === 'text-delta') {
+          textLength += (p.text ?? '').length;
+        } else if (p.type === 'tool-call') {
           hasToolCalls = true;
           console.log(`    tool-call: ${p.toolName}`);
-        } else if (p.type === "tool-result") {
+        } else if (p.type === 'tool-result') {
           console.log(`    tool-result: ${p.toolName}`);
-        } else if (p.type === "finish") {
-          stepFinishReason = p.finishReason ?? "unknown";
+        } else if (p.type === 'finish') {
+          stepFinishReason = p.finishReason ?? 'unknown';
           totalUsage.inputTokens += p.totalUsage?.inputTokens ?? 0;
           totalUsage.outputTokens += p.totalUsage?.outputTokens ?? 0;
         }
 
         // Emit displayable events to renderer (skip finish — we emit our own)
-        if (p.type !== "finish") {
+        if (p.type !== 'finish') {
           const event = mapStreamPart(p);
           if (event) {
-            emit("chat:delta", chatId, event);
+            emit('chat:delta', chatId, event);
           }
         }
       }
 
-      console.log(
-        `    done — text=${textLength} tools=${hasToolCalls} finish=${stepFinishReason}`,
-      );
+      console.log(`    done — text=${textLength} tools=${hasToolCalls} finish=${stepFinishReason}`);
 
       // Collect response messages from this step
       const response = await result.response;
@@ -195,18 +186,15 @@ async function runStepLoop(
       // Decide whether to continue (matches OpenCode: only continue on tool-calls/unknown)
       if (!hasToolCalls) break;
 
-      currentMessages = [
-        ...currentMessages,
-        ...(stepMessages as ModelMessage[]),
-      ];
+      currentMessages = [...currentMessages, ...(stepMessages as ModelMessage[])];
     }
 
     // Emit final finish with all accumulated response messages
     const responseMessages = responseToStoredMessages(allResponseMessages);
 
-    emit("chat:delta", chatId, {
-      type: "finish",
-      finishReason: "stop",
+    emit('chat:delta', chatId, {
+      type: 'finish',
+      finishReason: 'stop',
       usage: {
         inputTokens: totalUsage.inputTokens,
         outputTokens: totalUsage.outputTokens,
@@ -215,17 +203,17 @@ async function runStepLoop(
       responseMessages,
     } satisfies ChatStreamEvent);
   } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      emit("chat:delta", chatId, {
-        type: "finish",
-        finishReason: "abort",
+    if (err instanceof Error && err.name === 'AbortError') {
+      emit('chat:delta', chatId, {
+        type: 'finish',
+        finishReason: 'abort',
         usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
         responseMessages: responseToStoredMessages(allResponseMessages),
       } satisfies ChatStreamEvent);
       return;
     }
-    emit("chat:delta", chatId, {
-      type: "error",
+    emit('chat:delta', chatId, {
+      type: 'error',
       error: err instanceof Error ? err.message : String(err),
     } satisfies ChatStreamEvent);
   } finally {
