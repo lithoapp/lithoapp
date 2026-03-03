@@ -17,6 +17,7 @@ import {
 interface ProviderInfo {
   id: string;
   name: string;
+  defaultModel: string;
 }
 
 interface ModelInfo {
@@ -50,13 +51,17 @@ export function ModelSelector({
         const data = await window.litho.aiProvider.list();
         setProviders(data.providers);
         setConnectedIds(data.connected);
+        if (!providerId) {
+          const first = data.providers.find((p) => data.connected.includes(p.id));
+          if (first) onSelect(first.id, first.defaultModel);
+        }
       } catch {
         // silent
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const connectedProviders = useMemo(
     () => providers.filter((p) => connectedIds.includes(p.id)),
@@ -72,11 +77,15 @@ export function ModelSelector({
       try {
         const result = await window.litho.aiProvider.models(providerId);
         setModels(result);
+        if (!modelId || !result.find((m) => m.id === modelId)) {
+          const defaultModel = providers.find((p) => p.id === providerId)?.defaultModel;
+          onSelect(providerId, defaultModel ?? result[0]?.id ?? '');
+        }
       } catch {
         setModels([]);
       }
     })();
-  }, [providerId]);
+  }, [providerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentModel = models.find((m) => m.id === modelId);
   const displayName = currentModel?.name ?? modelId ?? 'Select model';
@@ -104,8 +113,8 @@ export function ModelSelector({
           <Select
             value={providerId}
             onValueChange={(pid) => {
-              const firstModel = models[0]?.id ?? '';
-              onSelect(pid, firstModel);
+              const defaultModel = providers.find((p) => p.id === pid)?.defaultModel ?? '';
+              onSelect(pid, defaultModel);
             }}
           >
             <SelectTrigger className="h-8 text-xs">

@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, Check, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { type ProviderInfo, useProviderList } from '@/hooks/use-provider-list';
 import { cn } from '@/lib/utils';
 import { ConnectDialog } from '../settings/connect-dialog';
 
-const ZEN_ID = 'opencode';
+const ZEN_ID = 'free';
 const FEATURED_IDS = ['anthropic', 'openai', 'google', 'github-copilot'];
 
 function ZenCard({
@@ -17,26 +17,25 @@ function ZenCard({
   isConnected: boolean;
 }): React.JSX.Element {
   return (
-    <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-base font-medium">{provider.name}</span>
-          <Badge variant="outline" className="border-primary/40 px-1.5 text-xs text-primary">
-            Free
-          </Badge>
+    <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4.5 w-4.5 text-primary" />
+            <span className="text-lg font-semibold">{provider.name}</span>
+          </div>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {provider.modelCount} model{provider.modelCount !== 1 ? 's' : ''} ready to use — no
+            setup needed
+          </p>
         </div>
         {isConnected && (
-          <span className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Check className="h-3.5 w-3.5 text-emerald-500" />
-            Active
+          <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
+            <Check className="h-3.5 w-3.5" />
+            Ready
           </span>
         )}
       </div>
-      {provider.modelCount > 0 && (
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          {provider.modelCount} model{provider.modelCount !== 1 ? 's' : ''} included
-        </p>
-      )}
     </div>
   );
 }
@@ -102,8 +101,8 @@ export function ProviderPicker({
     [providers],
   );
 
-  const otherCount = useMemo(
-    () => providers.filter((p) => p.id !== ZEN_ID && !FEATURED_IDS.includes(p.id)).length,
+  const hasOtherProviders = useMemo(
+    () => providers.some((p) => p.id !== ZEN_ID && !FEATURED_IDS.includes(p.id)),
     [providers],
   );
 
@@ -173,10 +172,8 @@ export function ProviderPicker({
         </div>
       )}
 
-      {otherCount > 0 && (
-        <p className="text-base text-muted-foreground">
-          {otherCount}+ more providers available in Settings.
-        </p>
+      {hasOtherProviders && (
+        <p className="text-base text-muted-foreground">More providers available in Settings.</p>
       )}
 
       {dialogProvider && (

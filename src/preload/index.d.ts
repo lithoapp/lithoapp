@@ -98,10 +98,11 @@ interface LithoAPI {
       providers: Array<{
         id: string;
         name: string;
-        env: string[];
-        npm?: string;
         api?: string;
         modelCount: number;
+        autoConnect: boolean;
+        defaultModel: string;
+        internalProvider?: string;
       }>;
       connected: string[];
       modelsDevLoaded: boolean;

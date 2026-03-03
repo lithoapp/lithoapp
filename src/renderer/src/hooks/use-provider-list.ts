@@ -3,10 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 export interface ProviderInfo {
   id: string;
   name: string;
-  env: string[];
-  npm?: string;
   api?: string;
   modelCount: number;
+  autoConnect: boolean;
+  defaultModel: string;
+  internalProvider?: string;
 }
 
 export interface AuthMethod {

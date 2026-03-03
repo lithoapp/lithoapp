@@ -1,5 +1,5 @@
 import type { ChatErrorType, StoredMessage } from '../../../shared/types';
-import { parseError } from './run-chat';
+import { parseError } from '../lib/parse-error';
 
 export type { ChatErrorType };
 

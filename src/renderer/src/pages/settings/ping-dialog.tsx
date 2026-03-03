@@ -137,7 +137,11 @@ export function PingDialog({
           <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4">
             <div>
               <p className="mb-1 text-xs font-medium text-muted-foreground">Response</p>
-              <p className="text-sm">{result.text}</p>
+              {result.error ? (
+                <p className="text-sm text-destructive">{result.error}</p>
+              ) : (
+                <p className="text-sm">{result.text}</p>
+              )}
             </div>
             <div className="h-px bg-border" />
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">

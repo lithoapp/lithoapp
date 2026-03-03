@@ -8,7 +8,7 @@ import { createOpenAIFetchWrapper } from '../oauth/openai-fetch';
 import { CODEX_DEFAULT_MODEL, OAUTH_DUMMY_KEY } from '../oauth/openai-flow';
 import type { CredentialApi, CredentialOAuth } from '../types';
 import { getCredential, setCredential } from './credential-store';
-import { getModelsDevCache } from './models-cache';
+import { getModelsCache } from './models-cache';
 
 // ---------------------------------------------------------------------------
 // Max output token cap — matches OpenCode's ProviderTransform.OUTPUT_TOKEN_MAX
@@ -24,7 +24,8 @@ export function createModel(providerId: string, modelId: string): LanguageModel 
   const cred = getCredential(providerId);
   if (!cred) throw new Error(`No credentials found for provider: ${providerId}`);
 
-  const providerData = getModelsDevCache()?.[providerId];
+  const providerData = getModelsCache()?.providers?.[providerId];
+  const routingProviderId = providerData?.internalProvider ?? providerId;
 
   if (providerId === 'openai' && cred.type === 'oauth') {
     const wrapper = createOpenAIFetchWrapper(cred, (c) => setCredential('openai', c));
@@ -57,9 +58,13 @@ export function createModel(providerId: string, modelId: string): LanguageModel 
     return provider(modelId);
   }
 
-  const baseURL = providerData?.api ?? `https://api.${providerId}.com/v1`;
+  const routingProviderData = getModelsCache()?.providers?.[routingProviderId];
+  const baseURL =
+    providerData?.baseUrl ??
+    routingProviderData?.baseUrl ??
+    `https://api.${routingProviderId}.com/v1`;
   const provider = createOpenAICompatible({
-    name: providerId,
+    name: routingProviderId,
     baseURL,
     apiKey: (cred as CredentialApi).key,
     fetch: createSseFilterFetch(),

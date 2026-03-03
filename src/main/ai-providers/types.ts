@@ -2,54 +2,50 @@
 // Provider & Model types
 // ---------------------------------------------------------------------------
 
-export interface ModelsDevModel {
+export interface LithoModel {
   id: string;
   name: string;
-  family?: string;
-  release_date?: string;
-  attachment?: boolean;
-  reasoning?: boolean;
-  temperature?: boolean;
-  tool_call?: boolean;
-  cost?: {
-    input: number;
-    output: number;
-    cache_read?: number;
-    cache_write?: number;
-  };
-  limit?: {
-    context: number;
-    input?: number;
-    output: number;
-  };
-  modalities?: {
-    input: string[];
-    output: string[];
-  };
-  status?: string;
-  options?: Record<string, unknown>;
-  headers?: Record<string, string>;
-  provider?: { npm?: string; api?: string };
+  contextWindow: number;
+  maxOutput: number;
+  capabilities: string[];
+  authSupport?: string[];
+  cost?: { input: number; output: number };
+  openWeights?: boolean;
+  releaseDate?: string;
 }
 
-export interface ModelsDevProvider {
-  api?: string;
+export interface LithoApiAuthMethod {
+  type: string;
   name: string;
-  env: string[];
-  id: string;
-  npm?: string;
-  models: Record<string, ModelsDevModel>;
+  description: string;
 }
 
-export type ModelsDevData = Record<string, ModelsDevProvider>;
+export interface LithoProvider {
+  id: string;
+  name: string;
+  description: string;
+  autoConnect: boolean;
+  defaultModel: string;
+  authMethods: LithoApiAuthMethod[];
+  internalProvider?: string;
+  baseUrl?: string;
+  models: Record<string, LithoModel>;
+}
+
+export interface LithoModelsData {
+  version: string;
+  generatedAt: string;
+  providers: Record<string, LithoProvider>;
+}
 
 export interface ProviderInfo {
   id: string;
   name: string;
-  env: string[];
-  npm?: string;
   api?: string;
   modelCount: number;
+  autoConnect: boolean;
+  defaultModel: string;
+  internalProvider?: string;
 }
 
 export interface ModelInfo {
@@ -61,6 +57,7 @@ export interface ModelInfo {
   inputCost?: number;
   outputCost?: number;
   capabilities: string[];
+  authSupport?: string[];
 }
 
 // ---------------------------------------------------------------------------

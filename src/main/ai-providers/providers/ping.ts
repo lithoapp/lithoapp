@@ -1,4 +1,5 @@
 import { streamText } from 'ai';
+import { parseError } from '../lib/parse-error';
 import type { PingResult } from '../types';
 import { createModel } from './create-model';
 import { getCredential } from './credential-store';
@@ -41,30 +42,54 @@ export async function pingProvider(providerId: string, modelId: string): Promise
     // Reasoning models burn tokens on thinking — 100 leaves plenty for "Pong"
     ...(isOAuthCodex ? {} : { maxOutputTokens: 100 }),
   });
-  const text = await result.text;
-  const reasoningText = await result.reasoningText;
-  const finishReason = await result.finishReason;
-  const usage = await result.usage;
-  const warnings = await result.warnings;
-  const latencyMs = Math.round(performance.now() - start);
 
-  const warningMessages = warnings
-    ?.map((w) => ('message' in w ? String(w.message) : JSON.stringify(w)))
-    .join('; ');
+  let text = '';
+  let reasoningText = '';
+  let finishReason = 'unknown';
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  const errorResult = (message: string): PingResult => ({
+    text: '',
+    reasoning: '',
+    finishReason: 'error',
+    modelId,
+    latencyMs: Math.round(performance.now() - start),
+    error: message,
+  });
+
+  try {
+    // biome-ignore lint/suspicious/noExplicitAny: stream part is a wide union
+    for await (const part of result.fullStream as AsyncIterable<any>) {
+      if (part.type === 'text-delta') {
+        text += part.text ?? part.textDelta ?? '';
+      } else if (part.type === 'reasoning') {
+        reasoningText += part.text ?? part.reasoningText ?? '';
+      } else if (part.type === 'finish') {
+        finishReason = part.finishReason ?? 'unknown';
+        inputTokens = part.totalUsage?.inputTokens ?? 0;
+        outputTokens = part.totalUsage?.outputTokens ?? 0;
+      } else if (part.type === 'error') {
+        return errorResult(parseError(part.error).message);
+      }
+    }
+  } catch (err) {
+    return errorResult(parseError(err).message);
+  }
 
   return {
     text,
-    reasoning: reasoningText ?? '',
+    reasoning: reasoningText,
     finishReason,
     modelId,
-    latencyMs,
+    latencyMs: Math.round(performance.now() - start),
     ...(finishReason === 'error' && {
-      error: warningMessages || 'Stream finished with error (provider returned invalid response)',
+      error: 'Stream finished with error (provider returned invalid response)',
     }),
     usage: {
-      promptTokens: usage.inputTokens ?? 0,
-      completionTokens: usage.outputTokens ?? 0,
-      totalTokens: (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0),
+      promptTokens: inputTokens,
+      completionTokens: outputTokens,
+      totalTokens: inputTokens + outputTokens,
     },
   };
 }

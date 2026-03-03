@@ -11,9 +11,10 @@ import {
 } from './providers/credential-store';
 import { filterModelsForProvider } from './providers/model-filters';
 import {
-  fetchModelsDev,
-  getModelsDevCache,
-  getModelsDevError,
+  autoConnectProviders,
+  fetchModels,
+  getModelsCache,
+  getModelsCacheError,
   getProviderList,
   getProviderModels,
   initModelsCache,
@@ -27,15 +28,18 @@ import type { ChatStartParams } from './types';
 
 export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
   ensureAiTables();
-  initModelsCache();
+  initModelsCache(() => autoConnectProviders(setCredential, getConnectedProviderIds));
 
   // --- Provider discovery ---
 
   ipcMain.handle('ai-provider:list', () => ({
-    providers: getProviderList(),
+    providers: getProviderList().map((p) => ({
+      ...p,
+      modelCount: filterModelsForProvider(p.id, getProviderModels(p.id)).length,
+    })),
     connected: getConnectedProviderIds(),
-    modelsDevLoaded: getModelsDevCache() !== null,
-    modelsDevError: getModelsDevError(),
+    modelsDevLoaded: getModelsCache() !== null,
+    modelsDevError: getModelsCacheError(),
   }));
 
   ipcMain.handle('ai-provider:models', (_event, providerId: string) =>
@@ -64,7 +68,7 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
 
   ipcMain.handle('ai-provider:start-oauth', async (_event, providerId: string, mode?: string) => {
     if (providerId === 'anthropic') {
-      const anthropicMode = mode === 'console' ? 'console' : 'max';
+      const anthropicMode = mode?.includes('console') ? 'console' : 'max';
       const { url, verifier } = await startAnthropicOAuth(anthropicMode);
       return { url, verifier, method: 'code' as const };
     }
@@ -82,7 +86,7 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
         if (!code || !verifier) {
           throw new Error('Anthropic OAuth requires code and verifier');
         }
-        const anthropicMode = mode === 'console' ? 'console' : 'max';
+        const anthropicMode = mode?.includes('console') ? 'console' : 'max';
         return completeAnthropicOAuth(code, verifier, anthropicMode, setCredential);
       }
       if (providerId === 'openai') {
@@ -99,8 +103,9 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
   );
 
   ipcMain.handle('ai-provider:refresh-models-dev', async () => {
-    await fetchModelsDev();
-    return { loaded: getModelsDevCache() !== null, error: getModelsDevError() };
+    await fetchModels();
+    autoConnectProviders(setCredential, getConnectedProviderIds);
+    return { loaded: getModelsCache() !== null, error: getModelsCacheError() };
   });
 
   // --- Chat streaming ---
