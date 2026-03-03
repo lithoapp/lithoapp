@@ -570,7 +570,12 @@ export async function readAssetFile(
 
 export interface ConversationData {
   messages: StoredMessage[];
-  usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    contextWindow?: number;
+  };
 }
 
 export async function loadConversation(
@@ -586,13 +591,22 @@ export async function loadConversation(
     | { messages: string; usage_input_tokens: number; usage_output_tokens: number }
     | undefined;
 
-  if (!row) return { messages: [], usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 } };
+  if (!row)
+    return {
+      messages: [],
+      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, contextWindow: undefined },
+    };
 
   const inputTokens = row.usage_input_tokens;
   const outputTokens = row.usage_output_tokens;
   return {
     messages: JSON.parse(row.messages) as StoredMessage[],
-    usage: { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens },
+    usage: {
+      inputTokens,
+      outputTokens,
+      totalTokens: inputTokens + outputTokens,
+      contextWindow: undefined,
+    },
   };
 }
 

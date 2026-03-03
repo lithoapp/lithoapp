@@ -101,3 +101,29 @@ export function getProviderModels(providerId: string): ModelInfo[] {
     };
   });
 }
+
+export function getModelInfo(providerId: string, modelId: string): ModelInfo | undefined {
+  if (!modelsDevCache) return undefined;
+  const provider = modelsDevCache[providerId];
+  if (!provider) return undefined;
+  const model = provider.models[modelId];
+  if (!model) return undefined;
+
+  const capabilities: string[] = [];
+  if (model.reasoning) capabilities.push('reasoning');
+  if (model.tool_call) capabilities.push('tool_call');
+  if (model.attachment) capabilities.push('attachment');
+  if (model.temperature) capabilities.push('temperature');
+  if (model.modalities?.input?.includes('image')) capabilities.push('vision');
+
+  return {
+    id: model.id,
+    name: model.name,
+    family: model.family,
+    contextWindow: model.limit?.context,
+    maxOutput: model.limit?.output,
+    inputCost: model.cost?.input,
+    outputCost: model.cost?.output,
+    capabilities,
+  };
+}

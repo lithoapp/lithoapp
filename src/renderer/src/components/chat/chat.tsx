@@ -53,6 +53,46 @@ function formatTokens(count: number): string {
   return String(count);
 }
 
+function TokenUsageIndicator({
+  totalTokens,
+  contextWindow,
+}: {
+  totalTokens: number;
+  contextWindow?: number;
+}) {
+  if (totalTokens === 0) return null;
+
+  if (!contextWindow) {
+    return (
+      <span className="text-xs tabular-nums text-muted-foreground">
+        {formatTokens(totalTokens)} tokens
+      </span>
+    );
+  }
+
+  const percent = Math.min((totalTokens / contextWindow) * 100, 100);
+  const isWarning = percent > 50;
+  const isCritical = percent > 90;
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
+        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+          <div
+            className={`h-full transition-all ${
+              isCritical ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-green-500'
+            }`}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {formatTokens(totalTokens)} / {formatTokens(contextWindow)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function getErrorLabel(type: ChatErrorType): string {
   switch (type) {
     case 'rate_limit':
@@ -349,11 +389,10 @@ export function Chat({
         <div className="flex-1" />
 
         {/* Usage */}
-        {chat.usage.totalTokens > 0 && (
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {formatTokens(chat.usage.totalTokens)} tokens
-          </span>
-        )}
+        <TokenUsageIndicator
+          totalTokens={chat.usage.totalTokens}
+          contextWindow={chat.usage.contextWindow}
+        />
 
         {/* New chat */}
         <AlertDialog>

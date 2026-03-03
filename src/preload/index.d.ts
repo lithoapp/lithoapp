@@ -183,7 +183,12 @@ interface LithoAPI {
           | {
               type: 'finish';
               finishReason: string;
-              usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+              usage: {
+                inputTokens: number;
+                outputTokens: number;
+                totalTokens: number;
+                contextWindow?: number;
+              };
               responseMessages: StoredMessage[];
             },
       ) => void,
@@ -195,7 +200,12 @@ interface LithoAPI {
       documentId: string,
     ) => Promise<{
       messages: StoredMessage[];
-      usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+      usage: {
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+        contextWindow?: number;
+      };
     }>;
     save: (
       workspace: string,

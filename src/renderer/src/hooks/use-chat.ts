@@ -26,7 +26,12 @@ export interface UseChatV2Return {
   isStreaming: boolean;
   isLoading: boolean;
   error: ChatError | null;
-  usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    contextWindow?: number;
+  };
   sendMessage: (text: string) => Promise<void>;
   retry: () => Promise<void>;
   abort: () => Promise<void>;
@@ -71,7 +76,12 @@ export function useChatV2({
   const [error, setError] = useState<ChatError | null>(null);
 
   // Accumulated usage across all turns
-  const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, totalTokens: 0 });
+  const [usage, setUsage] = useState({
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    contextWindow: undefined as number | undefined,
+  });
   const usageRef = useRef(usage);
   usageRef.current = usage;
 
@@ -107,7 +117,10 @@ export function useChatV2({
       try {
         const loaded = await window.litho.conversation.load(workspaceName, documentId);
         setMessages(loaded.messages);
-        setUsage(loaded.usage);
+        setUsage({
+          ...loaded.usage,
+          contextWindow: loaded.usage.contextWindow ?? undefined,
+        });
       } catch {
         setMessages([]);
       } finally {
@@ -168,7 +181,12 @@ export function useChatV2({
         input?: unknown;
         output?: unknown;
         finishReason?: string;
-        usage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+        usage?: {
+          inputTokens: number;
+          outputTokens: number;
+          totalTokens: number;
+          contextWindow?: number;
+        };
         responseMessages?: StoredMessage[];
         errorType?: ChatErrorType;
         message?: string;
@@ -236,6 +254,7 @@ export function useChatV2({
                 outputTokens: usageRef.current.outputTokens + event.usage.outputTokens,
                 totalTokens:
                   usageRef.current.totalTokens + event.usage.inputTokens + event.usage.outputTokens,
+                contextWindow: event.usage.contextWindow,
               }
             : usageRef.current;
           usageRef.current = newUsage;
@@ -358,7 +377,7 @@ export function useChatV2({
     setIsStreaming(false);
     setError(null);
     lastUserMessageRef.current = null;
-    setUsage({ inputTokens: 0, outputTokens: 0, totalTokens: 0 });
+    setUsage({ inputTokens: 0, outputTokens: 0, totalTokens: 0, contextWindow: undefined });
     streamingPartsRef.current = [];
     pendingReasoningRef.current = '';
 

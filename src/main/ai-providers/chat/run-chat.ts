@@ -3,6 +3,7 @@ import { getActiveWorkspace } from '../../active-workspace-store';
 import { renderSystemPrompt, resolveAgentTools } from '../agents/config';
 import { createModel, OUTPUT_TOKEN_MAX } from '../providers/create-model';
 import { getCredential } from '../providers/credential-store';
+import { getModelInfo } from '../providers/models-cache';
 import type { ChatStartParams } from '../types';
 import {
   type ResponseMessage,
@@ -257,6 +258,10 @@ async function runStepLoop(
   const totalUsage = { inputTokens: 0, outputTokens: 0 };
   let streamErrorEmitted = false;
 
+  // Get model's context window for progress tracking
+  const modelInfo = getModelInfo(providerId, modelId);
+  const contextWindow = modelInfo?.contextWindow;
+
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       if (controller.signal.aborted) break;
@@ -318,7 +323,8 @@ async function runStepLoop(
           console.log(`    tool-result: ${p.toolName}`);
         } else if (p.type === 'finish') {
           stepFinishReason = p.finishReason ?? 'unknown';
-          totalUsage.inputTokens += p.totalUsage?.inputTokens ?? 0;
+          // Replace (not accumulate) input tokens - each step reports full context size
+          totalUsage.inputTokens = p.totalUsage?.inputTokens ?? 0;
           totalUsage.outputTokens += p.totalUsage?.outputTokens ?? 0;
         } else if (p.type === 'error') {
           hadStreamError = true;
@@ -361,6 +367,7 @@ async function runStepLoop(
         inputTokens: totalUsage.inputTokens,
         outputTokens: totalUsage.outputTokens,
         totalTokens: totalUsage.inputTokens + totalUsage.outputTokens,
+        contextWindow,
       },
       responseMessages,
     } satisfies ChatStreamEvent);
@@ -369,7 +376,7 @@ async function runStepLoop(
       emit('chat:delta', chatId, {
         type: 'finish',
         finishReason: 'abort',
-        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, contextWindow },
         responseMessages: responseToStoredMessages(allResponseMessages),
       } satisfies ChatStreamEvent);
       return;
