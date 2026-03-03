@@ -1,6 +1,15 @@
 import { join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, protocol, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  nativeImage,
+  nativeTheme,
+  protocol,
+  shell,
+} from 'electron';
 import type { WorkspaceState } from '../shared/types';
 import { getActiveWorkspace, setActiveWorkspace } from './active-workspace-store';
 import { registerAiProviderHandlers } from './ai-providers';
@@ -83,6 +92,8 @@ function emitWorkspaceChanged(): void {
   }
 }
 
+const appIcon = nativeImage.createFromPath(join(__dirname, '../../resources/icon.png'));
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -92,6 +103,7 @@ function createWindow(): void {
     show: false,
     titleBarStyle: 'hidden',
     titleBarOverlay: true,
+    icon: appIcon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
@@ -397,6 +409,10 @@ app.whenReady().then(async () => {
       return new Response('Not Found', { status: 404 });
     }
   });
+
+  if (process.platform === 'darwin') {
+    app.dock.setIcon(appIcon);
+  }
 
   createWindow();
   if (mainWindow) {

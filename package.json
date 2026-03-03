@@ -17,7 +17,8 @@
     "postinstall": "electron-rebuild -o better-sqlite3",
     "lint": "biome check .",
     "format": "biome check --fix .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "icons": "electron-icon-builder --input=resources/icon.png --output=build --flatten && cp build/icons/icon.icns build/icon.icns && cp build/icons/icon.ico build/icon.ico && cp build/icons/1024x1024.png build/icon.png && rm -rf build/icons"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.65",
@@ -81,6 +82,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "electron": "^40.0.0",
     "electron-builder": "^26.0.12",
+    "electron-icon-builder": "^2.0.1",
     "electron-vite": "^5.0.0",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.9.3",
