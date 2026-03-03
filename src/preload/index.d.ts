@@ -226,6 +226,9 @@ interface LithoAPI {
     ) => Promise<void>;
     revert: (workspace: string, documentId: string, userMessageId: string) => Promise<RevertResult>;
   };
+  shell: {
+    showItemInFolder: (filePath: string) => Promise<void>;
+  };
   assets: {
     list: (workspaceName: string, dirPath: string, recursive?: boolean) => Promise<AssetEntry[]>;
     upload: (

@@ -43,6 +43,7 @@ export function ExportDialog({
     current: 0,
     total: 0,
   });
+  const [savePath, setSavePath] = useState<string | null>(null);
 
   const isImage = format !== 'pdf';
   const isMmBased = doc.size.unit === 'mm';
@@ -57,6 +58,7 @@ export function ExportDialog({
       setJpgQuality(90);
       setExportStatus('idle');
       setProgress({ status: 'idle', current: 0, total: 0 });
+      setSavePath(null);
     }
   }, [open, doc.pages]);
 
@@ -68,7 +70,14 @@ export function ExportDialog({
       setExportStatus(data.status);
 
       if (data.status === 'done') {
-        toast.success('Document exported successfully');
+        toast.success('Document exported successfully', {
+          action: savePath
+            ? {
+                label: 'Open in folder',
+                onClick: () => void window.litho.shell.showItemInFolder(savePath),
+              }
+            : undefined,
+        });
         onOpenChange(false);
       } else if (data.status === 'error') {
         toast.error(data.error ?? 'Export failed');
@@ -76,7 +85,7 @@ export function ExportDialog({
       }
     });
     return unsubscribe;
-  }, [open, onOpenChange]);
+  }, [open, onOpenChange, savePath]);
 
   const allSelected = selectedPages.size === doc.pages.length;
   const someSelected = selectedPages.size > 0 && !allSelected;
@@ -121,6 +130,7 @@ export function ExportDialog({
     });
     if (!savePath) return;
 
+    setSavePath(savePath);
     setExportStatus('exporting');
 
     try {

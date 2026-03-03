@@ -188,6 +188,10 @@ contextBridge.exposeInMainWorld('litho', {
     revert: (workspace: string, documentId: string, userMessageId: string): Promise<unknown> =>
       ipcRenderer.invoke('snapshot:revert', workspace, documentId, userMessageId),
   },
+  shell: {
+    showItemInFolder: (filePath: string): Promise<void> =>
+      ipcRenderer.invoke('shell:showItemInFolder', filePath),
+  },
   assets: {
     list: (workspaceName: string, dirPath: string, recursive?: boolean): Promise<unknown> =>
       ipcRenderer.invoke('assets:list', workspaceName, dirPath, recursive),

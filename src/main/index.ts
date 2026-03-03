@@ -358,6 +358,10 @@ ipcMain.handle(
   },
 );
 
+ipcMain.handle('shell:showItemInFolder', (_event, filePath: string) => {
+  shell.showItemInFolder(filePath);
+});
+
 // Forward export progress to renderer
 documentExporter.on('progress', (data) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
