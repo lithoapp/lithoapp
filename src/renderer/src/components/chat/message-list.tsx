@@ -89,9 +89,8 @@ function RevertButton({ onRevert }: { onRevert: () => void }): React.JSX.Element
         <AlertDialogHeader>
           <AlertDialogTitle>Revert to before this message?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will restore the document to its state before this message was sent, and remove
-            this message and all subsequent messages from the conversation. This action cannot be
-            undone.
+            The document and conversation will be restored to the state before this message. This
+            cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

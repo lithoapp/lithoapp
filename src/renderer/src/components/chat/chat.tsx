@@ -7,6 +7,7 @@ import {
   Square,
   WifiOff,
 } from 'lucide-react';
+import { PulseLoader } from 'react-spinners';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertDialog,
@@ -395,12 +396,6 @@ export function Chat({
         <ModelSelector providerId={providerId} modelId={modelId} onSelect={handleModelSelect} />
         <div className="flex-1" />
 
-        {/* Usage */}
-        <TokenUsageIndicator
-          totalTokens={chat.usage.totalTokens}
-          contextWindow={chat.usage.contextWindow}
-        />
-
         {/* New chat */}
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -462,13 +457,13 @@ export function Chat({
 
       {/* Input */}
       <div className="border-t p-3">
-        <div className="flex items-end gap-2">
+        <div className="relative">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your message..."
-            className="max-h-[120px] min-h-[40px] flex-1 resize-none text-sm"
-            rows={1}
+            className="max-h-[120px] min-h-[56px] resize-none pr-12 text-sm"
+            rows={2}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -476,27 +471,38 @@ export function Chat({
               }
             }}
           />
-          {chat.isStreaming ? (
-            <Button
-              size="icon"
-              variant="destructive"
-              onClick={handleAbort}
-              className="h-8 w-8 shrink-0 rounded-full"
-              title="Stop"
-            >
-              <Square className="h-3.5 w-3.5" />
-            </Button>
-          ) : (
-            <Button
-              size="icon"
-              onClick={handleSend}
-              disabled={!input.trim() || !providerId || !modelId || isOffline}
-              className="h-8 w-8 shrink-0 rounded-full"
-              title="Send (Enter)"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </Button>
-          )}
+          <div className="absolute right-2 bottom-2">
+            {chat.isStreaming ? (
+              <Button
+                size="icon"
+                variant="destructive"
+                onClick={handleAbort}
+                className="h-7 w-7 shrink-0 rounded-full"
+                title="Stop"
+              >
+                <Square className="h-3 w-3" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                onClick={handleSend}
+                disabled={!input.trim() || !providerId || !modelId || isOffline}
+                className="h-7 w-7 shrink-0 rounded-full"
+                title="Send (Enter)"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
+        {/* Status bar */}
+        <div className="flex h-5 items-center px-0.5 pt-1.5">
+          {chat.isStreaming && <PulseLoader size={5} color="#e8652b" speedMultiplier={0.7} />}
+          <div className="flex-1" />
+          <TokenUsageIndicator
+            totalTokens={chat.usage.totalTokens}
+            contextWindow={chat.usage.contextWindow}
+          />
         </div>
       </div>
     </div>

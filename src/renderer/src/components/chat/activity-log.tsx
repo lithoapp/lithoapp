@@ -101,11 +101,11 @@ export function StreamingActivityLog({
     return <ThinkingIndicator />;
   }
 
-  // Show trailing spinner when all tool calls are done and no text is actively streaming
   const lastPart = streamingParts[streamingParts.length - 1];
   const allToolsDone = streamingParts
     .filter((p): p is StreamingToolCallPart => p.type === 'tool-call')
     .every((tc) => tc.status === 'completed');
+  // Show trailing indicator when all tool calls are done and no text is actively streaming
   const showTrailingSpinner = lastPart.type === 'tool-call' && allToolsDone;
 
   return (
@@ -121,7 +121,6 @@ export function StreamingActivityLog({
             <ToolLine key={part.toolCallId} label={label} isActive={part.status === 'calling'} />
           );
         }
-        // Text — only mark as streaming if it's the last part (still being appended to)
         const isLastPart = i === streamingParts.length - 1;
         return (
           <div key={`text-${String(i)}`} className="w-full pt-1">
