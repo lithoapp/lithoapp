@@ -1,14 +1,6 @@
 import { join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
-import {
-  app,
-  BrowserWindow,
-  dialog,
-  ipcMain,
-  nativeTheme,
-  protocol,
-  shell,
-} from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, protocol, shell } from 'electron';
 import type { WorkspaceState } from '../shared/types';
 import { getActiveWorkspace, setActiveWorkspace } from './active-workspace-store';
 import { registerAiProviderHandlers } from './ai-providers';
@@ -27,6 +19,7 @@ import {
   installUpdate,
 } from './auto-updater';
 import { DocumentExporter, exportPage } from './exporter';
+import { buildExportFileName } from './exporter/export-filename';
 import { buildPage } from './renderer';
 import { compileTailwind, formatCssError } from './renderer/build-shared';
 import { initSentry } from './sentry';
@@ -65,6 +58,7 @@ import {
   updateDocumentFolder,
   updateWorkspaceLastOpened,
 } from './workspace-data';
+import { getWorkspaceEntry } from './workspace-data/registry-db';
 import { resolveWorkspacePath } from './workspace-paths';
 
 initSentry();
@@ -149,11 +143,22 @@ ipcMain.handle('update:getState', () => getUpdateState());
 // Export IPC handlers
 ipcMain.handle(
   'export:saveDialog',
-  async (_event, options: { format: string; title: string; isZip: boolean }) => {
+  async (
+    _event,
+    options: {
+      format: 'pdf' | 'png' | 'jpg';
+      workspaceSlug: string;
+      documentId: string;
+      isZip: boolean;
+    },
+  ) => {
     if (!mainWindow) return null;
+    const workspaceTitle = getWorkspaceEntry(options.workspaceSlug)?.title ?? options.workspaceSlug;
+    const documentTitle = (await readDocumentConfig(options.workspaceSlug, options.documentId))
+      .title;
     const ext = options.isZip ? 'zip' : options.format === 'pdf' ? 'pdf' : options.format;
     const result = await dialog.showSaveDialog(mainWindow, {
-      defaultPath: `${options.title}.${ext}`,
+      defaultPath: buildExportFileName(workspaceTitle, documentTitle, ext),
       filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
     });
     if (result.canceled || !result.filePath) return null;

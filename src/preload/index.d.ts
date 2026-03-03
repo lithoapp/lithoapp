@@ -44,8 +44,9 @@ interface LithoAPI {
     start: (request: ExportRequest) => Promise<void>;
     getProgress: () => Promise<ExportProgress>;
     saveDialog: (options: {
-      format: string;
-      title: string;
+      format: 'pdf' | 'png' | 'jpg';
+      workspaceSlug: string;
+      documentId: string;
       isZip: boolean;
     }) => Promise<string | null>;
     onProgress: (callback: (data: ExportProgress) => void) => () => void;

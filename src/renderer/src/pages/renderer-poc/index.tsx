@@ -107,13 +107,12 @@ function RendererPocPage(): React.JSX.Element {
   };
 
   const handleExport = async (): Promise<void> => {
-    if (!buildData || !config) return;
+    if (!buildData || !config || !workspace || !document) return;
 
-    const ext = exportFormat === 'pdf' ? 'pdf' : exportFormat;
-    const fileName = `${document ?? 'page'}-${page ?? 'export'}`;
     const savePath = await window.litho.export.saveDialog({
-      format: ext,
-      title: fileName,
+      format: exportFormat,
+      workspaceSlug: workspace,
+      documentId: document,
       isZip: false,
     });
     if (!savePath) return;

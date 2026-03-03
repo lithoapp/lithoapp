@@ -2,7 +2,9 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ExportFormat, PageSize } from '../../shared/types';
 import { listDocumentsFull } from '../workspace-data';
+import { getWorkspaceEntry } from '../workspace-data/registry-db';
 import { DocumentExporter } from './document-exporter';
+import { buildExportBaseName, buildExportFileName } from './export-filename';
 
 const JPG_QUALITY = 90;
 const MM_DPI_VARIANTS = [72, 150, 300] as const;
@@ -44,10 +46,11 @@ function parseArgs(): { workspaceName: string; outputPath: string } {
   };
 }
 
-function buildJobs(doc: BatchDoc, outputPath: string): ExportJob[] {
+function buildJobs(workspaceName: string, doc: BatchDoc, outputPath: string): ExportJob[] {
   const docDir = join(outputPath, doc.id);
   const isMm = doc.size.unit === 'mm';
   const jobs: ExportJob[] = [];
+  const baseName = buildExportBaseName(workspaceName, doc.title);
 
   // PDF: one merged file per document, no DPI variants
   jobs.push({
@@ -55,7 +58,7 @@ function buildJobs(doc: BatchDoc, outputPath: string): ExportJob[] {
     dpi: 72,
     subdir: 'pdf',
     pages: doc.pageIds,
-    savePath: join(docDir, 'pdf', `${doc.id}.pdf`),
+    savePath: join(docDir, 'pdf', buildExportFileName(workspaceName, doc.title, 'pdf')),
   });
 
   // Image formats
@@ -66,26 +69,28 @@ function buildJobs(doc: BatchDoc, outputPath: string): ExportJob[] {
       // mm-based: 3 DPI variants, one file per page
       for (const dpi of MM_DPI_VARIANTS) {
         const subdir = `${format}-${dpi}dpi`;
-        for (const pageId of doc.pageIds) {
+        for (let i = 0; i < doc.pageIds.length; i++) {
+          const pageId = doc.pageIds[i];
           jobs.push({
             format,
             dpi,
             subdir,
             pages: [pageId],
-            savePath: join(docDir, subdir, `${pageId}.${format}`),
+            savePath: join(docDir, subdir, `${baseName} - Page ${i + 1}.${format}`),
           });
         }
       }
     } else {
       // px-based: single variant (native pixels), no DPI suffix
       const subdir = format;
-      for (const pageId of doc.pageIds) {
+      for (let i = 0; i < doc.pageIds.length; i++) {
+        const pageId = doc.pageIds[i];
         jobs.push({
           format,
           dpi: 72,
           subdir,
           pages: [pageId],
-          savePath: join(docDir, subdir, `${pageId}.${format}`),
+          savePath: join(docDir, subdir, `${baseName} - Page ${i + 1}.${format}`),
         });
       }
     }
@@ -96,7 +101,9 @@ function buildJobs(doc: BatchDoc, outputPath: string): ExportJob[] {
 
 export async function runBatchExport(): Promise<void> {
   const { workspaceName, outputPath } = parseArgs();
+  const workspaceTitle = getWorkspaceEntry(workspaceName)?.title ?? workspaceName;
   log(`Workspace: ${workspaceName}`);
+  log(`Workspace title: ${workspaceTitle}`);
   log(`Output:    ${outputPath}`);
 
   const documents = await listDocumentsFull(workspaceName);
@@ -112,7 +119,7 @@ export async function runBatchExport(): Promise<void> {
       size: doc.size,
       pageIds: doc.pages.map((p) => p.id),
     };
-    return { doc: batchDoc, jobs: buildJobs(batchDoc, outputPath) };
+    return { doc: batchDoc, jobs: buildJobs(workspaceTitle, batchDoc, outputPath) };
   });
   const totalJobs = docJobs.reduce((sum, dj) => sum + dj.jobs.length, 0);
   log(`Total export jobs: ${totalJobs}`);

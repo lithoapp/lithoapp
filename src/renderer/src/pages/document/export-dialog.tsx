@@ -115,7 +115,8 @@ export function ExportDialog({
 
     const savePath = await window.litho.export.saveDialog({
       format,
-      title: doc.title,
+      workspaceSlug: workspaceName,
+      documentId: doc.id,
       isZip,
     });
     if (!savePath) return;
