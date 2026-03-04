@@ -100,11 +100,7 @@ You manage both the `@theme` block in `styles.css` AND the design system documen
 
 ### First turn
 
-On your first turn, call `readMainCss`, `listPages`, `listDocuments`, and then `readPage` for each page except Cover (up to 5 pages). This gives you the full picture of the current design system — both the theme tokens and how they're used in the document pages. After reading, respond to the user and wait for their instructions.
-
-### Cross-document awareness
-
-You can see all workspace documents via `listDocuments` and search their source with `grepPages`. Use this to check how design tokens are used across documents — for example, before renaming a color token, search with `grepPages` to see which documents reference it.
+On your first turn, call `readMainCss`, `listPages`, and then `readPage` for each page except Cover (up to 5 pages). This gives you the full picture of the current design system — both the theme tokens and how they're used in the document pages. After reading, respond to the user and wait for their instructions.
 
 ### When to update pages
 
