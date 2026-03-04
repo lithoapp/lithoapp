@@ -206,5 +206,21 @@ contextBridge.exposeInMainWorld('litho', {
       ipcRenderer.invoke('assets:delete', workspaceName, entryPath),
     rename: (workspaceName: string, oldPath: string, newPath: string): Promise<void> =>
       ipcRenderer.invoke('assets:rename', workspaceName, oldPath, newPath),
+    listDocument: (workspaceName: string, docId: string): Promise<unknown> =>
+      ipcRenderer.invoke('assets:listDocument', workspaceName, docId),
+    uploadDocument: (
+      workspaceName: string,
+      docId: string,
+      files: { name: string; data: Uint8Array }[],
+    ): Promise<void> => ipcRenderer.invoke('assets:uploadDocument', workspaceName, docId, files),
+    deleteDocument: (workspaceName: string, docId: string, fileName: string): Promise<void> =>
+      ipcRenderer.invoke('assets:deleteDocument', workspaceName, docId, fileName),
+    renameDocument: (
+      workspaceName: string,
+      docId: string,
+      oldName: string,
+      newName: string,
+    ): Promise<void> =>
+      ipcRenderer.invoke('assets:renameDocument', workspaceName, docId, oldName, newName),
   },
 });

@@ -98,6 +98,20 @@ export function resolveToolLabel(
         icon: 'pencil',
       };
 
+    case 'listWorkspaceAssets':
+      return {
+        activeLabel: 'Listing workspace assets',
+        doneLabel: 'Listed workspace assets',
+        icon: 'search',
+      };
+
+    case 'listDocumentAssets':
+      return {
+        activeLabel: 'Listing document assets',
+        doneLabel: 'Listed document assets',
+        icon: 'search',
+      };
+
     default:
       return { activeLabel: tool, doneLabel: tool, icon: 'terminal' };
   }

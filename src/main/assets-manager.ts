@@ -10,18 +10,7 @@ import {
 import { basename, extname, join, normalize, relative, resolve } from 'node:path';
 import type { AssetEntry } from '../shared/types';
 
-const ALLOWED_EXTENSIONS = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.webp',
-  '.gif',
-  '.svg',
-  '.woff2',
-  '.woff',
-  '.ttf',
-  '.otf',
-]);
+const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
 
 function assetsRoot(workspacePath: string): string {
   return join(workspacePath, 'assets');
@@ -98,7 +87,14 @@ export function uploadAssets(
   }
 }
 
+/** Reserved folder for per-document assets. */
+const DOCUMENTS_FOLDER = 'documents';
+
 export function createAssetDirectory(workspacePath: string, dirPath: string): void {
+  const topLevel = dirPath.split('/')[0];
+  if (topLevel === DOCUMENTS_FOLDER) {
+    throw new Error(`"${DOCUMENTS_FOLDER}" is a reserved folder name`);
+  }
   const abs = resolveAssetPath(workspacePath, dirPath);
   if (existsSync(abs)) {
     throw new Error(`Directory already exists: "${dirPath}"`);
@@ -112,6 +108,49 @@ export function deleteAsset(workspacePath: string, entryPath: string): void {
     throw new Error(`Asset not found: "${entryPath}"`);
   }
   rmSync(abs, { recursive: true, force: false });
+}
+
+// ── Document-scoped assets (flat structure at assets/documents/<docId>/*) ─
+
+function docAssetsDir(docId: string): string {
+  return join(DOCUMENTS_FOLDER, docId);
+}
+
+export function listDocumentAssets(workspacePath: string, docId: string): AssetEntry[] {
+  return listAssets(workspacePath, docAssetsDir(docId), false).filter((e) => e.type === 'file');
+}
+
+export function uploadDocumentAssets(
+  workspacePath: string,
+  docId: string,
+  files: { name: string; data: Uint8Array }[],
+): void {
+  uploadAssets(workspacePath, docAssetsDir(docId), files);
+}
+
+export function deleteDocumentAsset(workspacePath: string, docId: string, fileName: string): void {
+  if (fileName.includes('/') || fileName.includes('\\')) {
+    throw new Error(`Invalid file name: "${fileName}" — must not contain path separators`);
+  }
+  deleteAsset(workspacePath, join(docAssetsDir(docId), fileName));
+}
+
+export function renameDocumentAsset(
+  workspacePath: string,
+  docId: string,
+  oldName: string,
+  newName: string,
+): void {
+  for (const name of [oldName, newName]) {
+    if (name.includes('/') || name.includes('\\')) {
+      throw new Error(`Invalid file name: "${name}" — must not contain path separators`);
+    }
+  }
+  renameAsset(
+    workspacePath,
+    join(docAssetsDir(docId), oldName),
+    join(docAssetsDir(docId), newName),
+  );
 }
 
 export function renameAsset(workspacePath: string, oldPath: string, newPath: string): void {

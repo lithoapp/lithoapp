@@ -10,6 +10,7 @@ import {
   protocol,
   shell,
 } from 'electron';
+
 app.setName('Litho');
 
 import type { WorkspaceState } from '../shared/types';
@@ -18,9 +19,13 @@ import { registerAiProviderHandlers } from './ai-providers';
 import {
   createAssetDirectory,
   deleteAsset,
+  deleteDocumentAsset,
   listAssets,
+  listDocumentAssets,
   renameAsset,
+  renameDocumentAsset,
   uploadAssets,
+  uploadDocumentAssets,
 } from './assets-manager';
 import {
   checkForUpdates,
@@ -335,6 +340,24 @@ ipcMain.handle('assets:delete', (_event, workspaceName: string, entryPath: strin
 );
 ipcMain.handle('assets:rename', (_event, workspaceName: string, oldPath: string, newPath: string) =>
   renameAsset(resolveWorkspacePath(workspaceName), oldPath, newPath),
+);
+ipcMain.handle('assets:listDocument', (_event, workspaceName: string, docId: string) =>
+  listDocumentAssets(resolveWorkspacePath(workspaceName), docId),
+);
+ipcMain.handle(
+  'assets:uploadDocument',
+  (_event, workspaceName: string, docId: string, files: { name: string; data: Uint8Array }[]) =>
+    uploadDocumentAssets(resolveWorkspacePath(workspaceName), docId, files),
+);
+ipcMain.handle(
+  'assets:deleteDocument',
+  (_event, workspaceName: string, docId: string, fileName: string) =>
+    deleteDocumentAsset(resolveWorkspacePath(workspaceName), docId, fileName),
+);
+ipcMain.handle(
+  'assets:renameDocument',
+  (_event, workspaceName: string, docId: string, oldName: string, newName: string) =>
+    renameDocumentAsset(resolveWorkspacePath(workspaceName), docId, oldName, newName),
 );
 
 // AI Provider Manager

@@ -16,6 +16,7 @@ import { Kbd } from '@/components/ui/kbd';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   addDiagnosticPrefix,
@@ -26,6 +27,7 @@ import type { PageAudit } from '@/lib/page-audit-types';
 import { runPageAudits } from '@/lib/page-auditors/run-page-audits';
 import { cn } from '@/lib/utils';
 import type { DocumentInfo } from '../../../../shared/types';
+import { DocumentAssetsView } from './document-assets-view';
 import { ExportDialog } from './export-dialog';
 import { PageAuditBar } from './page-audit-bar';
 
@@ -74,6 +76,7 @@ export function DocumentPage({
   const [pageHtmlMap, setPageHtmlMap] = useState<Map<string, string>>(new Map());
   const [pageAudits, setPageAudits] = useState<Map<string, PageAudit[]>>(new Map());
   const [isAgentBusy, setIsAgentBusy] = useState(false);
+  const [viewMode, setViewMode] = useState<'preview' | 'assets'>('preview');
   // When refetchDocOnPageChange is true, we manage pages internally so
   // createPage/deletePage can refresh without going through the parent.
   const [internalPages, setInternalPages] = useState(doc.pages);
@@ -400,10 +403,13 @@ export function DocumentPage({
       zoom={zoom}
       fitToWidth={fitToWidth}
       editMode={editMode}
+      viewMode={viewMode}
+      showAssets={doc.type !== 'design-system'}
       modKey={modKey}
       onZoomIn={handleZoomIn}
       onZoomOut={handleZoomOut}
       onFitToWidth={handleFitToWidth}
+      onToggleAssets={setViewMode}
       onToggleEditMode={() => setEditMode((m) => !m)}
       onExport={() => setExportOpen(true)}
     />
@@ -523,10 +529,22 @@ export function DocumentPage({
         <ResizablePanel defaultSize={70} minSize={40}>
           <div className="flex h-full flex-col">
             {toolbar}
-            <div className="flex min-h-0 flex-1">
-              {/* Sidebar — page list */}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: drop zone for file uploads */}
+            <div
+              className="flex min-h-0 flex-1"
+              onDragOver={(e) => {
+                if (
+                  !e.dataTransfer.types.includes('Files') ||
+                  e.dataTransfer.types.includes('application/x-litho-asset')
+                )
+                  return;
+                e.preventDefault();
+                if (viewMode === 'preview') setViewMode('assets');
+              }}
+            >
+              {/* Sidebar — pages list */}
               <div className="flex w-48 min-h-0 shrink-0 flex-col border-r">
-                <ScrollArea className="h-full">
+                <ScrollArea className="flex-1">
                   <div className="flex flex-col gap-0.5 p-3">
                     {hasPages ? (
                       pages.map((page, index) => (
@@ -546,15 +564,21 @@ export function DocumentPage({
                 </ScrollArea>
               </div>
 
-              {/* Main viewer */}
-              <div ref={viewerRef} className="relative min-w-0 flex-1">
-                <div
-                  ref={scrollRef}
-                  className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
-                >
-                  {pageContent}
+              {/* Main content — preview or assets */}
+              {viewMode === 'assets' ? (
+                <div className="relative min-w-0 flex-1 bg-neutral-200 dark:bg-neutral-900">
+                  <DocumentAssetsView workspaceName={workspaceName} docId={doc.id} />
                 </div>
-              </div>
+              ) : (
+                <div ref={viewerRef} className="relative min-w-0 flex-1">
+                  <div
+                    ref={scrollRef}
+                    className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
+                  >
+                    {pageContent}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           {exportDialog}
@@ -582,10 +606,13 @@ function DocumentToolbar({
   zoom,
   fitToWidth,
   editMode,
+  viewMode,
+  showAssets,
   modKey,
   onZoomIn,
   onZoomOut,
   onFitToWidth,
+  onToggleAssets,
   onToggleEditMode,
   onExport,
 }: {
@@ -596,10 +623,13 @@ function DocumentToolbar({
   zoom: number;
   fitToWidth: boolean;
   editMode: boolean;
+  viewMode: 'preview' | 'assets';
+  showAssets: boolean;
   modKey: string;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitToWidth: () => void;
+  onToggleAssets: (mode: 'preview' | 'assets') => void;
   onToggleEditMode: () => void;
   onExport: () => void;
 }): React.JSX.Element {
@@ -613,6 +643,28 @@ function DocumentToolbar({
         <span className="shrink-0 text-xs text-muted-foreground">
           Page {currentPage + 1} of {totalPages}
         </span>
+      )}
+
+      {showAssets && (
+        <>
+          <Separator orientation="vertical" className="mx-1 h-5" />
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            value={viewMode}
+            onValueChange={(v) => {
+              if (v) onToggleAssets(v as 'preview' | 'assets');
+            }}
+          >
+            <ToggleGroupItem value="preview" className="h-7 text-xs">
+              Preview
+            </ToggleGroupItem>
+            <ToggleGroupItem value="assets" className="h-7 text-xs">
+              Assets
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </>
       )}
 
       <div className="ml-auto flex items-center gap-1">
