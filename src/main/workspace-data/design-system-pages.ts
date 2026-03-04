@@ -48,8 +48,8 @@ export function insertDesignSystemDocument(
   const vars = { workspaceName: workspaceTitle };
 
   db.prepare(
-    `INSERT INTO documents (id, title, type, size_preset, size_width, size_height, size_unit, position)
-     VALUES (?, 'Design System', 'design-system', 'A4', 210, 297, 'mm', 0)`,
+    `INSERT INTO documents (id, title, type, size_preset, size_width, size_height, size_unit)
+     VALUES (?, 'Design System', 'design-system', 'A4', 210, 297, 'mm')`,
   ).run(docId);
 
   const insertPage = db.prepare(

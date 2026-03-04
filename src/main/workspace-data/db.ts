@@ -13,7 +13,7 @@ import { insertDesignSystemDocument } from './design-system-pages';
 
 const connections = new Map<string, Database.Database>();
 
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS documents (
@@ -25,7 +25,6 @@ CREATE TABLE IF NOT EXISTS documents (
   size_width REAL NOT NULL,
   size_height REAL NOT NULL,
   size_unit TEXT NOT NULL DEFAULT 'mm',
-  position REAL NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -140,6 +139,12 @@ function applyMigrations(db: Database.Database, workspaceName: string): void {
         );
         CREATE INDEX IF NOT EXISTS idx_snapshots_doc_id ON document_snapshots(document_id);
       `);
+    }
+    if (currentVersion < 7) {
+      const cols = db.prepare("PRAGMA table_info('documents')").all() as Array<{ name: string }>;
+      if (cols.some((c) => c.name === 'position')) {
+        db.exec('ALTER TABLE documents DROP COLUMN position');
+      }
     }
   }
 

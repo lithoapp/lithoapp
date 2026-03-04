@@ -22,7 +22,7 @@ export async function exportWorkspaceSource(workspace: string): Promise<Buffer> 
 
   const db = getWorkspaceDb(workspace);
   const docs = db
-    .prepare('SELECT id, title, type FROM documents ORDER BY position')
+    .prepare('SELECT id, title, type FROM documents ORDER BY created_at')
     .all() as Array<{ id: string; title: string; type: string }>;
 
   for (const doc of docs) {

@@ -4,6 +4,16 @@ import { generateId, getWorkspaceDb } from '../../workspace-data/db';
 import { replace } from '../lib/replace';
 
 // ---------------------------------------------------------------------------
+// Config — easy to fine-tune
+// ---------------------------------------------------------------------------
+
+const GREP_PAGES_CONFIG = {
+  maxMatches: 20,
+  contextLines: 1,
+  maxLineLength: 200,
+};
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -344,6 +354,161 @@ export function createLithoTools(workspace: string) {
         ).run(newPosition, pageId, docId);
 
         return `Moved ${pageId} ${position} ${targetPageId}`;
+      },
+    }),
+
+    // ── listDocuments ─────────────────────────────────────────────────
+    listDocuments: tool({
+      description:
+        'List all documents in the workspace as a tree grouped by folder. Returns document IDs, titles, and page sizes.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        const rows = db()
+          .prepare(
+            `SELECT id, title, folder, size_preset, size_width, size_height, size_unit
+             FROM documents WHERE type = 'normal' ORDER BY folder, created_at`,
+          )
+          .all() as Array<{
+          id: string;
+          title: string;
+          folder: string | null;
+          size_preset: string | null;
+          size_width: number;
+          size_height: number;
+          size_unit: string;
+        }>;
+
+        if (rows.length === 0) {
+          return '(no documents yet)';
+        }
+
+        const formatSize = (r: (typeof rows)[0]) =>
+          r.size_preset ?? `${r.size_width}×${r.size_height} ${r.size_unit}`;
+
+        const grouped = new Map<string, typeof rows>();
+        for (const row of rows) {
+          const key = row.folder ?? '';
+          const list = grouped.get(key) ?? [];
+          list.push(row);
+          grouped.set(key, list);
+        }
+
+        const lines: string[] = [];
+        for (const [folder, docs] of grouped) {
+          if (folder) {
+            lines.push(`${folder}/`);
+          } else {
+            lines.push('(ungrouped)');
+          }
+          for (const d of docs) {
+            lines.push(`  ${d.title}\t(${d.id}, ${formatSize(d)})`);
+          }
+        }
+
+        return lines.join('\n');
+      },
+    }),
+
+    // ── grepPages ───────────────────────────────────────────────────────
+    grepPages: tool({
+      description:
+        'Search page source code across all documents using full-text search. ' +
+        'Supports FTS5 syntax: AND, OR, NOT, "exact phrase", prefix*, NEAR(a b, N).',
+      inputSchema: z.object({
+        query: z.string().describe('FTS5 search query'),
+        docId: z.string().optional().describe('Scope search to a single document'),
+      }),
+      execute: async ({ query, docId }) => {
+        const d = db();
+
+        const sql = docId
+          ? `SELECT p.id AS pageId, p.document_id AS docId, p.name AS pageName, p.source,
+                    d.title AS docTitle
+             FROM pages_fts fts
+             JOIN pages p ON p.rowid = fts.rowid
+             JOIN documents d ON d.id = p.document_id
+             WHERE pages_fts MATCH ? AND p.document_id = ?
+             LIMIT ?`
+          : `SELECT p.id AS pageId, p.document_id AS docId, p.name AS pageName, p.source,
+                    d.title AS docTitle
+             FROM pages_fts fts
+             JOIN pages p ON p.rowid = fts.rowid
+             JOIN documents d ON d.id = p.document_id
+             WHERE pages_fts MATCH ?
+             LIMIT ?`;
+
+        const params = docId
+          ? [query, docId, GREP_PAGES_CONFIG.maxMatches]
+          : [query, GREP_PAGES_CONFIG.maxMatches];
+
+        const rows = d.prepare(sql).all(...params) as Array<{
+          pageId: string;
+          docId: string;
+          pageName: string;
+          source: string;
+          docTitle: string;
+        }>;
+
+        if (rows.length === 0) {
+          return '(no matches)';
+        }
+
+        // Extract query terms for line matching (strip FTS operators)
+        const terms = query
+          .replace(/\b(AND|OR|NOT|NEAR)\b/g, '')
+          .replace(/['"()*]/g, '')
+          .split(/\s+/)
+          .filter((t) => t.length > 0)
+          .map((t) => t.toLowerCase());
+
+        const output: string[] = [];
+
+        for (const row of rows) {
+          const lines = row.source.split('\n');
+          const matchingLineIndices = new Set<number>();
+
+          for (let i = 0; i < lines.length; i++) {
+            const lower = lines[i].toLowerCase();
+            if (terms.some((t) => lower.includes(t))) {
+              matchingLineIndices.add(i);
+            }
+          }
+
+          if (matchingLineIndices.size === 0) continue;
+
+          // Expand with context lines
+          const displayLines = new Set<number>();
+          for (const idx of matchingLineIndices) {
+            for (
+              let c = idx - GREP_PAGES_CONFIG.contextLines;
+              c <= idx + GREP_PAGES_CONFIG.contextLines;
+              c++
+            ) {
+              if (c >= 0 && c < lines.length) displayLines.add(c);
+            }
+          }
+
+          const sorted = [...displayLines].sort((a, b) => a - b);
+          const header = `${row.docTitle} / ${row.pageName} (${row.docId}/${row.pageId})`;
+          output.push(header);
+
+          let lastLine = -2;
+          for (const idx of sorted) {
+            if (idx > lastLine + 1 && lastLine !== -2) {
+              output.push('  ...');
+            }
+            const line = lines[idx];
+            const truncated =
+              line.length > GREP_PAGES_CONFIG.maxLineLength
+                ? `${line.slice(0, GREP_PAGES_CONFIG.maxLineLength)}…`
+                : line;
+            output.push(`  ${idx + 1}: ${truncated}`);
+            lastLine = idx;
+          }
+          output.push('');
+        }
+
+        return output.join('\n').trimEnd();
       },
     }),
 

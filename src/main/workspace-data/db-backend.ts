@@ -90,7 +90,7 @@ export function updateWorkspaceLastOpened(slug: string): void {
 
 export async function listDocuments(workspace: string): Promise<string[]> {
   const db = getWorkspaceDb(workspace);
-  const rows = db.prepare('SELECT id FROM documents ORDER BY position').all() as { id: string }[];
+  const rows = db.prepare('SELECT id FROM documents ORDER BY created_at').all() as { id: string }[];
   return rows.map((r) => r.id);
 }
 
@@ -162,25 +162,10 @@ export async function createDocument(
 
   const docId = generateId();
 
-  // Get max position for ordering
-  const maxPos = db.prepare('SELECT MAX(position) as maxPos FROM documents').get() as {
-    maxPos: number | null;
-  };
-  const docPosition = (maxPos.maxPos ?? 0) + 1;
-
   db.prepare(
-    `INSERT INTO documents (id, title, folder, size_preset, size_width, size_height, size_unit, position)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    docId,
-    title,
-    folder || null,
-    sizePreset,
-    resolvedSize.width,
-    resolvedSize.height,
-    resolvedSize.unit,
-    docPosition,
-  );
+    `INSERT INTO documents (id, title, folder, size_preset, size_width, size_height, size_unit)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(docId, title, folder || null, sizePreset, resolvedSize.width, resolvedSize.height, resolvedSize.unit);
 
   return docId;
 }
@@ -219,7 +204,7 @@ export async function listDocumentsFull(workspace: string): Promise<DocumentInfo
   const db = getWorkspaceDb(workspace);
 
   const docs = db
-    .prepare("SELECT * FROM documents WHERE type = 'normal' ORDER BY position")
+    .prepare("SELECT * FROM documents WHERE type = 'normal' ORDER BY created_at")
     .all() as Array<{
     id: string;
     title: string;
@@ -283,7 +268,6 @@ export async function duplicateDocument(workspace: string, docId: string): Promi
         size_width: number;
         size_height: number;
         size_unit: string;
-        position: number;
       }
     | undefined;
 
@@ -305,24 +289,10 @@ export async function duplicateDocument(workspace: string, docId: string): Promi
 
   const newDocId = generateId();
 
-  const maxPos = db.prepare('SELECT MAX(position) as maxPos FROM documents').get() as {
-    maxPos: number | null;
-  };
-  const newPosition = (maxPos.maxPos ?? 0) + 1;
-
   db.prepare(
-    `INSERT INTO documents (id, title, folder, size_preset, size_width, size_height, size_unit, position)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    newDocId,
-    `${doc.title} (copy)`,
-    doc.folder,
-    doc.size_preset,
-    doc.size_width,
-    doc.size_height,
-    doc.size_unit,
-    newPosition,
-  );
+    `INSERT INTO documents (id, title, folder, size_preset, size_width, size_height, size_unit)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(newDocId, `${doc.title} (copy)`, doc.folder, doc.size_preset, doc.size_width, doc.size_height, doc.size_unit);
 
   for (const page of pages) {
     const newPageId = generateId();
