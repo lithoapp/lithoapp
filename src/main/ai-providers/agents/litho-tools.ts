@@ -117,7 +117,17 @@ export function createLithoTools(workspace: string) {
         }
 
         const lineCount = content.split('\n').length;
-        return `Wrote ${getPageLabel(docId, pageId)} (${lineCount} lines)`;
+        let msg = `Wrote ${getPageLabel(docId, pageId)} (${lineCount} lines)`;
+
+        const doc = db()
+          .prepare('SELECT description FROM documents WHERE id = ?')
+          .get(docId) as { description: string } | undefined;
+        if (doc && !doc.description) {
+          msg +=
+            '\n\nNote: This document has no description yet. If the intent is clear, use updateDocumentDescription to add a short summary (5-10 words).';
+        }
+
+        return msg;
       },
     }),
 
@@ -357,20 +367,44 @@ export function createLithoTools(workspace: string) {
       },
     }),
 
+    // ── updateDocumentDescription ──────────────────────────────────────
+    updateDocumentDescription: tool({
+      description:
+        'Set or update a document\'s description. Use after writing pages when the document\'s intent is clear.',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID'),
+        description: z
+          .string()
+          .describe('Short description of the document (5-10 words, e.g. "Client proposal for Q4 marketing campaign")'),
+      }),
+      execute: async ({ docId, description }) => {
+        const result = db()
+          .prepare("UPDATE documents SET description = ?, updated_at = datetime('now') WHERE id = ?")
+          .run(description, docId);
+
+        if (result.changes === 0) {
+          throw new Error(`Document "${docId}" not found`);
+        }
+
+        return `Updated document description: "${description}"`;
+      },
+    }),
+
     // ── listDocuments ─────────────────────────────────────────────────
     listDocuments: tool({
       description:
-        'List all documents in the workspace as a tree grouped by folder. Returns document IDs, titles, and page sizes.',
+        'List all documents in the workspace as a tree grouped by folder. Returns document IDs, titles, descriptions, and page sizes.',
       inputSchema: z.object({}),
       execute: async () => {
         const rows = db()
           .prepare(
-            `SELECT id, title, folder, size_preset, size_width, size_height, size_unit
+            `SELECT id, title, description, folder, size_preset, size_width, size_height, size_unit
              FROM documents WHERE type = 'normal' ORDER BY folder, created_at`,
           )
           .all() as Array<{
           id: string;
           title: string;
+          description: string;
           folder: string | null;
           size_preset: string | null;
           size_width: number;
@@ -401,7 +435,8 @@ export function createLithoTools(workspace: string) {
             lines.push('(ungrouped)');
           }
           for (const d of docs) {
-            lines.push(`  ${d.title}\t(${d.id}, ${formatSize(d)})`);
+            const desc = d.description ? ` — ${d.description}` : '';
+            lines.push(`  ${d.title}${desc}\t(${d.id}, ${formatSize(d)})`);
           }
         }
 

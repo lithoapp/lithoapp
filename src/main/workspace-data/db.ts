@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS documents (
   size_width REAL NOT NULL,
   size_height REAL NOT NULL,
   size_unit TEXT NOT NULL DEFAULT 'mm',
+  description TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

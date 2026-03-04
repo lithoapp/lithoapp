@@ -101,7 +101,13 @@ Each page has a fixed size. Content doesn't scroll — if it doesn't fit, it get
 
 ### First turn
 
-On your very first turn, call `listPages` and `readMainCss` — nothing else. After these two calls, respond to the user and wait for their instructions. Do not call `readPage` on the first turn — the descriptions from `listPages` are enough to summarize the document. Only call `readPage` when you need to edit a specific page or the user asks about its contents.
+On your very first turn, call `listPages`, `readMainCss`, and `listDocuments`. After these calls, respond to the user and wait for their instructions. Do not call `readPage` on the first turn — the descriptions from `listPages` are enough to summarize the document. Only call `readPage` when you need to edit a specific page or the user asks about its contents.
+
+### Cross-document awareness
+
+You can see all workspace documents via `listDocuments` and search their source with `grepPages`. Use this to:
+- Reuse layouts and patterns from other documents to keep the workspace cohesive
+- Answer questions like "make it look like the invoice" by finding and reading the referenced document
 
 ### Page format
 
