@@ -85,6 +85,19 @@ export function resolveToolLabel(
     case 'editMainCss':
       return { activeLabel: 'Editing styles', doneLabel: 'Edited styles', icon: 'pencil' };
 
+    case 'listDocuments':
+      return { activeLabel: 'Listing documents', doneLabel: 'Listed documents', icon: 'search' };
+
+    case 'grepPages':
+      return { activeLabel: 'Searching pages', doneLabel: 'Searched pages', icon: 'search' };
+
+    case 'updateDocumentDescription':
+      return {
+        activeLabel: 'Updating document description',
+        doneLabel: 'Updated document description',
+        icon: 'pencil',
+      };
+
     default:
       return { activeLabel: tool, doneLabel: tool, icon: 'terminal' };
   }
