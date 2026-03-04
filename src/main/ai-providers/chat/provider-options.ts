@@ -12,9 +12,9 @@ export function buildProviderOptions(
 ): ProviderOpts {
   const result: ProviderOpts = {};
 
-  // OpenAI / Codex: store=false, promptCacheKey
+  // OpenAI / Codex: store=false, promptCacheKey, sequential tool calls
   if (providerId === 'openai') {
-    result.openai = { store: false, ...extra };
+    result.openai = { store: false, parallelToolCalls: false, ...extra };
   }
 
   // Google Gemini: enable thinking
@@ -33,6 +33,11 @@ export function buildProviderOptions(
       reasoningEffort: 'medium',
       reasoningSummary: 'auto',
     };
+  }
+
+  // Anthropic: sequential tool calls
+  if (providerId === 'anthropic') {
+    result.anthropic = { ...result.anthropic, disableParallelToolUse: true };
   }
 
   // OpenRouter: include usage
