@@ -1,8 +1,9 @@
-import { homedir } from 'node:os';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
+import { app } from 'electron';
 
-const REGISTRY_PATH = join(homedir(), 'litho-workspaces', 'registry.db');
+const REGISTRY_PATH = join(app.getPath('userData'), 'registry.db');
 
 let registryDb: Database.Database | null = null;
 
@@ -25,6 +26,7 @@ export interface WorkspaceRegistryEntry {
 function openRegistryDb(): Database.Database {
   if (registryDb) return registryDb;
 
+  mkdirSync(app.getPath('userData'), { recursive: true });
   registryDb = new Database(REGISTRY_PATH);
   registryDb.pragma('journal_mode = WAL');
   registryDb.exec(SCHEMA_SQL);

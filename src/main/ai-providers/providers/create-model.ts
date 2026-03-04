@@ -21,10 +21,19 @@ const OUTPUT_TOKEN_MAX = 32_000;
 // ---------------------------------------------------------------------------
 
 export function createModel(providerId: string, modelId: string): LanguageModel {
-  const cred = getCredential(providerId);
-  if (!cred) throw new Error(`No credentials found for provider: ${providerId}`);
-
   const providerData = getModelsCache()?.providers?.[providerId];
+
+  let cred = getCredential(providerId);
+  if (!cred) {
+    if (providerData?.autoConnect) {
+      // Auto-connect providers (e.g. 'free') use a public key — store it for next time
+      cred = { type: 'api', key: 'public' };
+      setCredential(providerId, cred);
+    } else {
+      throw new Error(`No credentials found for provider: ${providerId}`);
+    }
+  }
+
   const routingProviderId = providerData?.internalProvider ?? providerId;
 
   if (providerId === 'openai' && cred.type === 'oauth') {

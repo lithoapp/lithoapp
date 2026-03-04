@@ -1,7 +1,7 @@
 /**
  * SQLite database module for workspace data.
  *
- * Each workspace gets its own `workspace.db` inside `~/litho-workspaces/{name}/`.
+ * Each workspace gets its own `workspace.db` inside `<userData>/workspaces/{name}/`.
  * Connections are cached and reused across calls.
  */
 
@@ -9,11 +9,8 @@ import { randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import Database from 'better-sqlite3';
 import { resolveWorkspacePath } from '../workspace-paths';
-import { insertDesignSystemDocument } from './design-system-pages';
 
 const connections = new Map<string, Database.Database>();
-
-const SCHEMA_VERSION = 7;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS documents (
@@ -90,67 +87,6 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_doc_id ON document_snapshots(document_i
 
 `;
 
-function applyMigrations(db: Database.Database, workspaceName: string): void {
-  const currentVersion = db.pragma('user_version', { simple: true }) as number;
-
-  if (currentVersion >= SCHEMA_VERSION) return;
-
-  if (currentVersion === 0) {
-    // Fresh database — run full schema
-    db.exec(SCHEMA_SQL);
-  } else {
-    // Incremental migrations
-    if (currentVersion < 2) {
-      db.exec("ALTER TABLE pages ADD COLUMN name TEXT NOT NULL DEFAULT ''");
-    }
-    if (currentVersion < 3) {
-      db.exec("ALTER TABLE documents ADD COLUMN type TEXT NOT NULL DEFAULT 'normal'");
-      insertDesignSystemDocument(db, generateId, workspaceName);
-    }
-    if (currentVersion < 4) {
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS conversations (
-          document_id TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
-          messages TEXT NOT NULL DEFAULT '[]',
-          usage_input_tokens INTEGER NOT NULL DEFAULT 0,
-          usage_output_tokens INTEGER NOT NULL DEFAULT 0,
-          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-      `);
-    }
-    if (currentVersion < 5) {
-      db.exec(`
-        ALTER TABLE conversations ADD COLUMN usage_input_tokens INTEGER NOT NULL DEFAULT 0;
-        ALTER TABLE conversations ADD COLUMN usage_output_tokens INTEGER NOT NULL DEFAULT 0;
-      `);
-    }
-    if (currentVersion < 6) {
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS document_snapshots (
-          id TEXT PRIMARY KEY,
-          document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-          user_message_id TEXT NOT NULL,
-          pages_json TEXT NOT NULL,
-          styles_css TEXT NOT NULL,
-          messages_json TEXT NOT NULL,
-          usage_input_tokens INTEGER NOT NULL DEFAULT 0,
-          usage_output_tokens INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        CREATE INDEX IF NOT EXISTS idx_snapshots_doc_id ON document_snapshots(document_id);
-      `);
-    }
-    if (currentVersion < 7) {
-      const cols = db.prepare("PRAGMA table_info('documents')").all() as Array<{ name: string }>;
-      if (cols.some((c) => c.name === 'position')) {
-        db.exec('ALTER TABLE documents DROP COLUMN position');
-      }
-    }
-  }
-
-  db.pragma(`user_version = ${SCHEMA_VERSION}`);
-}
-
 export function openWorkspaceDb(workspaceName: string): Database.Database {
   const existing = connections.get(workspaceName);
   if (existing) return existing;
@@ -163,8 +99,7 @@ export function openWorkspaceDb(workspaceName: string): Database.Database {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
-
-  applyMigrations(db, workspaceName);
+  db.exec(SCHEMA_SQL);
 
   connections.set(workspaceName, db);
   return db;
