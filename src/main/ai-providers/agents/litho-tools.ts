@@ -1,6 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { listAssets } from '../../assets-manager';
 import { generateId, getWorkspaceDb } from '../../workspace-data/db';
+import { resolveWorkspacePath } from '../../workspace-paths';
 import { replace } from '../lib/replace';
 
 // ---------------------------------------------------------------------------
@@ -119,9 +121,9 @@ export function createLithoTools(workspace: string) {
         const lineCount = content.split('\n').length;
         let msg = `Wrote ${getPageLabel(docId, pageId)} (${lineCount} lines)`;
 
-        const doc = db()
-          .prepare('SELECT description FROM documents WHERE id = ?')
-          .get(docId) as { description: string } | undefined;
+        const doc = db().prepare('SELECT description FROM documents WHERE id = ?').get(docId) as
+          | { description: string }
+          | undefined;
         if (doc && !doc.description) {
           msg +=
             '\n\nNote: This document has no description yet. If the intent is clear, use updateDocumentDescription to add a short summary (5-10 words).';
@@ -370,16 +372,20 @@ export function createLithoTools(workspace: string) {
     // ── updateDocumentDescription ──────────────────────────────────────
     updateDocumentDescription: tool({
       description:
-        'Set or update a document\'s description. Use after writing pages when the document\'s intent is clear.',
+        "Set or update a document's description. Use after writing pages when the document's intent is clear.",
       inputSchema: z.object({
         docId: z.string().describe('Document ID'),
         description: z
           .string()
-          .describe('Short description of the document (5-10 words, e.g. "Client proposal for Q4 marketing campaign")'),
+          .describe(
+            'Short description of the document (5-10 words, e.g. "Client proposal for Q4 marketing campaign")',
+          ),
       }),
       execute: async ({ docId, description }) => {
         const result = db()
-          .prepare("UPDATE documents SET description = ?, updated_at = datetime('now') WHERE id = ?")
+          .prepare(
+            "UPDATE documents SET description = ?, updated_at = datetime('now') WHERE id = ?",
+          )
           .run(description, docId);
 
         if (result.changes === 0) {
@@ -608,6 +614,47 @@ export function createLithoTools(workspace: string) {
           .run(updated);
 
         return 'Edited styles.css';
+      },
+    }),
+
+    // ── listWorkspaceAssets ───────────────────────────────────────────
+    listWorkspaceAssets: tool({
+      description:
+        'List workspace-level assets (images) shared across all documents. ' +
+        'Excludes per-document asset folders.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        const workspacePath = resolveWorkspacePath(workspace);
+        const allEntries = listAssets(workspacePath, '', false);
+
+        // Hide the reserved "documents" folder (per-document assets)
+        const filtered = allEntries.filter(
+          (e) => !(e.type === 'directory' && e.name === 'documents'),
+        );
+
+        if (filtered.length === 0) return '(no workspace assets)';
+        return filtered.map((e) => `${e.path}\t${e.type}\t${e.ext}\t${e.size}`).join('\n');
+      },
+    }),
+
+    // ── listDocumentAssets ────────────────────────────────────────────
+    listDocumentAssets: tool({
+      description:
+        'List assets belonging to a specific document. ' +
+        'Reference these in pages as @assets/documents/<docId>/filename.',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID'),
+      }),
+      execute: async ({ docId }) => {
+        const workspacePath = resolveWorkspacePath(workspace);
+        const entries = listAssets(workspacePath, `documents/${docId}`, false).filter(
+          (e) => e.type === 'file',
+        );
+
+        if (entries.length === 0) return '(no document assets)';
+        return entries
+          .map((e) => `@assets/documents/${docId}/${e.name}\t${e.ext}\t${e.size}`)
+          .join('\n');
       },
     }),
   };

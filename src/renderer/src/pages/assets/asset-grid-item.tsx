@@ -1,4 +1,4 @@
-import { Folder, FolderMinus, Images, MoreHorizontal, Pencil, Trash2, Type } from 'lucide-react';
+import { Folder, FolderMinus, Images, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,8 +11,6 @@ import {
 import type { AssetEntry } from '../../../../shared/types';
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
-const FONT_EXTS = new Set(['.woff2', '.woff', '.ttf', '.otf']);
-
 export { IMAGE_EXTS };
 
 export function AssetGridItem({
@@ -41,7 +39,6 @@ export function AssetGridItem({
   onMoveToParent?: () => void;
 }): React.JSX.Element {
   const isImage = IMAGE_EXTS.has(entry.ext);
-  const isFont = FONT_EXTS.has(entry.ext);
   const isDir = entry.type === 'directory';
 
   function handleClick(): void {
@@ -121,8 +118,6 @@ export function AssetGridItem({
             alt={entry.name}
             className="h-full w-full object-contain"
           />
-        ) : isFont ? (
-          <Type className="h-10 w-10 text-muted-foreground/50" />
         ) : (
           <Images className="h-10 w-10 text-muted-foreground/50" />
         )}

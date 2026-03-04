@@ -51,7 +51,12 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
     setError(null);
     try {
       const raw = await window.litho.assets.list(workspaceName, currentDir, false);
-      const sorted = [...raw].sort((a, b) => {
+      // At root level, hide the reserved "documents" folder (per-document assets)
+      const filtered =
+        currentDir === ''
+          ? raw.filter((e) => !(e.type === 'directory' && e.name === 'documents'))
+          : raw;
+      const sorted = [...filtered].sort((a, b) => {
         if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
@@ -299,7 +304,7 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".png,.jpg,.jpeg,.webp,.gif,.svg,.woff2,.woff,.ttf,.otf"
+            accept=".png,.jpg,.jpeg,.webp,.gif,.svg"
             className="hidden"
             onChange={(e) => {
               if (e.target.files) void handleUploadFiles(e.target.files);

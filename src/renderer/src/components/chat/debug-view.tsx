@@ -79,11 +79,7 @@ function ToolCallCard({
 // Persisted debug view
 // ---------------------------------------------------------------------------
 
-export function PersistedDebugView({
-  messages,
-}: {
-  messages: StoredMessage[];
-}): React.JSX.Element {
+export function PersistedDebugView({ messages }: { messages: StoredMessage[] }): React.JSX.Element {
   // Build a map of toolCallId → output from tool messages
   const outputMap = new Map<string, unknown>();
   for (const msg of messages) {

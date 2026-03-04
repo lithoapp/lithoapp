@@ -233,8 +233,6 @@ export interface AgentContext {
   height?: number;
   unit?: string;
   userName?: string;
-  fontContext?: string;
-  assetsSummary?: string;
   designSystemDocId?: string | null;
 }
 

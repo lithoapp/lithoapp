@@ -7,8 +7,8 @@ import {
   Square,
   WifiOff,
 } from 'lucide-react';
-import { PulseLoader } from 'react-spinners';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { PulseLoader } from 'react-spinners';
 import {
   AlertDialog,
   AlertDialogAction,

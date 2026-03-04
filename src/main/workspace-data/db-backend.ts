@@ -165,7 +165,15 @@ export async function createDocument(
   db.prepare(
     `INSERT INTO documents (id, title, folder, size_preset, size_width, size_height, size_unit)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(docId, title, folder || null, sizePreset, resolvedSize.width, resolvedSize.height, resolvedSize.unit);
+  ).run(
+    docId,
+    title,
+    folder || null,
+    sizePreset,
+    resolvedSize.width,
+    resolvedSize.height,
+    resolvedSize.unit,
+  );
 
   return docId;
 }
@@ -292,7 +300,15 @@ export async function duplicateDocument(workspace: string, docId: string): Promi
   db.prepare(
     `INSERT INTO documents (id, title, folder, size_preset, size_width, size_height, size_unit)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(newDocId, `${doc.title} (copy)`, doc.folder, doc.size_preset, doc.size_width, doc.size_height, doc.size_unit);
+  ).run(
+    newDocId,
+    `${doc.title} (copy)`,
+    doc.folder,
+    doc.size_preset,
+    doc.size_width,
+    doc.size_height,
+    doc.size_unit,
+  );
 
   for (const page of pages) {
     const newPageId = generateId();

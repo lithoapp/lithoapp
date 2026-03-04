@@ -158,12 +158,7 @@ function App(): React.JSX.Element {
 
   // Guard: redirect away from workspace pages if workspace is no longer active
   useEffect(() => {
-    const onWorkspacePage = [
-      'documents',
-      'document',
-      'design-system-doc',
-      'assets',
-    ].includes(page);
+    const onWorkspacePage = ['documents', 'document', 'design-system-doc', 'assets'].includes(page);
     if (onWorkspacePage && workspaceInfo.status === 'inactive') {
       setPage('workspaces');
     }

@@ -44,7 +44,6 @@ export function DesignSystemChat({
     } satisfies React.RefObject<SendMessageFn>;
   }, [sendMessageRef, parentSendMessageRef]);
 
-  const [fontContext, setFontContext] = useState('');
   const [userName, setUserName] = useState('');
   const [dsDocId, setDsDocId] = useState<string | null>(null);
   const [docConfig, setDocConfig] = useState<DocumentConfig | null>(null);
@@ -73,22 +72,6 @@ export function DesignSystemChat({
     })();
   }, [workspaceName]);
 
-  // Font context
-  useEffect(() => {
-    const fontExts = new Set(['.woff2', '.woff', '.ttf', '.otf']);
-    window.litho.assets
-      .list(workspaceName, '', true)
-      .then((entries) => {
-        const fonts = (entries as Array<{ type: string; ext: string; path: string }>).filter(
-          (e) => e.type === 'file' && fontExts.has(e.ext),
-        );
-        if (fonts.length === 0) return;
-        const fontPaths = fonts.map((f) => `@assets/${f.path}`).join('\n');
-        setFontContext(`\n\nAvailable font files:\n${fontPaths}`);
-      })
-      .catch(() => {});
-  }, [workspaceName]);
-
   // Refetch doc config when pages change
   const refetchDocConfig = useCallback(async () => {
     if (!dsDocId) return;
@@ -115,10 +98,9 @@ export function DesignSystemChat({
   const agentContext = useMemo(
     () => ({
       docId: dsDocId ?? '',
-      fontContext: fontContext || undefined,
       userName: userName || undefined,
     }),
-    [dsDocId, fontContext, userName],
+    [dsDocId, userName],
   );
 
   // Kickoff message

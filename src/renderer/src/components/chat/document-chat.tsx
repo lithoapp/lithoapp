@@ -29,9 +29,6 @@ export function DocumentChat({
   sendMessageRef,
   onBusyChange,
 }: DocumentChatProps): React.JSX.Element {
-  const [assetsSummary, setAssetsSummary] = useState(
-    'Assets: @assets/... (workspace-level assets)',
-  );
   const [designSystemDocId, setDesignSystemDocId] = useState<string | null>(null);
 
   // Resolve design system doc ID
@@ -40,28 +37,6 @@ export function DocumentChat({
       .getDesignSystemDocId(workspaceName)
       .then((id) => setDesignSystemDocId(id))
       .catch(() => {});
-  }, [workspaceName]);
-
-  // Resolve assets summary
-  useEffect(() => {
-    void (async () => {
-      try {
-        const entries = (await window.litho.assets.list(workspaceName, '', false)) as Array<{
-          type: string;
-          name: string;
-        }>;
-        const dirs = entries.filter((e) => e.type === 'directory').map((e) => e.name);
-        const fileCount = entries.filter((e) => e.type === 'file').length;
-        const dirList = dirs.length > 0 ? `\nTop-level directories: ${dirs.join(', ')}` : '';
-        setAssetsSummary(
-          `Assets: ${entries.length} item(s) (${fileCount} file(s))${dirList}\n` +
-            'Usage: reference as @assets/path/to/file.ext\n' +
-            'The agent can explore the assets directory to find specific files.',
-        );
-      } catch {
-        // keep default
-      }
-    })();
   }, [workspaceName]);
 
   // Build agent context
@@ -73,10 +48,9 @@ export function DocumentChat({
       height: doc.size.height,
       unit: doc.size.unit,
       userName,
-      assetsSummary,
       designSystemDocId,
     }),
-    [doc.id, doc.title, doc.size, userName, assetsSummary, designSystemDocId],
+    [doc.id, doc.title, doc.size, userName, designSystemDocId],
   );
 
   // Kickoff message

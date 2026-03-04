@@ -1,10 +1,8 @@
 import type { Tool } from 'ai';
 import Mustache from 'mustache';
 import designSystemKickoffRaw from '../../../agents/design-system/kickoff.md?raw';
-import designSystemPromptRaw from '../../../agents/design-system/prompt.md?raw';
 import designSystemSystemRaw from '../../../agents/design-system/system.md?raw';
 import documentKickoffRaw from '../../../agents/document/kickoff.md?raw';
-import documentPromptRaw from '../../../agents/document/prompt.md?raw';
 import documentSystemRaw from '../../../agents/document/system.md?raw';
 import type { AgentContext, AgentId } from '../../../shared/types';
 import type { LithoToolName } from './litho-tools';
@@ -37,8 +35,9 @@ const AGENTS: Record<AgentId, AgentConfig> = {
       'updateDocumentDescription',
       'listDocuments',
       'grepPages',
+      'listWorkspaceAssets',
     ],
-    systemTemplate: `${designSystemSystemRaw}\n\n${designSystemPromptRaw}`,
+    systemTemplate: designSystemSystemRaw,
     kickoffTemplate: designSystemKickoffRaw,
   },
   document: {
@@ -55,8 +54,10 @@ const AGENTS: Record<AgentId, AgentConfig> = {
       'updateDocumentDescription',
       'listDocuments',
       'grepPages',
+      'listWorkspaceAssets',
+      'listDocumentAssets',
     ],
-    systemTemplate: `${documentSystemRaw}\n\n${documentPromptRaw}`,
+    systemTemplate: documentSystemRaw,
     kickoffTemplate: documentKickoffRaw,
   },
 };

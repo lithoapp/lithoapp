@@ -24,7 +24,7 @@ pnpm typecheck            # Type-check (main + renderer)
 - `renderer/` — Offline build pipeline (TSX + Tailwind → HTML): `build-csr.ts`, `build-ssr.ts`, `build-shared.ts`, `detect-approach.ts`
 - `exporter/` — Export capture & assembly: `export-page.ts` (hidden BrowserWindow → PDF/PNG/JPG buffer), `document-exporter.ts` (multi-page orchestrator), `batch-export.ts` (CLI batch entry point)
 - `workspace-data/` — SQLite-backed data layer: `db.ts` (connection pool, schema v5, migrations), `db-backend.ts` (CRUD operations), `registry-db.ts` (global workspace registry), `design-system-parser.ts` (CSS token extraction), `design-system-pages.ts` (template page definitions), `export-source.ts` (workspace ZIP export), `templates/` (Mustache templates for design system pages)
-- `workspace-paths.ts` — Resolves workspace name → `~/litho-workspaces/<name>`
+- `workspace-paths.ts` — Resolves workspace name → `{userData}/workspaces/<name>`
 - `active-workspace-store.ts` — Tracks the currently active workspace (JSON in userData)
 - `assets-manager.ts` — Workspace asset CRUD with path traversal protection
 - `auto-updater.ts` — electron-updater for GitHub releases
@@ -40,7 +40,7 @@ Powered by Vercel AI SDK (`ai`, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/
 - `chat/message-mapping.ts` — Bidirectional conversion: `StoredMessage[]` ↔ AI SDK `ModelMessage[]`
 - `chat/stream-events.ts` — `ChatStreamEvent` union type (text-delta, reasoning-delta, tool-call, tool-result, finish, error)
 - `chat/provider-options.ts` — Per-provider `streamText` options (prompt caching, reasoning config, etc.)
-- `agents/config.ts` — Agent definitions: tool allowlists, system/prompt/kickoff templates (Mustache)
+- `agents/config.ts` — Agent definitions: tool allowlists, system/kickoff templates (Mustache)
 - `agents/litho-tools.ts` — 11 AI SDK tools with Zod schemas, executed directly in main process
 - `providers/create-model.ts` — Creates AI SDK model instances for Anthropic, OpenAI, OpenAI-compatible
 - `providers/credential-store.ts` — API key / OAuth credential persistence
@@ -56,11 +56,13 @@ Two AI agents with scoped tool permissions:
 - **design-system** (`design-system/`) — Creative design partner for visual branding. Edits workspace `styles.css` (Tailwind v4 `@theme` block) and manages design system document pages. Has read/write access to styles and all page tools.
 - **document** (`document/`) — Creative partner for building PDF pages. Reads design system styles (read-only) and manages document pages. No write access to styles.
 
-Each agent has: `system.md` (system prompt), `prompt.md` (detailed prompt), `kickoff.md` (first message template). Agent configs (tool allowlists, templates) defined in `src/main/ai-providers/agents/config.ts`.
+Each agent has: `system.md` (system prompt — runtime variables at top via Mustache, followed by full agent identity, instructions, and internal operating rules), `kickoff.md` (first message template). Agent configs (tool allowlists, templates) defined in `src/main/ai-providers/agents/config.ts`.
 
-**Agent Tools** (`src/main/ai-providers/agents/litho-tools.ts`) — 11 tools exposed as AI SDK tools:
+**Agent Tools** (`src/main/ai-providers/agents/litho-tools.ts`) — 16 tools exposed as AI SDK tools:
 - Page tools: `listPages`, `readPage`, `writePage`, `editPage`, `createPage`, `deletePage`, `updatePageDetails`, `movePage`
 - Style tools: `readMainCss`, `writeMainCss`, `editMainCss`
+- Document tools: `updateDocumentDescription`, `listDocuments`, `grepPages`
+- Asset tools: `listWorkspaceAssets`, `listDocumentAssets`
 
 ### Preload (`src/preload/`)
 
@@ -96,9 +98,9 @@ Sandbox enabled, context isolation, no nodeIntegration, CSP headers. Assets serv
 
 ### Two-Database Architecture (SQLite via better-sqlite3)
 
-**Registry database** (`~/litho-workspaces/registry.db`) — Global workspace list. Single `workspaces` table: slug, title, created_at, last_opened_at.
+**Registry database** (`{userData}/workspaces/registry.db`) — Global workspace list. Single `workspaces` table: slug, title, created_at, last_opened_at.
 
-**Workspace database** (`~/litho-workspaces/<slug>/workspace.db`) — Per-workspace data. Schema v6:
+**Workspace database** (`{userData}/workspaces/<slug>/workspace.db`) — Per-workspace data. Schema v6:
 - `documents` — id, title, type (`normal`|`design-system`), folder, size (preset/width/height/unit), position
 - `pages` — id, document_id (FK cascade), name, description, source (TSX), position
 - `pages_fts` — FTS5 virtual table on page source, auto-synced via triggers
@@ -110,7 +112,7 @@ Connection pool caches open databases by workspace name. WAL mode, foreign keys 
 
 **AI credential/cache tables** live in `registry.db` (global, not per-workspace): `ai_credentials`, `ai_models_cache`, `ai_models_dev_cache`.
 
-**Assets** — Files on disk at `~/litho-workspaces/<slug>/assets/`. Allowed types: images (.png, .jpg, .jpeg, .webp, .gif, .svg), fonts (.woff2, .woff, .ttf, .otf). Served to renderer via `litho-asset://<workspace>/<path>`.
+**Assets** — Files on disk at `{userData}/workspaces/<slug>/assets/`. Allowed types: images (.png, .jpg, .jpeg, .webp, .gif, .svg). Served to renderer via `litho-asset://<workspace>/<path>`. Document-specific assets stored in `assets/documents/<document-id>/*` (flat, no subdirectories). The `documents` folder is reserved and hidden from the workspace assets UI.
 
 **App state** — JSON files in `app.getPath('userData')`: `active-workspace.json`, `app-preferences.json`.
 
