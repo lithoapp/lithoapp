@@ -28,6 +28,7 @@ import type { ChatErrorType, PageInfo } from '../../../../shared/types';
 import { ChatCover } from './chat-cover';
 import { MessageList } from './message-list';
 import { ModelSelector } from './model-selector';
+import type { DisplayMode } from './types';
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -234,6 +235,7 @@ export function Chat({
   const [providerId, setProviderId] = useState(() => loadChatPrefs().providerId);
   const [modelId, setModelId] = useState(() => loadChatPrefs().modelId);
   const [input, setInput] = useState('');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('activity');
   const [kickoffSent, setKickoffSent] = useState(false);
   const [pendingKickoff, setPendingKickoff] = useState(false);
 
@@ -393,8 +395,24 @@ export function Chat({
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center gap-2 border-b px-3 py-2">
-        <ModelSelector providerId={providerId} modelId={modelId} onSelect={handleModelSelect} />
+        <div className="flex h-7 items-center rounded-md bg-muted p-0.5 text-[11px]">
+          <button
+            type="button"
+            className={`rounded px-2 py-1 transition-colors ${displayMode === 'activity' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setDisplayMode('activity')}
+          >
+            Activity
+          </button>
+          <button
+            type="button"
+            className={`rounded px-2 py-1 transition-colors ${displayMode === 'debug' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setDisplayMode('debug')}
+          >
+            Debug
+          </button>
+        </div>
         <div className="flex-1" />
+        <ModelSelector providerId={providerId} modelId={modelId} onSelect={handleModelSelect} />
 
         {/* New chat */}
         <AlertDialog>
@@ -433,6 +451,7 @@ export function Chat({
           pages={pages}
           hideFirstUserMessage={hideFirstUserMessage}
           onRevert={handleRevert}
+          displayMode={displayMode}
         />
       </div>
 

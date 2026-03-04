@@ -19,7 +19,8 @@ import type {
   StoredUserMessage,
 } from '../../../../shared/types';
 import { PersistedActivityLog, StreamingActivityLog } from './activity-log';
-import type { StreamingPart } from './types';
+import { PersistedDebugView, StreamingDebugView } from './debug-view';
+import type { DisplayMode, StreamingPart } from './types';
 
 // ---------------------------------------------------------------------------
 // Turn grouping
@@ -162,10 +163,16 @@ function UserMessageView({
 function AssistantTurnView({
   messages,
   pages,
+  displayMode,
 }: {
   messages: StoredMessage[];
   pages?: PageInfo[];
+  displayMode: DisplayMode;
 }): React.JSX.Element {
+  if (displayMode === 'debug') {
+    return <PersistedDebugView messages={messages} />;
+  }
+
   const assistantMessages = messages.filter(
     (m): m is StoredAssistantMessage => m.role === 'assistant',
   );
@@ -190,6 +197,7 @@ export function MessageList({
   pages,
   hideFirstUserMessage,
   onRevert,
+  displayMode = 'activity',
 }: {
   messages: StoredMessage[];
   streamingParts: StreamingPart[];
@@ -197,6 +205,7 @@ export function MessageList({
   pages?: PageInfo[];
   hideFirstUserMessage?: boolean;
   onRevert?: (userMessageId: string) => void;
+  displayMode?: DisplayMode;
 }): React.JSX.Element {
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -232,12 +241,18 @@ export function MessageList({
             key={`assistant-${String(i)}`}
             messages={turn.messages}
             pages={pages}
+            displayMode={displayMode}
           />
         );
       })}
 
       {/* Streaming turn */}
-      {isStreaming && <StreamingActivityLog streamingParts={streamingParts} pages={pages} />}
+      {isStreaming &&
+        (displayMode === 'debug' ? (
+          <StreamingDebugView streamingParts={streamingParts} />
+        ) : (
+          <StreamingActivityLog streamingParts={streamingParts} pages={pages} />
+        ))}
 
       <div ref={endRef} />
     </div>
