@@ -5,6 +5,7 @@ import type {
   ChatErrorType,
   RevertResult,
   StoredMessage,
+  StoredUserMessage,
 } from '../../../shared/types';
 import type { StreamingPart, StreamingToolCallPart } from '../components/chat/types';
 
@@ -39,8 +40,8 @@ export interface UseChatV2Return {
     contextWindow?: number;
   };
   sendMessage: (text: string) => Promise<void>;
-  revertToMessage: (userMessageId: string) => Promise<void>;
-  abortAndRevert: () => Promise<void>;
+  revertToMessage: (userMessageId: string) => Promise<string | null>;
+  abortAndRevert: () => Promise<string | null>;
   retry: () => Promise<void>;
   abort: () => Promise<void>;
   clearConversation: () => Promise<void>;
@@ -358,7 +359,12 @@ export function useChatV2({
 
   const revertToMessage = useCallback(
     async (userMessageId: string) => {
-      if (isStreaming) return;
+      if (isStreaming) return null;
+
+      const userMsg = messagesRef.current.find(
+        (m): m is StoredUserMessage => m.role === 'user' && m.id === userMessageId,
+      );
+      const userPrompt = userMsg?.content ?? null;
 
       const result = (await window.litho.snapshot.revert(
         workspaceName,
@@ -382,6 +388,8 @@ export function useChatV2({
       lastUserMessageRef.current = null;
 
       onToolCompleteRef.current?.('__revert__', {});
+
+      return userPrompt;
     },
     [isStreaming, workspaceName, documentId],
   );
@@ -410,7 +418,9 @@ export function useChatV2({
 
   const abortAndRevert = useCallback(async () => {
     const lastUserMsg = [...messagesRef.current].reverse().find((m) => m.role === 'user');
-    if (!lastUserMsg?.id) return;
+    if (!lastUserMsg?.id) return null;
+
+    const userPrompt = typeof lastUserMsg.content === 'string' ? lastUserMsg.content : null;
 
     // Abort the stream and immediately clear streaming state
     if (chatIdRef.current) {
@@ -445,6 +455,8 @@ export function useChatV2({
     lastUserMessageRef.current = null;
 
     onToolCompleteRef.current?.('__revert__', {});
+
+    return userPrompt;
   }, [workspaceName, documentId]);
 
   // ---------------------------------------------------------------------------

@@ -294,17 +294,19 @@ export function Chat({
     void chat.sendMessage(text);
   }, [input, chat]);
 
-  const handleAbort = useCallback(() => {
-    void chat.abort();
-  }, [chat]);
-
-  const handleAbortAndRevert = useCallback(() => {
-    void chat.abortAndRevert();
+  const handleAbortAndRevert = useCallback(async () => {
+    const userPrompt = await chat.abortAndRevert();
+    if (userPrompt) {
+      setInput(userPrompt);
+    }
   }, [chat]);
 
   const handleRevert = useCallback(
-    (userMessageId: string) => {
-      void chat.revertToMessage(userMessageId);
+    async (userMessageId: string) => {
+      const userPrompt = await chat.revertToMessage(userMessageId);
+      if (userPrompt) {
+        setInput(userPrompt);
+      }
     },
     [chat],
   );
