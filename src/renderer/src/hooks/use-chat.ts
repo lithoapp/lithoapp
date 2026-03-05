@@ -40,6 +40,7 @@ export interface UseChatV2Return {
   };
   sendMessage: (text: string) => Promise<void>;
   revertToMessage: (userMessageId: string) => Promise<void>;
+  abortAndRevert: () => Promise<void>;
   retry: () => Promise<void>;
   abort: () => Promise<void>;
   clearConversation: () => Promise<void>;
@@ -404,6 +405,49 @@ export function useChatV2({
   }, [isStreaming, startChat]);
 
   // ---------------------------------------------------------------------------
+  // Abort and revert to before the last user message
+  // ---------------------------------------------------------------------------
+
+  const abortAndRevert = useCallback(async () => {
+    const lastUserMsg = [...messagesRef.current].reverse().find((m) => m.role === 'user');
+    if (!lastUserMsg?.id) return;
+
+    // Abort the stream and immediately clear streaming state
+    if (chatIdRef.current) {
+      try {
+        await window.litho.chat.abort(chatIdRef.current);
+      } catch {
+        // ignore
+      }
+      chatIdRef.current = null;
+    }
+
+    setIsStreaming(false);
+    streamingPartsRef.current = [];
+    pendingReasoningRef.current = '';
+    setStreamingParts([]);
+    setStreamingReasoning('');
+
+    const result = (await window.litho.snapshot.revert(
+      workspaceName,
+      documentId,
+      lastUserMsg.id,
+    )) as RevertResult;
+
+    setMessages(result.messages);
+    setUsage({
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      totalTokens: result.usage.totalTokens,
+      contextWindow: undefined,
+    });
+    setError(null);
+    lastUserMessageRef.current = null;
+
+    onToolCompleteRef.current?.('__revert__', {});
+  }, [workspaceName, documentId]);
+
+  // ---------------------------------------------------------------------------
   // Abort
   // ---------------------------------------------------------------------------
 
@@ -452,6 +496,7 @@ export function useChatV2({
     usage,
     sendMessage,
     revertToMessage,
+    abortAndRevert,
     retry,
     abort,
     clearConversation,

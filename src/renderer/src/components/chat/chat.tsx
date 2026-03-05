@@ -298,6 +298,10 @@ export function Chat({
     void chat.abort();
   }, [chat]);
 
+  const handleAbortAndRevert = useCallback(() => {
+    void chat.abortAndRevert();
+  }, [chat]);
+
   const handleRevert = useCallback(
     (userMessageId: string) => {
       void chat.revertToMessage(userMessageId);
@@ -492,15 +496,34 @@ export function Chat({
           />
           <div className="absolute right-2 bottom-2">
             {chat.isStreaming ? (
-              <Button
-                size="icon"
-                variant="destructive"
-                onClick={handleAbort}
-                className="h-7 w-7 shrink-0 rounded-full"
-                title="Stop"
-              >
-                <Square className="h-3 w-3" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="destructive"
+                    className="h-7 w-7 shrink-0 rounded-full"
+                    title="Stop"
+                  >
+                    <Square className="h-3 w-3" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Stop and revert?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Stopping will abort the agent and revert all changes made during this
+                      interaction. The document will be restored to its state before your last
+                      message.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Continue</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleAbortAndRevert}>
+                      Stop and revert
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             ) : (
               <Button
                 size="icon"
