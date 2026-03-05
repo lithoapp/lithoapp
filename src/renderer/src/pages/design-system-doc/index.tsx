@@ -10,12 +10,14 @@ const REBUILD_ALL_ON_TOOLS = ['writeMainCss', 'editMainCss'];
 
 interface DesignSystemDocPageProps {
   workspaceName: string;
+  workspaceTitle?: string;
   workspacePath: string | null;
   onBack: () => void;
 }
 
 export function DesignSystemDocPage({
   workspaceName,
+  workspaceTitle,
   workspacePath,
   onBack,
 }: DesignSystemDocPageProps): React.JSX.Element {
@@ -116,12 +118,14 @@ export function DesignSystemDocPage({
     <DocumentPage
       doc={doc}
       workspaceName={workspaceName}
+      workspaceTitle={workspaceTitle}
       workspacePath={workspacePath}
       onBack={onBack}
       rebuildAllOnTools={REBUILD_ALL_ON_TOOLS}
       refetchDocOnPageChange
       renderChat={({
         workspaceName: wsName,
+        workspaceTitle: wsTitle,
         workspacePath: wsPath,
         onToolComplete,
         sendMessageRef: parentSendRef,
@@ -129,6 +133,7 @@ export function DesignSystemDocPage({
       }) => (
         <DesignSystemChat
           workspaceName={wsName}
+          workspaceTitle={wsTitle}
           workspacePath={wsPath}
           onToolComplete={(tool, args) => {
             onToolComplete(tool, args);

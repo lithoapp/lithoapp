@@ -11,6 +11,7 @@ type SendMessageFn = ((text: string) => void) | null;
 
 interface DesignSystemChatProps {
   workspaceName: string;
+  workspaceTitle?: string;
   workspacePath: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   sendMessageRef?: React.RefObject<SendMessageFn>;
@@ -24,6 +25,7 @@ interface DesignSystemChatProps {
 
 export function DesignSystemChat({
   workspaceName,
+  workspaceTitle,
   onToolComplete,
   sendMessageRef,
   parentSendMessageRef,
@@ -98,9 +100,10 @@ export function DesignSystemChat({
   const agentContext = useMemo(
     () => ({
       docId: dsDocId ?? '',
+      workspaceTitle,
       userName: userName || undefined,
     }),
-    [dsDocId, userName],
+    [dsDocId, workspaceTitle, userName],
   );
 
   // Kickoff message

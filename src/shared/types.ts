@@ -229,6 +229,7 @@ export type AgentId = 'document' | 'design-system';
 export interface AgentContext {
   docId: string;
   title?: string;
+  workspaceTitle?: string;
   width?: number;
   height?: number;
   unit?: string;

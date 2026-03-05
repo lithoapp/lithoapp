@@ -407,7 +407,7 @@ export function createLithoTools(workspace: string) {
           throw new Error(`Document "${docId}" not found`);
         }
 
-        return `Updated document description: "${description}"`;
+        return 'Updated document description.';
       },
     }),
 
@@ -474,7 +474,15 @@ export function createLithoTools(workspace: string) {
         query: z.string().describe('FTS5 search query'),
         docId: z.string().optional().describe('Scope search to a single document'),
       }),
-      execute: async ({ query, docId }) => {
+      execute: async ({ query: rawQuery, docId }) => {
+        // Auto-quote hyphenated terms (e.g. "bg-gradient-bold") that aren't already
+        // quoted, so FTS5 doesn't interpret hyphens as the NOT operator.
+        const FTS5_OPERATORS = /\b(AND|OR|NOT|NEAR)\b/;
+        const query =
+          rawQuery.includes('-') && !rawQuery.includes('"') && !FTS5_OPERATORS.test(rawQuery)
+            ? `"${rawQuery}"`
+            : rawQuery;
+
         const d = db();
 
         const sql = docId

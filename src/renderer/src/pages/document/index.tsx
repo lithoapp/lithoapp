@@ -39,6 +39,7 @@ const VIEWER_PADDING = 40;
 interface DocumentPageProps {
   doc: DocumentInfo;
   workspaceName: string;
+  workspaceTitle?: string;
   workspacePath: string;
   onBack: () => void;
   onDocumentsChange?: () => void;
@@ -46,6 +47,7 @@ interface DocumentPageProps {
   /** Render a custom chat panel instead of the default DocumentChat. */
   renderChat?: (props: {
     workspaceName: string;
+    workspaceTitle?: string;
     workspacePath: string;
     onToolComplete: (tool: string, args: Record<string, unknown>) => void;
     sendMessageRef: React.RefObject<((text: string) => void) | null>;
@@ -60,6 +62,7 @@ interface DocumentPageProps {
 export function DocumentPage({
   doc,
   workspaceName,
+  workspaceTitle,
   workspacePath,
   onBack,
   onDocumentsChange,
@@ -506,6 +509,7 @@ export function DocumentPage({
   const chatPanel = renderChat ? (
     renderChat({
       workspaceName,
+      workspaceTitle,
       workspacePath,
       onToolComplete: handleToolComplete,
       sendMessageRef,
@@ -515,6 +519,7 @@ export function DocumentPage({
     <DocumentChat
       doc={doc}
       workspaceName={workspaceName}
+      workspaceTitle={workspaceTitle}
       workspacePath={workspacePath}
       userName={userName}
       onToolComplete={handleToolComplete}

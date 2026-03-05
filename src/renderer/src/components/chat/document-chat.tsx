@@ -10,6 +10,7 @@ import { Chat } from './chat';
 interface DocumentChatProps {
   doc: DocumentInfo;
   workspaceName: string;
+  workspaceTitle?: string;
   workspacePath: string;
   userName?: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
@@ -24,6 +25,7 @@ interface DocumentChatProps {
 export function DocumentChat({
   doc,
   workspaceName,
+  workspaceTitle,
   userName,
   onToolComplete,
   sendMessageRef,
@@ -44,13 +46,14 @@ export function DocumentChat({
     () => ({
       docId: doc.id,
       title: doc.title,
+      workspaceTitle,
       width: doc.size.width,
       height: doc.size.height,
       unit: doc.size.unit,
       userName,
       designSystemDocId,
     }),
-    [doc.id, doc.title, doc.size, userName, designSystemDocId],
+    [doc.id, doc.title, workspaceTitle, doc.size, userName, designSystemDocId],
   );
 
   // Kickoff message

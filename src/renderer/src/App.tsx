@@ -352,6 +352,7 @@ function App(): React.JSX.Element {
           <DocumentPage
             doc={activeDoc}
             workspaceName={workspaceName}
+            workspaceTitle={workspaceTitle ?? workspaceName}
             workspacePath={workspacePath ?? ''}
             onBack={() => setPage('documents')}
             onDocumentsChange={loadDocuments}
@@ -361,6 +362,7 @@ function App(): React.JSX.Element {
         {page === 'design-system-doc' && workspaceName && (
           <DesignSystemDocPage
             workspaceName={workspaceName}
+            workspaceTitle={workspaceTitle ?? workspaceName}
             workspacePath={workspacePath}
             onBack={() => setPage('documents')}
           />
