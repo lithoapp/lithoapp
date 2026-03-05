@@ -95,7 +95,6 @@ export function useConnectFlow(
     canceledRef.current = false;
     startOAuth(provider.id, method.id)
       .then((result) => {
-        window.open(result.url);
         verifierRef.current = result.verifier;
         if (result.method === 'auto') {
           setStep('oauth-waiting');
