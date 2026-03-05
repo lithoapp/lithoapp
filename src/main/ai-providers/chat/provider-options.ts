@@ -12,9 +12,9 @@ export function buildProviderOptions(
 ): ProviderOpts {
   const result: ProviderOpts = {};
 
-  // OpenAI / Codex: store=false, promptCacheKey, sequential tool calls
+  // OpenAI / Codex: store=false, promptCacheKey, parallel tool calls
   if (providerId === 'openai') {
-    result.openai = { store: false, parallelToolCalls: false, ...extra };
+    result.openai = { store: false, ...extra };
   }
 
   // Google Gemini: enable thinking
@@ -35,9 +35,9 @@ export function buildProviderOptions(
     };
   }
 
-  // Anthropic: sequential tool calls
+  // Anthropic: parallel tool calls enabled
   if (providerId === 'anthropic') {
-    result.anthropic = { ...result.anthropic, disableParallelToolUse: true };
+    result.anthropic = { ...result.anthropic };
   }
 
   // OpenRouter: include usage
