@@ -26,6 +26,15 @@ function numberLines(content: string): string {
     .join('\n');
 }
 
+const FORBIDDEN_OVERFLOW_RE = /\boverflow-(auto|scroll|x-auto|x-scroll|y-auto|y-scroll)\b/;
+
+/** Reject page source that contains scrollable overflow classes. */
+function detectForbiddenOverflow(source: string): string | null {
+  const match = source.match(FORBIDDEN_OVERFLOW_RE);
+  if (!match) return null;
+  return `Page not saved — "${match[0]}" is forbidden. Pages are fixed-size print layouts and must not scroll.`;
+}
+
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
@@ -108,6 +117,9 @@ export function createLithoTools(workspace: string) {
         content: z.string().describe('Full TSX source for the page'),
       }),
       execute: async ({ docId, pageId, content }) => {
+        const forbidden = detectForbiddenOverflow(content);
+        if (forbidden) return forbidden;
+
         const result = db()
           .prepare(
             "UPDATE pages SET source = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
@@ -155,6 +167,9 @@ export function createLithoTools(workspace: string) {
         }
 
         const updated = replace(row.source, oldString, newString, replaceAllFlag);
+
+        const forbidden = detectForbiddenOverflow(updated);
+        if (forbidden) return forbidden;
 
         db()
           .prepare(
