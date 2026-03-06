@@ -4,7 +4,7 @@ import { renderSystemPrompt, resolveAgentTools } from '../agents/config';
 import { parseError } from '../lib/parse-error';
 import { createModel, OUTPUT_TOKEN_MAX } from '../providers/create-model';
 import { getCredential } from '../providers/credential-store';
-import { getModelInfo } from '../providers/models-cache';
+import { getModelInfo, getProviderInfo } from '../providers/models-cache';
 import type { ChatStartParams } from '../types';
 import {
   type ResponseMessage,
@@ -25,6 +25,11 @@ const activeStreams = new Map<string, AbortController>();
 // ---------------------------------------------------------------------------
 
 const MAX_STEPS = 50;
+
+function isOpencodeProvider(providerId: string): boolean {
+  const providerInfo = getProviderInfo(providerId);
+  return providerInfo?.internalProvider === 'opencode' || providerId === 'free';
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -135,9 +140,7 @@ async function runStepLoop(
         model,
         messages: msgs,
         abortSignal: controller.signal,
-        // OpenCode sets maxRetries to 0 and handles retry at a higher level
         maxRetries: 0,
-        // OpenCode caps output at 32K; undefined for Codex
         ...(isOAuthCodex ? {} : { maxOutputTokens: OUTPUT_TOKEN_MAX }),
         headers: {
           ...(isOAuthCodex
@@ -146,7 +149,14 @@ async function runStepLoop(
                 'User-Agent': `opencode/litho (${process.platform} ${process.arch})`,
                 session_id: chatId,
               }
-            : {}),
+            : isOpencodeProvider(providerId)
+              ? {
+                  'x-opencode-project': getActiveWorkspace() ?? 'litho',
+                  'x-opencode-session': chatId,
+                  'x-opencode-request': crypto.randomUUID(),
+                  'x-opencode-client': 'litho',
+                }
+              : {}),
         },
         providerOptions,
         ...(tools ? { tools } : {}),
