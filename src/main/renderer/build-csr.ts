@@ -11,6 +11,7 @@ import {
   extractCandidatesFromSource,
   formatCssError,
   formatEsbuildError,
+  toCssUnit,
 } from './build-shared';
 
 /** Pipeline timings returned before asset inlining. */
@@ -32,7 +33,7 @@ export async function buildPageCsr(
   css: string,
   size: PageSize,
 ): Promise<{ html: string; timings: CsrPipelineTimings }> {
-  const cssUnit = size.unit === 'px' ? 'px' : 'mm';
+  const cssUnit = toCssUnit(size.unit);
 
   const bootstrap = [
     `import { createRoot } from 'react-dom/client';`,

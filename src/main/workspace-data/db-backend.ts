@@ -13,10 +13,10 @@ import type {
 import { resolveWorkspacePath, WORKSPACES_BASE } from '../workspace-paths';
 import { generateId, getWorkspaceDb } from './db';
 import {
-  type TemplateId,
   DEFAULT_TEMPLATE_ID,
   getTemplateStyles,
   insertDesignSystemDocument,
+  type TemplateId,
 } from './design-system-pages';
 import {
   applyUpdates,

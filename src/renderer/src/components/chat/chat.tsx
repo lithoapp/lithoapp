@@ -458,6 +458,8 @@ export function Chat({
           hideFirstUserMessage={hideFirstUserMessage}
           onRevert={handleRevert}
           displayMode={displayMode}
+          agentId={agentId}
+          agentContext={agentContext}
         />
       </div>
 

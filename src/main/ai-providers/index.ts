@@ -18,6 +18,7 @@ import {
   getProviderList,
   getProviderModels,
   initModelsCache,
+  waitForModelsReady,
 } from './providers/models-cache';
 import { pingProvider } from './providers/ping';
 import type { ChatStartParams } from './types';
@@ -32,15 +33,18 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
 
   // --- Provider discovery ---
 
-  ipcMain.handle('ai-provider:list', () => ({
-    providers: getProviderList().map((p) => ({
-      ...p,
-      modelCount: filterModelsForProvider(p.id, getProviderModels(p.id)).length,
-    })),
-    connected: getConnectedProviderIds(),
-    modelsDevLoaded: getModelsCache() !== null,
-    modelsDevError: getModelsCacheError(),
-  }));
+  ipcMain.handle('ai-provider:list', async () => {
+    await waitForModelsReady();
+    return {
+      providers: getProviderList().map((p) => ({
+        ...p,
+        modelCount: filterModelsForProvider(p.id, getProviderModels(p.id)).length,
+      })),
+      connected: getConnectedProviderIds(),
+      modelsDevLoaded: getModelsCache() !== null,
+      modelsDevError: getModelsCacheError(),
+    };
+  });
 
   ipcMain.handle('ai-provider:models', (_event, providerId: string) =>
     filterModelsForProvider(providerId, getProviderModels(providerId)),

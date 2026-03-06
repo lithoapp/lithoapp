@@ -1,7 +1,17 @@
 import { Files, Home, Images, Loader2, Palette, Settings2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ThemeSwitcher } from '@/components/theme-switcher';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useDesignSystem } from '@/hooks/use-design-system';
 import { useWorkspace } from '@/hooks/use-workspace';
@@ -56,6 +66,9 @@ function App(): React.JSX.Element {
   const [platform, setPlatform] = useState<string>('');
   const [page, setPage] = useState<Page>('workspaces');
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
+  const [agentBusy, setAgentBusy] = useState(false);
+  const [pendingNav, setPendingNav] = useState<Page | null>(null);
+  const pendingNavCallbackRef = useRef<(() => void) | null>(null);
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<{
@@ -85,6 +98,31 @@ function App(): React.JSX.Element {
   useEffect(() => {
     void window.litho.app.setTitleBarOverlay(titleBarTheme?.bg ?? '', titleBarTheme?.fg ?? '');
   }, [titleBarTheme]);
+
+  /** Navigate to a page, showing a confirmation if an agent is busy. */
+  const navigateTo = useCallback(
+    (target: Page, callback?: () => void) => {
+      const isOnAgentPage = page === 'document' || page === 'design-system-doc';
+      if (isOnAgentPage && agentBusy) {
+        setPendingNav(target);
+        pendingNavCallbackRef.current = callback ?? null;
+        return;
+      }
+      callback?.();
+      setPage(target);
+    },
+    [page, agentBusy],
+  );
+
+  function confirmPendingNav(): void {
+    if (pendingNav) {
+      pendingNavCallbackRef.current?.();
+      pendingNavCallbackRef.current = null;
+      setAgentBusy(false);
+      setPage(pendingNav);
+      setPendingNav(null);
+    }
+  }
 
   const [designSystemDoc, setDesignSystemDoc] = useState<DocumentInfo | null>(null);
 
@@ -269,7 +307,7 @@ function App(): React.JSX.Element {
                     variant={!titleBarTheme && isActive ? 'secondary' : 'ghost'}
                     size="icon-sm"
                     className={titleBarTheme && isActive ? 'bg-white/20' : undefined}
-                    onClick={() => setPage(target)}
+                    onClick={() => navigateTo(target)}
                   >
                     <Icon className="h-3.5 w-3.5" />
                   </Button>
@@ -287,7 +325,7 @@ function App(): React.JSX.Element {
                     key={target}
                     variant={isActive ? 'secondary' : 'ghost'}
                     size="icon-sm"
-                    onClick={() => setPage(target)}
+                    onClick={() => navigateTo(target)}
                   >
                     <Icon className="h-3.5 w-3.5" />
                   </Button>
@@ -355,9 +393,10 @@ function App(): React.JSX.Element {
             workspaceName={workspaceName}
             workspaceTitle={workspaceTitle ?? workspaceName}
             workspacePath={workspacePath ?? ''}
-            onBack={() => setPage('documents')}
+            onBack={() => navigateTo('documents')}
             onDocumentsChange={loadDocuments}
             userName={userProfile.name ?? undefined}
+            onAgentBusyChange={setAgentBusy}
           />
         )}
         {page === 'design-system-doc' && workspaceName && (
@@ -365,7 +404,8 @@ function App(): React.JSX.Element {
             workspaceName={workspaceName}
             workspaceTitle={workspaceTitle ?? workspaceName}
             workspacePath={workspacePath}
-            onBack={() => setPage('documents')}
+            onBack={() => navigateTo('documents')}
+            onAgentBusyChange={setAgentBusy}
           />
         )}
         {page === 'settings' && (
@@ -374,6 +414,22 @@ function App(): React.JSX.Element {
           />
         )}
       </div>
+
+      <AlertDialog open={pendingNav !== null} onOpenChange={(open) => !open && setPendingNav(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>AI is still working</AlertDialogTitle>
+            <AlertDialogDescription>
+              The AI agent is processing your request. Leaving now may interrupt its work and produce
+              incomplete results.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Wait</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPendingNav}>Leave anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

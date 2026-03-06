@@ -1,19 +1,38 @@
 import { tmpdir } from 'node:os';
-import type { PageBuildData, RenderApproach, RendererResult } from '../../shared/types';
+import type { PageBuildData, PageSize, RenderApproach, RendererResult } from '../../shared/types';
 import {
   readPageSource,
   readStyles,
   readDocumentConfig as wsReadDocumentConfig,
 } from '../workspace-data';
 import {
-  type TemplateId,
-  TEMPLATE_IDS,
   getTemplatePreviewSource,
   getTemplateStyles,
+  TEMPLATE_IDS,
+  type TemplateId,
 } from '../workspace-data/design-system-pages';
 import { resolveWorkspacePath } from '../workspace-paths';
 import { inlineAssetRefs } from './build-shared';
 import { detectApproach } from './detect-approach';
+
+/** Run the SSR or CSR pipeline for a given approach. */
+async function runPipeline(
+  approach: RenderApproach,
+  wsPath: string,
+  pageSource: string,
+  css: string,
+  size: PageSize,
+): Promise<{
+  html: string;
+  timings: { esbuild: number; tailwind: number; ssrRender: number | null };
+}> {
+  if (approach === 'ssr') {
+    const { buildPageSsr } = await import('./build-ssr');
+    return buildPageSsr(wsPath, pageSource, css, size);
+  }
+  const { buildPageCsr } = await import('./build-csr');
+  return buildPageCsr(wsPath, pageSource, css, size);
+}
 
 export async function buildPage(
   workspace: string,
@@ -32,27 +51,13 @@ export async function buildPage(
     ]);
 
     const resolvedApproach = approach ?? detectApproach(pageSource);
-
-    let html: string;
-    let pipelineTimings: { esbuild: number; tailwind: number; ssrRender: number | null };
-
-    if (resolvedApproach === 'ssr') {
-      const { buildPageSsr } = await import('./build-ssr');
-      ({ html, timings: pipelineTimings } = await buildPageSsr(
-        wsPath,
-        pageSource,
-        css,
-        config.size,
-      ));
-    } else {
-      const { buildPageCsr } = await import('./build-csr');
-      ({ html, timings: pipelineTimings } = await buildPageCsr(
-        wsPath,
-        pageSource,
-        css,
-        config.size,
-      ));
-    }
+    let { html, timings: pipelineTimings } = await runPipeline(
+      resolvedApproach,
+      wsPath,
+      pageSource,
+      css,
+      config.size,
+    );
 
     const assetStart = performance.now();
     html = inlineAssetRefs(html, wsPath);
@@ -106,18 +111,9 @@ export async function buildTemplatePreview(templateId: TemplateId): Promise<stri
 
   const css = getTemplateStyles(templateId);
   const pageSource = getTemplatePreviewSource(templateId);
-  const dummyPath = tmpdir();
+  const approach = detectApproach(pageSource);
 
-  const resolved = detectApproach(pageSource);
-
-  let html: string;
-  if (resolved === 'ssr') {
-    const { buildPageSsr } = await import('./build-ssr');
-    ({ html } = await buildPageSsr(dummyPath, pageSource, css, PREVIEW_SIZE));
-  } else {
-    const { buildPageCsr } = await import('./build-csr');
-    ({ html } = await buildPageCsr(dummyPath, pageSource, css, PREVIEW_SIZE));
-  }
+  const { html } = await runPipeline(approach, tmpdir(), pageSource, css, PREVIEW_SIZE);
 
   previewCache.set(templateId, html);
   return html;

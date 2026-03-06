@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { getDiagnosticSeverity, stripDiagnosticPrefix } from '@/hooks/use-post-turn-diagnostics';
 import type {
+  AgentContext,
+  AgentId,
   PageInfo,
   StoredAssistantMessage,
   StoredMessage,
@@ -164,13 +166,25 @@ function AssistantTurnView({
   messages,
   pages,
   displayMode,
+  isFirstTurn,
+  agentId,
+  agentContext,
 }: {
   messages: StoredMessage[];
   pages?: PageInfo[];
   displayMode: DisplayMode;
+  isFirstTurn?: boolean;
+  agentId?: AgentId;
+  agentContext?: AgentContext;
 }): React.JSX.Element {
   if (displayMode === 'debug') {
-    return <PersistedDebugView messages={messages} />;
+    return (
+      <PersistedDebugView
+        messages={messages}
+        agentId={isFirstTurn ? agentId : undefined}
+        agentContext={isFirstTurn ? agentContext : undefined}
+      />
+    );
   }
 
   const assistantMessages = messages.filter(
@@ -198,6 +212,8 @@ export function MessageList({
   hideFirstUserMessage,
   onRevert,
   displayMode = 'activity',
+  agentId,
+  agentContext,
 }: {
   messages: StoredMessage[];
   streamingParts: StreamingPart[];
@@ -206,6 +222,8 @@ export function MessageList({
   hideFirstUserMessage?: boolean;
   onRevert?: (userMessageId: string) => void;
   displayMode?: DisplayMode;
+  agentId?: AgentId;
+  agentContext?: AgentContext;
 }): React.JSX.Element {
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -221,6 +239,7 @@ export function MessageList({
   }, [messages.length, streamingContentSize]);
 
   const turns = groupMessagesIntoTurns(messages);
+  let firstAssistantSeen = false;
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -236,12 +255,17 @@ export function MessageList({
             />
           );
         }
+        const isFirstTurn = !firstAssistantSeen;
+        firstAssistantSeen = true;
         return (
           <AssistantTurnView
             key={`assistant-${String(i)}`}
             messages={turn.messages}
             pages={pages}
             displayMode={displayMode}
+            isFirstTurn={isFirstTurn}
+            agentId={agentId}
+            agentContext={agentContext}
           />
         );
       })}
@@ -249,7 +273,11 @@ export function MessageList({
       {/* Streaming turn */}
       {isStreaming &&
         (displayMode === 'debug' ? (
-          <StreamingDebugView streamingParts={streamingParts} />
+          <StreamingDebugView
+            streamingParts={streamingParts}
+            agentId={!firstAssistantSeen ? agentId : undefined}
+            agentContext={!firstAssistantSeen ? agentContext : undefined}
+          />
         ) : (
           <StreamingActivityLog streamingParts={streamingParts} pages={pages} />
         ))}

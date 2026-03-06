@@ -42,6 +42,11 @@ export function useProviderList(): ProviderListState {
       setProviders(listResult.providers);
       setConnected(listResult.connected);
 
+      if (listResult.modelsDevError && listResult.providers.length === 0) {
+        setError(listResult.modelsDevError);
+        return;
+      }
+
       // Fetch auth methods for each provider
       const methods: Record<string, AuthMethod[]> = {};
       await Promise.all(

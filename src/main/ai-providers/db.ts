@@ -10,12 +10,6 @@ CREATE TABLE IF NOT EXISTS ai_credentials (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS ai_models_dev_cache (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  data TEXT NOT NULL,
-  fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE TABLE IF NOT EXISTS ai_models_cache (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   data TEXT NOT NULL,

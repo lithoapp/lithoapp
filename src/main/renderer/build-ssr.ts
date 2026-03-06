@@ -13,6 +13,7 @@ import {
   extractCandidatesFromSource,
   formatCssError,
   formatEsbuildError,
+  toCssUnit,
 } from './build-shared';
 
 /** Pipeline timings returned before asset inlining. */
@@ -88,7 +89,7 @@ export async function buildPageSsr(
   }
 
   // Render to static HTML, wrapping in a sized container matching document.json
-  const cssUnit = size.unit === 'px' ? 'px' : 'mm';
+  const cssUnit = toCssUnit(size.unit);
   const ssrStart = performance.now();
   let bodyHtml: string;
   try {

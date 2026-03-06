@@ -9,19 +9,6 @@ import type { Loader, Plugin } from 'esbuild';
 export const appRequire = createRequire(join(__dirname, '..', 'package.json'));
 export const appNodeModules = join(__dirname, '..', '..', 'node_modules');
 
-/** Esbuild loaders that inline image/font assets as base64 data URIs. */
-export const assetLoaders: Record<string, Loader> = {
-  '.png': 'dataurl',
-  '.jpg': 'dataurl',
-  '.jpeg': 'dataurl',
-  '.gif': 'dataurl',
-  '.webp': 'dataurl',
-  '.svg': 'dataurl',
-  '.ico': 'dataurl',
-  '.woff': 'dataurl',
-  '.woff2': 'dataurl',
-};
-
 /** Map file extension to MIME type for data URI inlining. */
 const MIME_TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml',
@@ -34,6 +21,16 @@ const MIME_TYPES: Record<string, string> = {
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
 };
+
+/** Esbuild loaders that inline image/font assets as base64 data URIs. Derived from MIME_TYPES. */
+export const assetLoaders: Record<string, Loader> = Object.fromEntries(
+  Object.keys(MIME_TYPES).map((ext) => [ext, 'dataurl' as Loader]),
+);
+
+/** Resolve a PageSize unit to a CSS length suffix. */
+export function toCssUnit(unit: string): 'px' | 'mm' {
+  return unit === 'px' ? 'px' : 'mm';
+}
 
 /**
  * Compile Tailwind CSS using the workspace as base, with fallback resolution
@@ -119,14 +116,16 @@ export function createAssetResolverPlugin(wsPath: string): Plugin {
  * pointing at the original file path, line, and column.
  */
 export function formatEsbuildError(err: unknown, filePath: string): string {
-  const esbuildErr = err as {
-    errors?: { text: string; location?: { line: number; column: number; lineText: string } }[];
-  };
-  const first = esbuildErr.errors?.[0];
-  if (!first?.location) {
+  const errors =
+    err != null && typeof err === 'object' && 'errors' in err && Array.isArray(err.errors)
+      ? err.errors
+      : undefined;
+  const first = errors?.[0];
+  const loc = first != null && typeof first === 'object' ? first.location : undefined;
+  if (!loc || typeof loc.line !== 'number') {
     return `Syntax error in ${filePath}: ${err instanceof Error ? err.message : String(err)}`;
   }
-  const { line, column, lineText } = first.location;
+  const { line, column, lineText } = loc;
   const pointer = `${' '.repeat(column)}^`;
   return `Syntax error in ${filePath}:${line}:${column}\n\n  ${lineText}\n  ${pointer}\n\n${first.text}`;
 }
@@ -135,12 +134,11 @@ export function formatEsbuildError(err: unknown, filePath: string): string {
  * Format a Tailwind/CSS compile error into a human-readable message.
  */
 export function formatCssError(err: unknown, filePath: string): string {
-  const cssErr = err as {
-    message?: string;
-    loc?: { line?: number; column?: number } | null;
-  };
-  const message = cssErr.message ?? String(err);
-  const loc = cssErr.loc;
+  const message = err instanceof Error ? err.message : String(err);
+  const loc =
+    err != null && typeof err === 'object' && 'loc' in err && err.loc != null
+      ? (err.loc as { line?: number; column?: number })
+      : undefined;
   if (loc?.line) {
     const location = loc.column ? `${loc.line}:${loc.column}` : String(loc.line);
     return `CSS error in ${filePath}:${location}\n\n${message}`;

@@ -13,6 +13,7 @@ interface DesignSystemDocPageProps {
   workspaceTitle?: string;
   workspacePath: string | null;
   onBack: () => void;
+  onAgentBusyChange?: (busy: boolean) => void;
 }
 
 export function DesignSystemDocPage({
@@ -20,6 +21,7 @@ export function DesignSystemDocPage({
   workspaceTitle,
   workspacePath,
   onBack,
+  onAgentBusyChange,
 }: DesignSystemDocPageProps): React.JSX.Element {
   const [dsDocId, setDsDocId] = useState<string | null>(null);
   const [docConfig, setDocConfig] = useState<DocumentConfig | null>(null);
@@ -67,8 +69,9 @@ export function DesignSystemDocPage({
       }
 
       setIsAgentBusy(busy);
+      onAgentBusyChange?.(busy);
     },
-    [diagnosticToolComplete],
+    [diagnosticToolComplete, onAgentBusyChange],
   );
 
   useEffect(() => {

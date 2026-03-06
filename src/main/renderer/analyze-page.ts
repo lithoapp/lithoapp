@@ -6,12 +6,6 @@ import { app, BrowserWindow } from 'electron';
 const LOAD_TIMEOUT_MS = 10_000;
 const RENDER_SETTLE_MS = 300;
 
-interface ClippedElement {
-  selector: string;
-  overflowX: number;
-  overflowY: number;
-}
-
 export interface PageLayoutAnalysis {
   contentHeight: number;
   pageHeight: number;
@@ -19,7 +13,6 @@ export interface PageLayoutAnalysis {
   emptyBottomRatio: number;
   overflowX: number;
   overflowY: number;
-  clippedElements: ClippedElement[];
 }
 
 function mmToCssPx(mm: number): number {
@@ -64,35 +57,6 @@ function buildAnalysisScript(pageWidthPx: number, pageHeightPx: number): string 
       const emptyBottomPx = Math.max(0, PAGE_HEIGHT - maxBottom);
       const emptyBottomRatio = PAGE_HEIGHT > 0 ? emptyBottomPx / PAGE_HEIGHT : 0;
 
-      // Nested clipped elements: find elements hiding overflow with actual clipped content
-      const clipped = [];
-      for (const el of allElements) {
-        const style = getComputedStyle(el);
-        const isClipping =
-          style.overflow !== 'visible' ||
-          style.overflowX !== 'visible' ||
-          style.overflowY !== 'visible';
-        if (!isClipping) continue;
-
-        const clipX = el.scrollWidth - el.clientWidth;
-        const clipY = el.scrollHeight - el.clientHeight;
-        if (clipX <= TOLERANCE && clipY <= TOLERANCE) continue;
-
-        // Skip the root container (already reported as top-level overflow)
-        if (el === container) continue;
-
-        // Build a readable selector from tag + first few tailwind classes
-        const tag = el.tagName.toLowerCase();
-        const classes = Array.from(el.classList).slice(0, 4).join('.');
-        const selector = classes ? tag + '.' + classes : tag;
-
-        clipped.push({
-          selector: selector,
-          overflowX: Math.round(clipX),
-          overflowY: Math.round(clipY),
-        });
-      }
-
       return {
         contentHeight: Math.round(maxBottom),
         pageHeight: PAGE_HEIGHT,
@@ -100,7 +64,6 @@ function buildAnalysisScript(pageWidthPx: number, pageHeightPx: number): string 
         emptyBottomRatio: Math.round(emptyBottomRatio * 100) / 100,
         overflowX: Math.round(overflowX),
         overflowY: Math.round(overflowY),
-        clippedElements: clipped.slice(0, 5),
       };
     })()
   `;
@@ -207,13 +170,6 @@ export function formatAnalysisSummary(analysis: PageLayoutAnalysis): string {
   }
   if (analysis.overflowY > 0) {
     details.push(`Vertical overflow: ${analysis.overflowY}px`);
-  }
-
-  for (const el of analysis.clippedElements) {
-    const dims: string[] = [];
-    if (el.overflowX > 0) dims.push(`${el.overflowX}px horizontal`);
-    if (el.overflowY > 0) dims.push(`${el.overflowY}px vertical`);
-    details.push(`Clipped content in ${el.selector} (${dims.join(', ')})`);
   }
 
   if (analysis.emptyBottomRatio > 0.25) {

@@ -14,8 +14,8 @@ interface OnboardingPageProps {
 }
 
 const FEATURES = [
-  'Build a complete brand identity',
-  'Create for print and digital',
+  'Design with AI — use your own subscriptions',
+  'Your files never leave your machine',
   'One click to PDF, PNG, or JPG',
 ];
 
@@ -104,7 +104,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
         </div>
 
         <p className="absolute bottom-7 text-[11px] text-stone-400 dark:text-stone-600">
-          $50, once. Thank you.
+          Crafted with love. Yours entirely.
         </p>
       </div>
 

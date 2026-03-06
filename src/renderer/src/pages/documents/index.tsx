@@ -207,7 +207,7 @@ export function DocumentsPage({
         newSize === 'Custom'
           ? { width: Number(customWidth), height: Number(customHeight), unit: customUnit }
           : newSize;
-      await window.litho.document.create(
+      const docId = await window.litho.document.create(
         workspaceName,
         newTitle.trim(),
         size,
@@ -218,6 +218,7 @@ export function DocumentsPage({
       setNewTitle('');
       setNewSize('A4');
       setCreateError(null);
+      onSelectDocument(docId);
     } catch (err) {
       const message =
         err instanceof Error

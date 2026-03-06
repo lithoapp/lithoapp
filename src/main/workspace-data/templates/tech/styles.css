@@ -219,11 +219,21 @@
 }
 
 @utility bg-gradient-sunset {
-  background: linear-gradient(135deg, var(--color-primary-950) 0%, var(--color-secondary-700) 58%, var(--color-accent-500) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-950) 0%,
+    var(--color-secondary-700) 58%,
+    var(--color-accent-500) 100%
+  );
 }
 
 @utility bg-gradient-dusk {
-  background: linear-gradient(145deg, var(--color-primary-950) 0%, var(--color-primary-800) 45%, var(--color-secondary-800) 100%);
+  background: linear-gradient(
+    145deg,
+    var(--color-primary-950) 0%,
+    var(--color-primary-800) 45%,
+    var(--color-secondary-800) 100%
+  );
 }
 
 @utility bg-gradient-warmth {
@@ -231,5 +241,10 @@
 }
 
 @utility bg-gradient-soft-indigo {
-  background: linear-gradient(135deg, var(--color-primary-900) 0%, var(--color-secondary-900) 60%, var(--color-accent-800) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-900) 0%,
+    var(--color-secondary-900) 60%,
+    var(--color-accent-800) 100%
+  );
 }

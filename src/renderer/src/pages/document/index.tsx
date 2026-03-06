@@ -57,6 +57,8 @@ interface DocumentPageProps {
   rebuildAllOnTools?: string[];
   /** When true, refetch doc config via IPC on createPage/deletePage instead of calling onDocumentsChange. */
   refetchDocOnPageChange?: boolean;
+  /** Notify parent when the AI agent becomes busy or idle. */
+  onAgentBusyChange?: (busy: boolean) => void;
 }
 
 export function DocumentPage({
@@ -70,6 +72,7 @@ export function DocumentPage({
   renderChat,
   rebuildAllOnTools,
   refetchDocOnPageChange,
+  onAgentBusyChange,
 }: DocumentPageProps): React.JSX.Element {
   const [zoom, setZoom] = useState(1);
   const [fitToWidth, setFitToWidth] = useState(true);
@@ -387,9 +390,13 @@ export function DocumentPage({
     sendMessageRef.current?.(addDiagnosticPrefix(audit.fixMessage, 'warning'));
   }, []);
 
-  const handleBusyChange = useCallback((busy: boolean) => {
-    setIsAgentBusy(busy);
-  }, []);
+  const handleBusyChange = useCallback(
+    (busy: boolean) => {
+      setIsAgentBusy(busy);
+      onAgentBusyChange?.(busy);
+    },
+    [onAgentBusyChange],
+  );
 
   const [isMac, setIsMac] = useState(false);
   useEffect(() => {
@@ -441,7 +448,10 @@ export function DocumentPage({
   const pageContent = hasPages ? (
     <div
       className="flex flex-col items-center gap-6 py-6"
-      style={{ paddingInline: VIEWER_PADDING }}
+      style={{
+        paddingInline: VIEWER_PADDING,
+        minWidth: displayWidth + VIEWER_PADDING * 2,
+      }}
     >
       {pages.map((page, index) => (
         <div key={page.id} className="flex flex-col items-center">

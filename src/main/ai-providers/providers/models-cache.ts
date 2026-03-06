@@ -49,12 +49,29 @@ export async function fetchModels(): Promise<void> {
   }
 }
 
-export function initModelsCache(onLoad?: () => void): void {
+let readyPromise: Promise<void> | null = null;
+
+/**
+ * Initialize the models cache. Returns a promise that resolves once the cache
+ * is populated (from DB or network). Callers that need providers to be available
+ * should await the returned promise.
+ */
+export function initModelsCache(onLoad?: () => void): Promise<void> {
   loadCacheFromDb();
-  if (modelsCache && onLoad) onLoad();
+  if (modelsCache) onLoad?.();
+
   if (isCacheStale()) {
-    void fetchModels().then(() => onLoad?.());
+    readyPromise = fetchModels().then(() => onLoad?.());
+  } else {
+    readyPromise = Promise.resolve();
   }
+
+  return readyPromise;
+}
+
+/** Resolves when the models cache is populated (or fetch has been attempted). */
+export function waitForModelsReady(): Promise<void> {
+  return readyPromise ?? Promise.resolve();
 }
 
 export function getModelsCache(): LithoModelsData | null {

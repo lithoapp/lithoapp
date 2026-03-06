@@ -227,7 +227,10 @@ ipcMain.handle('workspace:list', () => listWorkspaces());
 ipcMain.handle('workspace:getActive', () => getWorkspaceState());
 
 ipcMain.handle('workspace:create', async (_event, title: string, templateId?: string) => {
-  const slug = await createNewWorkspace(title, templateId as Parameters<typeof createNewWorkspace>[1]);
+  const slug = await createNewWorkspace(
+    title,
+    templateId as Parameters<typeof createNewWorkspace>[1],
+  );
   setActiveWorkspace(slug);
   emitWorkspaceChanged();
   return slug;
