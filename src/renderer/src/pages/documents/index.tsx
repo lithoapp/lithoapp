@@ -32,9 +32,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import type { DocumentInfo } from '../../../../shared/types';
+import type { ColorPalette, DesignSystem, DocumentInfo } from '../../../../shared/types';
 import { ExportDialog } from '../document/export-dialog';
-import { CardThumbnail, DocumentCard, formatRelativeTime } from './document-card';
+import { DocumentCard, formatRelativeTime } from './document-card';
 import { DocumentSkeleton } from './document-skeleton';
 import { FolderCard } from './folder-card';
 import { RenameDocumentDialog } from './rename-document-dialog';
@@ -138,6 +138,7 @@ interface DocumentsPageProps {
   workspaceTitle: string;
   documents: DocumentInfo[];
   designSystemDoc: DocumentInfo | null;
+  designSystem: DesignSystem | null;
   isLoading: boolean;
   refetch: () => Promise<void>;
   onSelectDocument: (slug: string) => void;
@@ -151,6 +152,7 @@ export function DocumentsPage({
   workspaceTitle,
   documents: documentsProp,
   designSystemDoc,
+  designSystem,
   isLoading,
   refetch,
   onSelectDocument,
@@ -456,10 +458,23 @@ export function DocumentsPage({
         </div>
       ) : (
         <>
-          {/* Folders row — Assets card + user folders (top level only) */}
+          {/* Workspace row — Design System + Assets (top level only) */}
           {currentFolder === null && (
             <div className="flex flex-wrap gap-3">
+              {designSystemDoc && (
+                <DesignSystemDocCard
+                  doc={designSystemDoc}
+                  palettes={designSystem?.colors.palettes ?? []}
+                  onClick={onOpenDesignSystem}
+                />
+              )}
               <AssetsCard onClick={onOpenAssets} />
+            </div>
+          )}
+
+          {/* Folders row (top level only, when folders exist) */}
+          {currentFolder === null && allFolderNames.length > 0 && (
+            <div className="flex flex-wrap gap-3">
               {allFolderNames.map((name) => (
                 <FolderCard
                   key={name}
@@ -474,15 +489,8 @@ export function DocumentsPage({
             </div>
           )}
 
-          {/* Document grid — Design System card first, then regular docs */}
+          {/* Document grid */}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-            {currentFolder === null && designSystemDoc && (
-              <DesignSystemDocCard
-                doc={designSystemDoc}
-                workspaceName={workspaceName}
-                onClick={onOpenDesignSystem}
-              />
-            )}
             {currentFolder === null ? ungrouped.map(renderDocCard) : folderDocs?.map(renderDocCard)}
           </div>
         </>
@@ -929,13 +937,20 @@ function RenameFolderDialog({
   );
 }
 
+/** Get hex values from the primary palette shades for a color strip. */
+function getPrimaryShades(palettes: ColorPalette[]): string[] {
+  const primary = palettes.find((p) => p.name.toLowerCase() === 'primary');
+  if (!primary) return [];
+  return primary.shades.map((s) => s.value).filter((v) => v.startsWith('#'));
+}
+
 function DesignSystemDocCard({
   doc,
-  workspaceName,
+  palettes,
   onClick,
 }: {
   doc: DocumentInfo;
-  workspaceName: string;
+  palettes: ColorPalette[];
   onClick: () => void;
 }): React.JSX.Element {
   const pageCountLabel =
@@ -948,25 +963,30 @@ function DesignSystemDocCard({
     metaParts.push(formatRelativeTime(doc.updatedAt));
   }
 
+  const shades = getPrimaryShades(palettes);
+
   return (
     <button
       type="button"
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-primary/30 bg-card text-left transition-colors hover:border-primary/60"
+      className="group relative flex cursor-pointer items-center gap-4 rounded-lg border border-primary/30 bg-card px-5 py-4 text-left transition-colors hover:border-primary/60"
       onClick={onClick}
     >
-      {/* Thumbnail: live preview of cover page with badge */}
-      <div className="relative">
-        <CardThumbnail doc={doc} workspaceName={workspaceName} />
-        <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-1 backdrop-blur-sm">
-          <Palette className="h-3 w-3 text-white" />
-          <span className="text-xs font-medium text-white">Design System</span>
+      {shades.length > 0 ? (
+        <div className="flex h-8 shrink-0 overflow-hidden rounded-lg">
+          {shades.map((color, i) => (
+            <div
+              key={`${color}-${String(i)}`}
+              className="h-full w-2"
+              style={{ backgroundColor: color }}
+            />
+          ))}
         </div>
-      </div>
-
-      {/* Metadata */}
-      <div className="flex flex-col gap-1 px-4 py-3">
-        <p className="truncate text-base font-semibold">{doc.title}</p>
-        <p className="truncate text-sm text-muted-foreground">{metaParts.join(' · ')}</p>
+      ) : (
+        <Palette className="h-8 w-8 shrink-0 text-primary" />
+      )}
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-base font-semibold">Design System</span>
+        <span className="text-sm text-muted-foreground">{metaParts.join(' · ')}</span>
       </div>
     </button>
   );

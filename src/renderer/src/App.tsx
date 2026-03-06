@@ -334,6 +334,7 @@ function App(): React.JSX.Element {
             workspaceTitle={workspaceTitle ?? workspaceName}
             documents={documents}
             designSystemDoc={designSystemDoc}
+            designSystem={designSystem}
             isLoading={documentsLoading}
             refetch={loadDocuments}
             onSelectDocument={(docId) => {
