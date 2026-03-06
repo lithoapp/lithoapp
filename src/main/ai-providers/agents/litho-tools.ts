@@ -1,7 +1,10 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { listAssets } from '../../assets-manager';
+import { analyzePage, formatAnalysisSummary } from '../../renderer/analyze-page';
+import { buildPage } from '../../renderer/index';
 import { generateId, getWorkspaceDb } from '../../workspace-data/db';
+import { readDocumentConfig } from '../../workspace-data/db-backend';
 import { resolveWorkspacePath } from '../../workspace-paths';
 import { replace } from '../lib/replace';
 
@@ -49,6 +52,25 @@ export function createLithoTools(workspace: string) {
     const idx = pages.findIndex((p) => p.id === pageId);
     if (idx === -1) return pageId;
     return `page ${idx + 1} "${pages[idx].name}"`;
+  }
+
+  async function runLayoutAnalysis(docId: string, pageId: string): Promise<string> {
+    try {
+      const buildResult = await buildPage(workspace, docId, pageId);
+      if (!buildResult.ok) return '';
+
+      const config = await readDocumentConfig(workspace, docId);
+      const analysis = await analyzePage(
+        buildResult.data.html,
+        buildResult.data.approach,
+        config.size,
+      );
+      if (!analysis) return '';
+
+      return `\n${formatAnalysisSummary(analysis)}`;
+    } catch {
+      return '';
+    }
   }
 
   return {
@@ -103,7 +125,8 @@ export function createLithoTools(workspace: string) {
         const suffix =
           end < total ? `\n\n(${total - end} more lines — use offset=${end + 1} to continue)` : '';
 
-        return numbered + suffix;
+        const layoutSummary = await runLayoutAnalysis(docId, pageId);
+        return numbered + suffix + layoutSummary;
       },
     }),
 
@@ -141,6 +164,8 @@ export function createLithoTools(workspace: string) {
             '\n\nNote: This document has no description yet. If the intent is clear, use updateDocumentDescription to add a short summary (5-10 words).';
         }
 
+        msg += await runLayoutAnalysis(docId, pageId);
+
         return msg;
       },
     }),
@@ -177,7 +202,8 @@ export function createLithoTools(workspace: string) {
           )
           .run(updated, pageId, docId);
 
-        return `Edited ${getPageLabel(docId, pageId)}`;
+        const layoutSummary = await runLayoutAnalysis(docId, pageId);
+        return `Edited ${getPageLabel(docId, pageId)}${layoutSummary}`;
       },
     }),
 

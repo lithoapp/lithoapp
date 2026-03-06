@@ -1,0 +1,228 @@
+import { randomUUID } from 'node:crypto';
+import { promises as fs } from 'node:fs';
+import { join } from 'node:path';
+import { app, BrowserWindow } from 'electron';
+
+const LOAD_TIMEOUT_MS = 10_000;
+const RENDER_SETTLE_MS = 300;
+
+interface ClippedElement {
+  selector: string;
+  overflowX: number;
+  overflowY: number;
+}
+
+export interface PageLayoutAnalysis {
+  contentHeight: number;
+  pageHeight: number;
+  emptyBottomPx: number;
+  emptyBottomRatio: number;
+  overflowX: number;
+  overflowY: number;
+  clippedElements: ClippedElement[];
+}
+
+function mmToCssPx(mm: number): number {
+  return mm * 3.7795;
+}
+
+/**
+ * The JS code that runs inside the hidden BrowserWindow to analyze the DOM.
+ * Returned as a string so it can be passed to executeJavaScript().
+ */
+function buildAnalysisScript(pageWidthPx: number, pageHeightPx: number): string {
+  return `
+    (() => {
+      const PAGE_WIDTH = ${pageWidthPx};
+      const PAGE_HEIGHT = ${pageHeightPx};
+      const TOLERANCE = 1;
+
+      // Find the root container — CSR: #root > first child, SSR: body > first child
+      const root = document.getElementById('root');
+      const container = (root && root.firstElementChild) || (document.body && document.body.firstElementChild);
+      if (!container) return { error: 'no-container' };
+
+      // Root-level overflow
+      const overflowX = Math.max(0, container.scrollWidth - container.clientWidth);
+      const overflowY = Math.max(0, container.scrollHeight - container.clientHeight);
+
+      // Empty bottom: find the bottommost visible content by scanning all
+      // elements' bounding rects. Skip elements whose height covers >=95%
+      // of the page — these are layout wrappers (div.h-full etc.), not content.
+      const allElements = container.querySelectorAll('*');
+      const heightThreshold = PAGE_HEIGHT * 0.95;
+      let maxBottom = 0;
+      for (const el of allElements) {
+        const rect = el.getBoundingClientRect();
+        if (rect.height <= 0 || rect.width <= 0) continue;
+        if (rect.height >= heightThreshold) continue;
+        maxBottom = Math.max(maxBottom, rect.bottom);
+      }
+      // If nothing passed the filter, content truly fills the page
+      if (maxBottom === 0) maxBottom = PAGE_HEIGHT;
+
+      const emptyBottomPx = Math.max(0, PAGE_HEIGHT - maxBottom);
+      const emptyBottomRatio = PAGE_HEIGHT > 0 ? emptyBottomPx / PAGE_HEIGHT : 0;
+
+      // Nested clipped elements: find elements hiding overflow with actual clipped content
+      const clipped = [];
+      for (const el of allElements) {
+        const style = getComputedStyle(el);
+        const isClipping =
+          style.overflow !== 'visible' ||
+          style.overflowX !== 'visible' ||
+          style.overflowY !== 'visible';
+        if (!isClipping) continue;
+
+        const clipX = el.scrollWidth - el.clientWidth;
+        const clipY = el.scrollHeight - el.clientHeight;
+        if (clipX <= TOLERANCE && clipY <= TOLERANCE) continue;
+
+        // Skip the root container (already reported as top-level overflow)
+        if (el === container) continue;
+
+        // Build a readable selector from tag + first few tailwind classes
+        const tag = el.tagName.toLowerCase();
+        const classes = Array.from(el.classList).slice(0, 4).join('.');
+        const selector = classes ? tag + '.' + classes : tag;
+
+        clipped.push({
+          selector: selector,
+          overflowX: Math.round(clipX),
+          overflowY: Math.round(clipY),
+        });
+      }
+
+      return {
+        contentHeight: Math.round(maxBottom),
+        pageHeight: PAGE_HEIGHT,
+        emptyBottomPx: Math.round(emptyBottomPx),
+        emptyBottomRatio: Math.round(emptyBottomRatio * 100) / 100,
+        overflowX: Math.round(overflowX),
+        overflowY: Math.round(overflowY),
+        clippedElements: clipped.slice(0, 5),
+      };
+    })()
+  `;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+/**
+ * Render page HTML in a hidden BrowserWindow and analyze the DOM layout.
+ * Returns null if analysis fails (non-fatal — callers should gracefully skip).
+ */
+export async function analyzePage(
+  html: string,
+  approach: 'csr' | 'ssr',
+  pageSize: { width: number; height: number; unit: 'mm' | 'px' },
+): Promise<PageLayoutAnalysis | null> {
+  const pageWidthPx = Math.round(
+    pageSize.unit === 'mm' ? mmToCssPx(pageSize.width) : pageSize.width,
+  );
+  const pageHeightPx = Math.round(
+    pageSize.unit === 'mm' ? mmToCssPx(pageSize.height) : pageSize.height,
+  );
+
+  const win = new BrowserWindow({
+    width: pageWidthPx,
+    height: pageHeightPx,
+    show: false,
+    useContentSize: true,
+    webPreferences: {
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+    },
+  });
+
+  const tmpPath = join(app.getPath('temp'), `litho-analyze-${randomUUID()}.html`);
+  await fs.writeFile(tmpPath, html, 'utf-8');
+
+  try {
+    await withTimeout(win.loadFile(tmpPath), LOAD_TIMEOUT_MS, 'Page load (analyze)');
+
+    // CSR pages need time for React to mount
+    if (approach === 'csr') {
+      await waitForCsrReady(win);
+    }
+
+    // Let paint settle
+    await new Promise((resolve) => setTimeout(resolve, RENDER_SETTLE_MS));
+
+    const result = await win.webContents.executeJavaScript(
+      buildAnalysisScript(pageWidthPx, pageHeightPx),
+    );
+
+    if (result?.error) return null;
+
+    return result as PageLayoutAnalysis;
+  } catch {
+    return null;
+  } finally {
+    win.destroy();
+    await fs.unlink(tmpPath).catch(() => {});
+  }
+}
+
+async function waitForCsrReady(win: BrowserWindow): Promise<void> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < 5_000) {
+    const childCount = await win.webContents.executeJavaScript(`
+      (() => {
+        const root = document.getElementById('root');
+        return root ? root.children.length : -1;
+      })();
+    `);
+    if (typeof childCount === 'number' && childCount > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+/**
+ * Format analysis into a neutral, informational summary for AI tool responses.
+ * Always returns a one-liner with key metrics. Details expand only when notable.
+ */
+export function formatAnalysisSummary(analysis: PageLayoutAnalysis): string {
+  const fillPct = Math.round((1 - analysis.emptyBottomRatio) * 100);
+  const details: string[] = [];
+
+  if (analysis.overflowX > 0) {
+    details.push(`Horizontal overflow: ${analysis.overflowX}px`);
+  }
+  if (analysis.overflowY > 0) {
+    details.push(`Vertical overflow: ${analysis.overflowY}px`);
+  }
+
+  for (const el of analysis.clippedElements) {
+    const dims: string[] = [];
+    if (el.overflowX > 0) dims.push(`${el.overflowX}px horizontal`);
+    if (el.overflowY > 0) dims.push(`${el.overflowY}px vertical`);
+    details.push(`Clipped content in ${el.selector} (${dims.join(', ')})`);
+  }
+
+  if (analysis.emptyBottomRatio > 0.25) {
+    details.push(`${analysis.emptyBottomPx}px unused at bottom`);
+  }
+
+  const summary = `Layout: content fills ${fillPct}% of page height.`;
+
+  if (details.length === 0) return summary;
+
+  return `${summary}\n${details.map((d) => `- ${d}`).join('\n')}`;
+}
