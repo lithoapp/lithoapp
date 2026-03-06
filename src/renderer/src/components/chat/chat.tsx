@@ -385,6 +385,7 @@ export function Chat({
   if (showCover) {
     return (
       <ChatCover
+        agentId={agentId}
         providerId={providerId}
         modelId={modelId}
         onModelSelect={handleModelSelect}

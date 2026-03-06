@@ -1,14 +1,15 @@
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,6 +32,11 @@ interface ModelSelectorProps {
   onSelect: (providerId: string, modelId: string) => void;
 }
 
+interface ProviderModels {
+  provider: ProviderInfo;
+  models: ModelInfo[];
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -40,11 +46,13 @@ export function ModelSelector({
   modelId,
   onSelect,
 }: ModelSelectorProps): React.JSX.Element {
+  const [open, setOpen] = useState(false);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [connectedIds, setConnectedIds] = useState<string[]>([]);
-  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [providerModels, setProviderModels] = useState<ProviderModels[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch providers on mount
   useEffect(() => {
     void (async () => {
       try {
@@ -68,27 +76,33 @@ export function ModelSelector({
     [providers, connectedIds],
   );
 
+  // Fetch models for all connected providers on mount + refresh when popover opens
   useEffect(() => {
-    if (!providerId) {
-      setModels([]);
-      return;
-    }
-    void (async () => {
-      try {
-        const result = await window.litho.aiProvider.models(providerId);
-        setModels(result);
-        if (!modelId || !result.find((m) => m.id === modelId)) {
-          const defaultModel = providers.find((p) => p.id === providerId)?.defaultModel;
-          onSelect(providerId, defaultModel ?? result[0]?.id ?? '');
-        }
-      } catch {
-        setModels([]);
-      }
-    })();
-  }, [providerId]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (connectedProviders.length === 0) return;
 
-  const currentModel = models.find((m) => m.id === modelId);
-  const displayName = currentModel?.name ?? modelId ?? 'Select model';
+    void (async () => {
+      const results = await Promise.all(
+        connectedProviders.map(async (provider) => {
+          try {
+            const models = await window.litho.aiProvider.models(provider.id);
+            return { provider, models } satisfies ProviderModels;
+          } catch {
+            return { provider, models: [] } satisfies ProviderModels;
+          }
+        }),
+      );
+      setProviderModels(results.filter((r) => r.models.length > 0));
+    })();
+  }, [open, connectedProviders]);
+
+  // Resolve display name for the trigger
+  const displayName = useMemo(() => {
+    for (const group of providerModels) {
+      const match = group.models.find((m) => m.id === modelId);
+      if (match) return match.name;
+    }
+    return modelId || 'Select model';
+  }, [providerModels, modelId]);
 
   if (loading) {
     return (
@@ -100,50 +114,43 @@ export function ModelSelector({
   }
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-1.5 font-mono text-xs">
           {displayName}
           <ChevronDown className="h-3 w-3 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 space-y-3" align="start">
-        <div className="space-y-1.5">
-          <span className="text-xs text-muted-foreground">Provider</span>
-          <Select
-            value={providerId}
-            onValueChange={(pid) => {
-              const defaultModel = providers.find((p) => p.id === pid)?.defaultModel ?? '';
-              onSelect(pid, defaultModel);
-            }}
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Select provider" />
-            </SelectTrigger>
-            <SelectContent>
-              {connectedProviders.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <span className="text-xs text-muted-foreground">Model</span>
-          <Select value={modelId} onValueChange={(mid) => onSelect(providerId, mid)}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Select model" />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <PopoverContent className="w-80 p-0" align="end">
+        <Command>
+          <CommandInput placeholder="Search models..." />
+          <CommandList>
+            <CommandEmpty>No models found.</CommandEmpty>
+            {providerModels.map(({ provider, models }) => (
+              <CommandGroup key={provider.id} heading={provider.name}>
+                {models.map((model) => {
+                  const isSelected = providerId === provider.id && modelId === model.id;
+                  return (
+                    <CommandItem
+                      key={model.id}
+                      value={`${provider.name} ${model.name}`}
+                      className={isSelected ? 'bg-primary/10 text-primary' : ''}
+                      onSelect={() => {
+                        onSelect(provider.id, model.id);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={`h-3.5 w-3.5 shrink-0 ${isSelected ? 'text-primary' : 'opacity-0'}`}
+                      />
+                      <span className="flex-1 truncate">{model.name}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   );
