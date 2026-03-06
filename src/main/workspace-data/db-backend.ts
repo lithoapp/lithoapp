@@ -6,6 +6,7 @@ import type {
   DocumentInfo,
   PageInfo,
   PageSize,
+  PageSizeName,
   RevertResult,
   StoredMessage,
   WorkspaceInfo,
@@ -148,7 +149,7 @@ export async function readDocumentConfig(
 export async function createDocument(
   workspace: string,
   title: string,
-  size: string | PageSize,
+  size: PageSizeName | PageSize,
   folder?: string,
 ): Promise<string> {
   const db = getWorkspaceDb(workspace);
@@ -573,25 +574,20 @@ export interface ConversationData {
   };
 }
 
-export async function loadConversation(
-  workspace: string,
-  documentId: string,
-): Promise<ConversationData> {
-  const db = getWorkspaceDb(workspace);
-  const row = db
-    .prepare(
-      'SELECT messages, usage_input_tokens, usage_output_tokens FROM conversations WHERE document_id = ?',
-    )
-    .get(documentId) as
-    | { messages: string; usage_input_tokens: number; usage_output_tokens: number }
-    | undefined;
+/** Synthetic document ID used by the workspace-level agent conversation. */
+const WORKSPACE_CONVERSATION_ID = '__workspace__';
 
-  if (!row)
-    return {
-      messages: [],
-      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, contextWindow: undefined },
-    };
 
+const EMPTY_CONVERSATION: ConversationData = {
+  messages: [],
+  usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, contextWindow: undefined },
+};
+
+function parseConversationRow(row: {
+  messages: string;
+  usage_input_tokens: number;
+  usage_output_tokens: number;
+}): ConversationData {
   const inputTokens = row.usage_input_tokens;
   const outputTokens = row.usage_output_tokens;
   return {
@@ -605,6 +601,34 @@ export async function loadConversation(
   };
 }
 
+export async function loadConversation(
+  workspace: string,
+  documentId: string,
+): Promise<ConversationData> {
+  const db = getWorkspaceDb(workspace);
+
+  if (documentId === WORKSPACE_CONVERSATION_ID) {
+    const row = db
+      .prepare(
+        "SELECT messages, usage_input_tokens, usage_output_tokens FROM workspace_conversations WHERE id = 'default'",
+      )
+      .get() as
+      | { messages: string; usage_input_tokens: number; usage_output_tokens: number }
+      | undefined;
+    return row ? parseConversationRow(row) : EMPTY_CONVERSATION;
+  }
+
+  const row = db
+    .prepare(
+      'SELECT messages, usage_input_tokens, usage_output_tokens FROM conversations WHERE document_id = ?',
+    )
+    .get(documentId) as
+    | { messages: string; usage_input_tokens: number; usage_output_tokens: number }
+    | undefined;
+
+  return row ? parseConversationRow(row) : EMPTY_CONVERSATION;
+}
+
 export async function saveConversation(
   workspace: string,
   documentId: string,
@@ -613,6 +637,16 @@ export async function saveConversation(
 ): Promise<void> {
   const db = getWorkspaceDb(workspace);
   const json = JSON.stringify(messages);
+
+  if (documentId === WORKSPACE_CONVERSATION_ID) {
+    db.prepare(
+      `INSERT INTO workspace_conversations (id, messages, usage_input_tokens, usage_output_tokens, updated_at)
+       VALUES ('default', ?, ?, ?, datetime('now'))
+       ON CONFLICT(id)
+       DO UPDATE SET messages = excluded.messages, usage_input_tokens = excluded.usage_input_tokens, usage_output_tokens = excluded.usage_output_tokens, updated_at = excluded.updated_at`,
+    ).run(json, usage.inputTokens, usage.outputTokens);
+    return;
+  }
 
   db.prepare(
     `INSERT INTO conversations (document_id, messages, usage_input_tokens, usage_output_tokens, updated_at)
@@ -624,6 +658,12 @@ export async function saveConversation(
 
 export async function clearConversation(workspace: string, documentId: string): Promise<void> {
   const db = getWorkspaceDb(workspace);
+
+  if (documentId === WORKSPACE_CONVERSATION_ID) {
+    db.prepare("DELETE FROM workspace_conversations WHERE id = 'default'").run();
+    return;
+  }
+
   db.prepare('DELETE FROM conversations WHERE document_id = ?').run(documentId);
 }
 
@@ -640,6 +680,9 @@ export function createSnapshot(
   currentMessages: StoredMessage[],
   currentUsage: { inputTokens: number; outputTokens: number },
 ): void {
+  // Workspace-level conversations have no pages/styles to snapshot
+  if (documentId === WORKSPACE_CONVERSATION_ID) return;
+
   const db = getWorkspaceDb(workspace);
 
   const pages = db
@@ -697,6 +740,11 @@ export function revertToSnapshot(
   documentId: string,
   userMessageId: string,
 ): RevertResult {
+  // Workspace conversations don't support revert — operations are irreversible
+  if (documentId === WORKSPACE_CONVERSATION_ID) {
+    throw new Error('Revert is not supported for workspace conversations');
+  }
+
   const db = getWorkspaceDb(workspace);
 
   const snapshot = db

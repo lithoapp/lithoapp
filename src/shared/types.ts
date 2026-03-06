@@ -91,8 +91,40 @@ export interface PageSize {
   unit: 'mm' | 'px';
 }
 
+/** Preset page size names. */
+export const PAGE_SIZE_NAMES = [
+  'A4',
+  'A3',
+  'A5',
+  'Letter',
+  'Legal',
+  'Tabloid',
+  'Instagram Post',
+  'Instagram Story',
+  'Facebook Post',
+  'Facebook Cover',
+  'Twitter/X Post',
+  'Twitter/X Header',
+  'LinkedIn Banner',
+  'Pinterest Pin',
+  'YouTube Thumbnail',
+  'YouTube Channel Art',
+  'Slide 16:9',
+  'Slide 4:3',
+  'Leaderboard',
+  'Medium Rectangle',
+  'Wide Skyscraper',
+  'Facebook Ad',
+  'Logo',
+  'Email Header',
+  'Infographic',
+  'Blog Banner',
+] as const;
+
+export type PageSizeName = (typeof PAGE_SIZE_NAMES)[number];
+
 /** Preset page sizes. */
-export const PAGE_SIZES: Record<string, PageSize> = {
+export const PAGE_SIZES: Record<PageSizeName, PageSize> = {
   A4: { width: 210, height: 297, unit: 'mm' },
   A3: { width: 297, height: 420, unit: 'mm' },
   A5: { width: 148, height: 210, unit: 'mm' },
@@ -224,10 +256,10 @@ export interface DesignSystem {
 
 // --- AI Agents ---
 
-export type AgentId = 'document' | 'design-system';
+export type AgentId = 'document' | 'design-system' | 'workspace';
 
 export interface AgentContext {
-  docId: string;
+  docId?: string;
   title?: string;
   workspaceTitle?: string;
   width?: number;

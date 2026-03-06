@@ -13,7 +13,7 @@ import {
 
 app.setName('Litho');
 
-import type { WorkspaceState } from '../shared/types';
+import type { PageSizeName, WorkspaceState } from '../shared/types';
 import { getActiveWorkspace, setActiveWorkspace } from './active-workspace-store';
 import { registerAiProviderHandlers } from './ai-providers';
 import {
@@ -262,7 +262,7 @@ ipcMain.handle('document:read', (_event, ws: string, docId: string) =>
 );
 ipcMain.handle(
   'document:create',
-  (_event, ws: string, title: string, size: string, folder?: string) =>
+  (_event, ws: string, title: string, size: PageSizeName, folder?: string) =>
     createDocument(ws, title, size, folder),
 );
 ipcMain.handle('document:delete', (_event, ws: string, docId: string) => deleteDocument(ws, docId));

@@ -36,7 +36,7 @@ import type { DisplayMode } from './types';
 export interface ChatProps {
   workspaceName: string;
   documentId: string;
-  agentId: 'document' | 'design-system';
+  agentId: 'document' | 'design-system' | 'workspace';
   agentContext: AgentContext;
   kickoffMessage?: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
@@ -456,7 +456,7 @@ export function Chat({
           isStreaming={chat.isStreaming}
           pages={pages}
           hideFirstUserMessage={hideFirstUserMessage}
-          onRevert={handleRevert}
+          onRevert={agentId === 'workspace' ? undefined : handleRevert}
           displayMode={displayMode}
           agentId={agentId}
           agentContext={agentContext}
@@ -500,6 +500,17 @@ export function Chat({
           />
           <div className="absolute right-2 bottom-2">
             {chat.isStreaming ? (
+              agentId === 'workspace' ? (
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  className="h-7 w-7 shrink-0 rounded-full"
+                  title="Stop"
+                  onClick={() => void chat.abort()}
+                >
+                  <Square className="h-3 w-3" />
+                </Button>
+              ) : (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -528,6 +539,7 @@ export function Chat({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+              )
             ) : (
               <Button
                 size="icon"

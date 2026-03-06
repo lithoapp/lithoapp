@@ -1,10 +1,15 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { PAGE_SIZE_NAMES } from '../../../shared/types';
 import { listAssets } from '../../assets-manager';
 import { analyzePage, formatAnalysisSummary } from '../../renderer/analyze-page';
 import { buildPage } from '../../renderer/index';
 import { generateId, getWorkspaceDb } from '../../workspace-data/db';
-import { readDocumentConfig } from '../../workspace-data/db-backend';
+import {
+  createDocument as createDocumentFn,
+  duplicateDocument as duplicateDocumentFn,
+  readDocumentConfig,
+} from '../../workspace-data/db-backend';
 import { resolveWorkspacePath } from '../../workspace-paths';
 import { replace } from '../lib/replace';
 
@@ -704,6 +709,141 @@ export function createLithoTools(workspace: string) {
         return entries
           .map((e) => `@assets/documents/${docId}/${e.name}\t${e.ext}\t${e.size}`)
           .join('\n');
+      },
+    }),
+
+    // ── createDocument ──────────────────────────────────────────────────
+    createDocument: tool({
+      description: 'Create a new document in the workspace. Returns the new document ID.',
+      inputSchema: z.object({
+        title: z.string().describe('Document title (e.g. "Q4 Proposal", "Team Directory")'),
+        size: z.enum(PAGE_SIZE_NAMES).default('A4').describe('Page size preset'),
+        folder: z
+          .string()
+          .optional()
+          .describe(
+            'Folder to organize the document into (e.g. "Client Proposals", "Social Media")',
+          ),
+      }),
+      execute: async ({ title, size, folder }) => {
+        const docId = await createDocumentFn(workspace, title, size, folder);
+        const folderNote = folder ? ` in "${folder}"` : '';
+        return `Created "${title}"${folderNote} (${docId}, ${size}). The document is empty — open it to start adding pages.`;
+      },
+    }),
+
+    // ── deleteDocument ──────────────────────────────────────────────────
+    deleteDocument: tool({
+      description:
+        'Permanently delete a document and all its pages. Cannot be undone. ' +
+        'Cannot delete the design system document. ' +
+        'You must provide the correct page count as confirmation.',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID to delete'),
+        pageCount: z
+          .number()
+          .describe('Expected number of pages in the document (safety confirmation)'),
+      }),
+      execute: async ({ docId, pageCount }) => {
+        const d = db();
+        const doc = d.prepare('SELECT title, type FROM documents WHERE id = ?').get(docId) as
+          | { title: string; type: string }
+          | undefined;
+
+        if (!doc) throw new Error(`Document "${docId}" not found`);
+        if (doc.type === 'design-system') {
+          throw new Error('The design system document cannot be deleted.');
+        }
+
+        const actual = d
+          .prepare('SELECT COUNT(*) as count FROM pages WHERE document_id = ?')
+          .get(docId) as { count: number };
+
+        if (actual.count !== pageCount) {
+          return `Delete rejected — you said the document has ${pageCount} pages but it actually has ${actual.count}. Confirm with the user the number of pages before trying again.`;
+        }
+
+        d.prepare('DELETE FROM documents WHERE id = ?').run(docId);
+        return `Deleted "${doc.title}" and its ${actual.count} pages.`;
+      },
+    }),
+
+    // ── renameDocument ──────────────────────────────────────────────────
+    renameDocument: tool({
+      description: 'Rename a document.',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID'),
+        title: z.string().describe('New document title'),
+      }),
+      execute: async ({ docId, title }) => {
+        const d = db();
+        const doc = d.prepare('SELECT title FROM documents WHERE id = ?').get(docId) as
+          | { title: string }
+          | undefined;
+
+        if (!doc) throw new Error(`Document "${docId}" not found`);
+
+        d.prepare("UPDATE documents SET title = ?, updated_at = datetime('now') WHERE id = ?").run(
+          title,
+          docId,
+        );
+
+        return `Renamed "${doc.title}" → "${title}"`;
+      },
+    }),
+
+    // ── moveDocumentToFolder ────────────────────────────────────────────
+    moveDocumentToFolder: tool({
+      description:
+        'Move a document into a folder for organization. ' +
+        'Pass an empty string to remove from its current folder.',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID'),
+        folder: z
+          .string()
+          .describe('Target folder name (e.g. "Client Proposals"). Empty string to un-folder.'),
+      }),
+      execute: async ({ docId, folder }) => {
+        const d = db();
+        const doc = d.prepare('SELECT title, folder FROM documents WHERE id = ?').get(docId) as
+          | { title: string; folder: string | null }
+          | undefined;
+
+        if (!doc) throw new Error(`Document "${docId}" not found`);
+
+        d.prepare("UPDATE documents SET folder = ?, updated_at = datetime('now') WHERE id = ?").run(
+          folder || null,
+          docId,
+        );
+
+        if (!folder) {
+          return `Moved "${doc.title}" out of "${doc.folder}" to ungrouped.`;
+        }
+        return `Moved "${doc.title}" → "${folder}"`;
+      },
+    }),
+
+    // ── duplicateDocument ───────────────────────────────────────────────
+    duplicateDocument: tool({
+      description: 'Duplicate a document and all its pages. The copy is named "{title} (copy)".',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID to duplicate'),
+      }),
+      execute: async ({ docId }) => {
+        const d = db();
+        const doc = d.prepare('SELECT title FROM documents WHERE id = ?').get(docId) as
+          | { title: string }
+          | undefined;
+
+        if (!doc) throw new Error(`Document "${docId}" not found`);
+
+        const newDocId = await duplicateDocumentFn(workspace, docId);
+
+        const pageCount = d
+          .prepare('SELECT COUNT(*) as count FROM pages WHERE document_id = ?')
+          .get(newDocId) as { count: number };
+
+        return `Duplicated "${doc.title}" → "${doc.title} (copy)" (${newDocId}, ${pageCount.count} pages)`;
       },
     }),
   };

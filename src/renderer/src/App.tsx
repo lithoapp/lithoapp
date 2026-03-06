@@ -338,7 +338,7 @@ function App(): React.JSX.Element {
 
       {/* Main content */}
       <div
-        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
+        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'documents' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
       >
         {page === 'workspaces' && (
           <WorkspacesPage
@@ -420,8 +420,8 @@ function App(): React.JSX.Element {
           <AlertDialogHeader>
             <AlertDialogTitle>AI is still working</AlertDialogTitle>
             <AlertDialogDescription>
-              The AI agent is processing your request. Leaving now may interrupt its work and produce
-              incomplete results.
+              The AI agent is processing your request. Leaving now may interrupt its work and
+              produce incomplete results.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { WorkspaceChat } from '@/components/chat/workspace-chat';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
 import type { ColorPalette, DesignSystem, DocumentInfo } from '../../../../shared/types';
 import { ExportDialog } from '../document/export-dialog';
@@ -354,439 +356,475 @@ export function DocumentsPage({
     );
   }
 
+  const handleToolComplete = (tool: string, _args: Record<string, unknown>) => {
+    if (
+      tool === 'createDocument' ||
+      tool === 'deleteDocument' ||
+      tool === 'renameDocument' ||
+      tool === 'moveDocumentToFolder' ||
+      tool === 'duplicateDocument' ||
+      tool === 'updateDocumentDescription'
+    ) {
+      void refetch();
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-end justify-between">
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: drop target for moving documents out of folder */}
-        <div
-          className={cn(
-            'flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors',
-            isBackDragOver && 'bg-primary/10 ring-2 ring-primary/30',
-          )}
-          onDragOver={(e) => {
-            if (!currentFolder) return;
-            if (!e.dataTransfer.types.includes('text/plain')) return;
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            setIsBackDragOver(true);
-          }}
-          onDragLeave={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-              setIsBackDragOver(false);
-            }
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            setIsBackDragOver(false);
-            const slug = e.dataTransfer.getData('text/plain');
-            if (slug) void handleRemoveFromFolder(slug);
-          }}
-        >
-          {currentFolder && (
-            <button
-              type="button"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted"
-              onClick={() => setCurrentFolder(null)}
-            >
-              <ChevronLeft className="h-5 w-5 text-muted-foreground" />
-            </button>
-          )}
-          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
-            {currentFolder ?? workspaceTitle}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
-            <FilePlus className="mr-1.5 h-4 w-4" />
-            New Document
-          </Button>
-          {currentFolder === null && (
-            <Button
-              variant="outline"
-              onClick={() => setNewFolderOpen(true)}
-              className="h-10 px-4 text-sm"
-            >
-              <FolderPlus className="mr-1.5 h-4 w-4" />
-              New Folder
-            </Button>
-          )}
-          <Button variant="outline" onClick={onCloseWorkspace} className="h-10 px-4 text-sm">
-            <LogOut className="mr-1.5 h-4 w-4" />
-            Exit
-          </Button>
-        </div>
-      </div>
-
-      {/* Loading skeleton */}
-      {isLoading && documents.length === 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-          {['s1', 's2', 's3', 's4', 's5', 's6'].map((key) => (
-            <DocumentSkeleton key={key} />
-          ))}
-        </div>
-      ) : /* Empty state */
-      currentFolder === null &&
-        allFolderNames.length === 0 &&
-        ungrouped.length === 0 &&
-        !designSystemDoc ? (
-        <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-          <FileText className="h-10 w-10 text-muted-foreground/40" />
-          <div className="flex flex-col gap-1">
-            <p className="text-base font-semibold text-foreground">No documents yet</p>
-            <p className="text-sm text-muted-foreground">
-              Create your first document to start designing.
-            </p>
-          </div>
-          <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
-            <FilePlus className="mr-1.5 h-4 w-4" />
-            New Document
-          </Button>
-        </div>
-      ) : currentFolder !== null && (folderDocs?.length ?? 0) === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-          <Folder className="h-10 w-10 text-muted-foreground/40" />
-          <div className="flex flex-col gap-1">
-            <p className="text-base font-semibold text-foreground">This folder is empty</p>
-            <p className="text-sm text-muted-foreground">
-              Create a document or drag one in from the top level.
-            </p>
-          </div>
-          <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
-            <FilePlus className="mr-1.5 h-4 w-4" />
-            New Document
-          </Button>
-        </div>
-      ) : (
-        <>
-          {/* Workspace row — Design System + Assets (top level only) */}
-          {currentFolder === null && (
-            <div className="flex flex-wrap gap-3">
-              {designSystemDoc && (
-                <DesignSystemDocCard
-                  doc={designSystemDoc}
-                  palettes={designSystem?.colors.palettes ?? []}
-                  onClick={onOpenDesignSystem}
-                />
-              )}
-              <AssetsCard onClick={onOpenAssets} />
-            </div>
-          )}
-
-          {/* Folders row (top level only, when folders exist) */}
-          {currentFolder === null && allFolderNames.length > 0 && (
-            <div className="flex flex-wrap gap-3">
-              {allFolderNames.map((name) => (
-                <FolderCard
-                  key={name}
-                  name={name}
-                  docCount={folderMap.get(name)?.length ?? 0}
-                  onClick={() => setCurrentFolder(name)}
-                  onRename={(n) => setRenameFolderOld(n)}
-                  onDelete={(n) => setDeleteFolderName(n)}
-                  onDropDoc={(slug) => void handleAssignFolder(slug, name)}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Document grid */}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-            {currentFolder === null ? ungrouped.map(renderDocCard) : folderDocs?.map(renderDocCard)}
-          </div>
-        </>
-      )}
-
-      {/* New Folder dialog */}
-      <Dialog
-        open={newFolderOpen}
-        onOpenChange={(open) => {
-          setNewFolderOpen(open);
-          if (!open) setNewFolderName('');
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Folder</DialogTitle>
-          </DialogHeader>
-          <Input
-            placeholder="Folder name"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(sanitizeFolderName(e.target.value))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newFolderName.trim()) handleCreateFolder();
-            }}
-            className="h-11 px-4 text-base"
-            autoFocus
-          />
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" className="h-11">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="h-11">
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create document dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="gap-0 p-0 sm:max-w-[70vw]">
-          <div className="flex flex-col gap-4 p-6 pb-5">
-            <DialogHeader>
-              <DialogTitle>New Document</DialogTitle>
-            </DialogHeader>
-            <Input
-              id="doc-title"
-              placeholder="Document title"
-              value={newTitle}
-              onChange={(e) => {
-                setNewTitle(e.target.value);
-                if (createError) setCreateError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && newTitle.trim()) void handleCreate();
-              }}
-              className="h-11 px-4 text-base"
-              autoFocus
-            />
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-
-          {/* Category sidebar + size cards */}
-          <div className="flex border-t">
-            <nav className="flex w-40 shrink-0 flex-col gap-1 border-r p-3">
-              {SIZE_CATEGORIES.map((cat) => (
-                <button
-                  key={cat.label}
-                  type="button"
-                  className={cn(
-                    'rounded-md px-3 py-2 text-left text-sm font-medium transition-colors',
-                    sizeCategory === cat.label
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                  )}
-                  onClick={() => setSizeCategory(cat.label)}
-                >
-                  {cat.label}
-                </button>
-              ))}
-              <button
-                type="button"
+    <ResizablePanelGroup orientation="horizontal" className="h-full">
+      <ResizablePanel defaultSize={70} minSize={40}>
+        <div className="h-full overflow-auto p-6">
+          <div className="flex flex-col gap-6">
+            {/* Header */}
+            <div className="flex items-end justify-between">
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: drop target for moving documents out of folder */}
+              <div
                 className={cn(
-                  'rounded-md px-3 py-2 text-left text-sm font-medium transition-colors',
-                  sizeCategory === 'Custom'
-                    ? 'bg-muted text-foreground'
-                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                  'flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors',
+                  isBackDragOver && 'bg-primary/10 ring-2 ring-primary/30',
                 )}
-                onClick={() => {
-                  setSizeCategory('Custom');
-                  setNewSize('Custom');
+                onDragOver={(e) => {
+                  if (!currentFolder) return;
+                  if (!e.dataTransfer.types.includes('text/plain')) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setIsBackDragOver(true);
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setIsBackDragOver(false);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsBackDragOver(false);
+                  const slug = e.dataTransfer.getData('text/plain');
+                  if (slug) void handleRemoveFromFolder(slug);
                 }}
               >
-                Custom
-              </button>
-            </nav>
-            <div className="flex-1 p-5">
-              {sizeCategory === 'Custom' ? (
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="custom-w" className="text-sm text-muted-foreground">
-                        Width
-                      </label>
-                      <Input
-                        id="custom-w"
-                        type="number"
-                        min={1}
-                        value={customWidth}
-                        onChange={(e) => setCustomWidth(e.target.value)}
-                        className="h-10 w-32 px-3 text-base"
-                      />
-                    </div>
-                    <span className="mt-6 text-muted-foreground">×</span>
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="custom-h" className="text-sm text-muted-foreground">
-                        Height
-                      </label>
-                      <Input
-                        id="custom-h"
-                        type="number"
-                        min={1}
-                        value={customHeight}
-                        onChange={(e) => setCustomHeight(e.target.value)}
-                        className="h-10 w-32 px-3 text-base"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-sm text-muted-foreground">Unit</span>
-                      <div className="flex overflow-hidden rounded-md border">
-                        <button
-                          type="button"
-                          className={cn(
-                            'px-3 py-2 text-sm font-medium transition-colors',
-                            customUnit === 'px'
-                              ? 'bg-muted text-foreground'
-                              : 'text-muted-foreground hover:bg-muted/50',
-                          )}
-                          onClick={() => setCustomUnit('px')}
-                        >
-                          px
-                        </button>
-                        <button
-                          type="button"
-                          className={cn(
-                            'border-l px-3 py-2 text-sm font-medium transition-colors',
-                            customUnit === 'mm'
-                              ? 'bg-muted text-foreground'
-                              : 'text-muted-foreground hover:bg-muted/50',
-                          )}
-                          onClick={() => setCustomUnit('mm')}
-                        >
-                          mm
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                SIZE_CATEGORIES.filter((cat) => cat.label === sizeCategory).map((cat) => (
-                  <div
-                    key={cat.label}
-                    className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+                {currentFolder && (
+                  <button
+                    type="button"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted"
+                    onClick={() => setCurrentFolder(null)}
                   >
-                    {cat.sizes.map((size) => (
-                      <SizeCard
-                        key={size.name}
-                        size={size}
-                        isSelected={newSize === size.name}
-                        onSelect={() => setNewSize(size.name)}
+                    <ChevronLeft className="h-5 w-5 text-muted-foreground" />
+                  </button>
+                )}
+                <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+                  {currentFolder ?? workspaceTitle}
+                </h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
+                  <FilePlus className="mr-1.5 h-4 w-4" />
+                  New Document
+                </Button>
+                {currentFolder === null && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setNewFolderOpen(true)}
+                    className="h-10 px-4 text-sm"
+                  >
+                    <FolderPlus className="mr-1.5 h-4 w-4" />
+                    New Folder
+                  </Button>
+                )}
+                <Button variant="outline" onClick={onCloseWorkspace} className="h-10 px-4 text-sm">
+                  <LogOut className="mr-1.5 h-4 w-4" />
+                  Exit
+                </Button>
+              </div>
+            </div>
+
+            {/* Loading skeleton */}
+            {isLoading && documents.length === 0 ? (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+                {['s1', 's2', 's3', 's4', 's5', 's6'].map((key) => (
+                  <DocumentSkeleton key={key} />
+                ))}
+              </div>
+            ) : /* Empty state */
+            currentFolder === null &&
+              allFolderNames.length === 0 &&
+              ungrouped.length === 0 &&
+              !designSystemDoc ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+                <FileText className="h-10 w-10 text-muted-foreground/40" />
+                <div className="flex flex-col gap-1">
+                  <p className="text-base font-semibold text-foreground">No documents yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Create your first document to start designing.
+                  </p>
+                </div>
+                <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
+                  <FilePlus className="mr-1.5 h-4 w-4" />
+                  New Document
+                </Button>
+              </div>
+            ) : currentFolder !== null && (folderDocs?.length ?? 0) === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+                <Folder className="h-10 w-10 text-muted-foreground/40" />
+                <div className="flex flex-col gap-1">
+                  <p className="text-base font-semibold text-foreground">This folder is empty</p>
+                  <p className="text-sm text-muted-foreground">
+                    Create a document or drag one in from the top level.
+                  </p>
+                </div>
+                <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
+                  <FilePlus className="mr-1.5 h-4 w-4" />
+                  New Document
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Workspace row — Design System + Assets (top level only) */}
+                {currentFolder === null && (
+                  <div className="flex flex-wrap gap-3">
+                    {designSystemDoc && (
+                      <DesignSystemDocCard
+                        doc={designSystemDoc}
+                        palettes={designSystem?.colors.palettes ?? []}
+                        onClick={onOpenDesignSystem}
+                      />
+                    )}
+                    <AssetsCard onClick={onOpenAssets} />
+                  </div>
+                )}
+
+                {/* Folders row (top level only, when folders exist) */}
+                {currentFolder === null && allFolderNames.length > 0 && (
+                  <div className="flex flex-wrap gap-3">
+                    {allFolderNames.map((name) => (
+                      <FolderCard
+                        key={name}
+                        name={name}
+                        docCount={folderMap.get(name)?.length ?? 0}
+                        onClick={() => setCurrentFolder(name)}
+                        onRename={(n) => setRenameFolderOld(n)}
+                        onDelete={(n) => setDeleteFolderName(n)}
+                        onDropDoc={(slug) => void handleAssignFolder(slug, name)}
                       />
                     ))}
                   </div>
-                ))
-              )}
-            </div>
-          </div>
+                )}
 
-          {/* Footer */}
-          <DialogFooter className="border-t px-6 py-4">
-            <DialogClose asChild>
-              <Button variant="outline" className="h-11">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button
-              onClick={() => void handleCreate()}
-              disabled={
-                isCreating ||
-                !newTitle.trim() ||
-                (newSize === 'Custom' && (Number(customWidth) <= 0 || Number(customHeight) <= 0))
-              }
-              className="h-11"
-            >
-              {isCreating && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                {/* Document grid */}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+                  {currentFolder === null
+                    ? ungrouped.map(renderDocCard)
+                    : folderDocs?.map(renderDocCard)}
+                </div>
+              </>
+            )}
 
-      {/* Delete document confirmation */}
-      <AlertDialog
-        open={deleteConfirm !== null}
-        onOpenChange={(open) => !open && setDeleteConfirm(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete document?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete &quot;
-              {documents.find((d) => d.id === deleteConfirm)?.title ?? deleteConfirm}
-              &quot; and all its pages. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => void handleDelete()}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Move to folder dialog */}
-      <MoveFolderDialog
-        open={assignFolderSlug !== null}
-        folders={allFolderNames}
-        onAssign={(folderName) => {
-          if (assignFolderSlug) void handleAssignFolder(assignFolderSlug, folderName);
-          setAssignFolderSlug(null);
-        }}
-        onClose={() => setAssignFolderSlug(null)}
-      />
-
-      {/* Rename folder dialog */}
-      <RenameFolderDialog
-        oldName={renameFolderOld}
-        onRename={(newName) => {
-          if (renameFolderOld) void handleRenameFolder(renameFolderOld, newName);
-          setRenameFolderOld(null);
-        }}
-        onClose={() => setRenameFolderOld(null)}
-      />
-
-      {/* Rename document dialog */}
-      <RenameDocumentDialog
-        open={renameDocId !== null}
-        currentTitle={renameDoc?.title ?? ''}
-        onRename={(newDocTitle) => void handleRenameDocument(newDocTitle)}
-        onClose={() => setRenameDocId(null)}
-      />
-
-      {/* Export dialog for card-level export */}
-      {exportDoc && (
-        <ExportDialog
-          doc={exportDoc}
-          workspaceName={workspaceName}
-          open={exportDocId !== null}
-          onOpenChange={(open) => {
-            if (!open) setExportDocId(null);
-          }}
-        />
-      )}
-
-      {/* Delete folder confirmation */}
-      <AlertDialog
-        open={deleteFolderName !== null}
-        onOpenChange={(open) => !open && setDeleteFolderName(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete folder?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove the &quot;{deleteFolderName}&quot; folder. All documents inside will
-              move to the top level. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                if (deleteFolderName) void handleDeleteFolder(deleteFolderName);
-                setDeleteFolderName(null);
+            {/* New Folder dialog */}
+            <Dialog
+              open={newFolderOpen}
+              onOpenChange={(open) => {
+                setNewFolderOpen(open);
+                if (!open) setNewFolderName('');
               }}
             >
-              Delete folder
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>New Folder</DialogTitle>
+                </DialogHeader>
+                <Input
+                  placeholder="Folder name"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(sanitizeFolderName(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newFolderName.trim()) handleCreateFolder();
+                  }}
+                  className="h-11 px-4 text-base"
+                  autoFocus
+                />
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline" className="h-11">
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <Button
+                    onClick={handleCreateFolder}
+                    disabled={!newFolderName.trim()}
+                    className="h-11"
+                  >
+                    Create
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Create document dialog */}
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogContent className="gap-0 p-0 sm:max-w-[70vw]">
+                <div className="flex flex-col gap-4 p-6 pb-5">
+                  <DialogHeader>
+                    <DialogTitle>New Document</DialogTitle>
+                  </DialogHeader>
+                  <Input
+                    id="doc-title"
+                    placeholder="Document title"
+                    value={newTitle}
+                    onChange={(e) => {
+                      setNewTitle(e.target.value);
+                      if (createError) setCreateError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newTitle.trim()) void handleCreate();
+                    }}
+                    className="h-11 px-4 text-base"
+                    autoFocus
+                  />
+                  {createError && <p className="text-sm text-destructive">{createError}</p>}
+                </div>
+
+                {/* Category sidebar + size cards */}
+                <div className="flex border-t">
+                  <nav className="flex w-40 shrink-0 flex-col gap-1 border-r p-3">
+                    {SIZE_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.label}
+                        type="button"
+                        className={cn(
+                          'rounded-md px-3 py-2 text-left text-sm font-medium transition-colors',
+                          sizeCategory === cat.label
+                            ? 'bg-muted text-foreground'
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                        )}
+                        onClick={() => setSizeCategory(cat.label)}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className={cn(
+                        'rounded-md px-3 py-2 text-left text-sm font-medium transition-colors',
+                        sizeCategory === 'Custom'
+                          ? 'bg-muted text-foreground'
+                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                      )}
+                      onClick={() => {
+                        setSizeCategory('Custom');
+                        setNewSize('Custom');
+                      }}
+                    >
+                      Custom
+                    </button>
+                  </nav>
+                  <div className="flex-1 p-5">
+                    {sizeCategory === 'Custom' ? (
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex flex-col gap-1.5">
+                            <label htmlFor="custom-w" className="text-sm text-muted-foreground">
+                              Width
+                            </label>
+                            <Input
+                              id="custom-w"
+                              type="number"
+                              min={1}
+                              value={customWidth}
+                              onChange={(e) => setCustomWidth(e.target.value)}
+                              className="h-10 w-32 px-3 text-base"
+                            />
+                          </div>
+                          <span className="mt-6 text-muted-foreground">×</span>
+                          <div className="flex flex-col gap-1.5">
+                            <label htmlFor="custom-h" className="text-sm text-muted-foreground">
+                              Height
+                            </label>
+                            <Input
+                              id="custom-h"
+                              type="number"
+                              min={1}
+                              value={customHeight}
+                              onChange={(e) => setCustomHeight(e.target.value)}
+                              className="h-10 w-32 px-3 text-base"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-sm text-muted-foreground">Unit</span>
+                            <div className="flex overflow-hidden rounded-md border">
+                              <button
+                                type="button"
+                                className={cn(
+                                  'px-3 py-2 text-sm font-medium transition-colors',
+                                  customUnit === 'px'
+                                    ? 'bg-muted text-foreground'
+                                    : 'text-muted-foreground hover:bg-muted/50',
+                                )}
+                                onClick={() => setCustomUnit('px')}
+                              >
+                                px
+                              </button>
+                              <button
+                                type="button"
+                                className={cn(
+                                  'border-l px-3 py-2 text-sm font-medium transition-colors',
+                                  customUnit === 'mm'
+                                    ? 'bg-muted text-foreground'
+                                    : 'text-muted-foreground hover:bg-muted/50',
+                                )}
+                                onClick={() => setCustomUnit('mm')}
+                              >
+                                mm
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      SIZE_CATEGORIES.filter((cat) => cat.label === sizeCategory).map((cat) => (
+                        <div
+                          key={cat.label}
+                          className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+                        >
+                          {cat.sizes.map((size) => (
+                            <SizeCard
+                              key={size.name}
+                              size={size}
+                              isSelected={newSize === size.name}
+                              onSelect={() => setNewSize(size.name)}
+                            />
+                          ))}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <DialogFooter className="border-t px-6 py-4">
+                  <DialogClose asChild>
+                    <Button variant="outline" className="h-11">
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <Button
+                    onClick={() => void handleCreate()}
+                    disabled={
+                      isCreating ||
+                      !newTitle.trim() ||
+                      (newSize === 'Custom' &&
+                        (Number(customWidth) <= 0 || Number(customHeight) <= 0))
+                    }
+                    className="h-11"
+                  >
+                    {isCreating && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+                    Create
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Delete document confirmation */}
+            <AlertDialog
+              open={deleteConfirm !== null}
+              onOpenChange={(open) => !open && setDeleteConfirm(null)}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete document?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete &quot;
+                    {documents.find((d) => d.id === deleteConfirm)?.title ?? deleteConfirm}
+                    &quot; and all its pages. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" onClick={() => void handleDelete()}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Move to folder dialog */}
+            <MoveFolderDialog
+              open={assignFolderSlug !== null}
+              folders={allFolderNames}
+              onAssign={(folderName) => {
+                if (assignFolderSlug) void handleAssignFolder(assignFolderSlug, folderName);
+                setAssignFolderSlug(null);
+              }}
+              onClose={() => setAssignFolderSlug(null)}
+            />
+
+            {/* Rename folder dialog */}
+            <RenameFolderDialog
+              oldName={renameFolderOld}
+              onRename={(newName) => {
+                if (renameFolderOld) void handleRenameFolder(renameFolderOld, newName);
+                setRenameFolderOld(null);
+              }}
+              onClose={() => setRenameFolderOld(null)}
+            />
+
+            {/* Rename document dialog */}
+            <RenameDocumentDialog
+              open={renameDocId !== null}
+              currentTitle={renameDoc?.title ?? ''}
+              onRename={(newDocTitle) => void handleRenameDocument(newDocTitle)}
+              onClose={() => setRenameDocId(null)}
+            />
+
+            {/* Export dialog for card-level export */}
+            {exportDoc && (
+              <ExportDialog
+                doc={exportDoc}
+                workspaceName={workspaceName}
+                open={exportDocId !== null}
+                onOpenChange={(open) => {
+                  if (!open) setExportDocId(null);
+                }}
+              />
+            )}
+
+            {/* Delete folder confirmation */}
+            <AlertDialog
+              open={deleteFolderName !== null}
+              onOpenChange={(open) => !open && setDeleteFolderName(null)}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete folder?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove the &quot;{deleteFolderName}&quot; folder. All documents inside
+                    will move to the top level. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={() => {
+                      if (deleteFolderName) void handleDeleteFolder(deleteFolderName);
+                      setDeleteFolderName(null);
+                    }}
+                  >
+                    Delete folder
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </ResizablePanel>
+
+      <ResizableHandle withHandle />
+
+      <ResizablePanel defaultSize={30} minSize={20}>
+        <WorkspaceChat
+          workspaceName={workspaceName}
+          workspaceTitle={workspaceTitle}
+          onToolComplete={handleToolComplete}
+        />
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
 

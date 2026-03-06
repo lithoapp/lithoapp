@@ -20,7 +20,7 @@ export type { ChatError } from '../../../shared/types';
 export interface UseChatV2Input {
   workspaceName: string;
   documentId: string;
-  agentId: 'document' | 'design-system';
+  agentId: 'document' | 'design-system' | 'workspace';
   agentContext: AgentContext;
   providerModelRef: React.RefObject<{ providerId: string; modelId: string }>;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
@@ -60,6 +60,12 @@ const MUTATING_TOOLS = new Set([
   'movePage',
   'writeMainCss',
   'editMainCss',
+  'createDocument',
+  'deleteDocument',
+  'renameDocument',
+  'moveDocumentToFolder',
+  'duplicateDocument',
+  'updateDocumentDescription',
 ]);
 
 function generateMessageId(): string {

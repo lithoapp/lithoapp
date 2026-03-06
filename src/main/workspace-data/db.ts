@@ -86,6 +86,14 @@ CREATE TABLE IF NOT EXISTS document_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_snapshots_doc_id ON document_snapshots(document_id);
 
+CREATE TABLE IF NOT EXISTS workspace_conversations (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  messages TEXT NOT NULL DEFAULT '[]',
+  usage_input_tokens INTEGER NOT NULL DEFAULT 0,
+  usage_output_tokens INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 `;
 
 export function openWorkspaceDb(workspaceName: string): Database.Database {

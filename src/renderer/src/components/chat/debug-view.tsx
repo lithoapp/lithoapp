@@ -77,13 +77,7 @@ function PromptHeader({
   );
 }
 
-function TextBlock({
-  label,
-  text,
-}: {
-  label: string;
-  text: string;
-}): React.JSX.Element {
+function TextBlock({ label, text }: { label: string; text: string }): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const lineCount = text.split('\n').length;
 
@@ -170,9 +164,7 @@ export function PersistedDebugView({
 
   return (
     <div className="flex flex-col gap-2">
-      {agentId && agentContext && (
-        <PromptHeader agentId={agentId} agentContext={agentContext} />
-      )}
+      {agentId && agentContext && <PromptHeader agentId={agentId} agentContext={agentContext} />}
       {assistantMessages.map((msg, mi) => {
         if (typeof msg.content === 'string') {
           return (
@@ -229,9 +221,7 @@ export function StreamingDebugView({
   if (streamingParts.length === 0) {
     return (
       <div className="flex flex-col gap-2">
-        {agentId && agentContext && (
-          <PromptHeader agentId={agentId} agentContext={agentContext} />
-        )}
+        {agentId && agentContext && <PromptHeader agentId={agentId} agentContext={agentContext} />}
         <div className="text-[11px] text-muted-foreground">Thinking…</div>
       </div>
     );
@@ -239,9 +229,7 @@ export function StreamingDebugView({
 
   return (
     <div className="flex flex-col gap-2">
-      {agentId && agentContext && (
-        <PromptHeader agentId={agentId} agentContext={agentContext} />
-      )}
+      {agentId && agentContext && <PromptHeader agentId={agentId} agentContext={agentContext} />}
       {streamingParts.map((part, i) => {
         if (part.type === 'tool-call') {
           const tc = part as StreamingToolCallPart;

@@ -112,6 +112,41 @@ export function resolveToolLabel(
         icon: 'search',
       };
 
+    case 'createDocument':
+      return {
+        activeLabel: 'Creating a document',
+        doneLabel: 'Created a document',
+        icon: 'plus',
+      };
+
+    case 'deleteDocument':
+      return {
+        activeLabel: 'Deleting a document',
+        doneLabel: 'Deleted a document',
+        icon: 'error',
+      };
+
+    case 'renameDocument':
+      return {
+        activeLabel: 'Renaming a document',
+        doneLabel: 'Renamed a document',
+        icon: 'pencil',
+      };
+
+    case 'moveDocumentToFolder':
+      return {
+        activeLabel: 'Moving document to folder',
+        doneLabel: 'Moved document to folder',
+        icon: 'pencil',
+      };
+
+    case 'duplicateDocument':
+      return {
+        activeLabel: 'Duplicating a document',
+        doneLabel: 'Duplicated a document',
+        icon: 'plus',
+      };
+
     default:
       return { activeLabel: tool, doneLabel: tool, icon: 'terminal' };
   }

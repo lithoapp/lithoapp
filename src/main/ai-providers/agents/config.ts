@@ -4,6 +4,8 @@ import designSystemKickoffRaw from '../../../agents/design-system/kickoff.md?raw
 import designSystemSystemRaw from '../../../agents/design-system/system.md?raw';
 import documentKickoffRaw from '../../../agents/document/kickoff.md?raw';
 import documentSystemRaw from '../../../agents/document/system.md?raw';
+import workspaceKickoffRaw from '../../../agents/workspace/kickoff.md?raw';
+import workspaceSystemRaw from '../../../agents/workspace/system.md?raw';
 import type { AgentContext, AgentId } from '../../../shared/types';
 import type { LithoToolName } from './litho-tools';
 import { createLithoTools } from './litho-tools';
@@ -59,6 +61,25 @@ const AGENTS: Record<AgentId, AgentConfig> = {
     ],
     systemTemplate: documentSystemRaw,
     kickoffTemplate: documentKickoffRaw,
+  },
+  workspace: {
+    tools: [
+      'listDocuments',
+      'listPages',
+      'readPage',
+      'readMainCss',
+      'grepPages',
+      'listWorkspaceAssets',
+      'listDocumentAssets',
+      'createDocument',
+      'deleteDocument',
+      'renameDocument',
+      'moveDocumentToFolder',
+      'duplicateDocument',
+      'updateDocumentDescription',
+    ],
+    systemTemplate: workspaceSystemRaw,
+    kickoffTemplate: workspaceKickoffRaw,
   },
 };
 
