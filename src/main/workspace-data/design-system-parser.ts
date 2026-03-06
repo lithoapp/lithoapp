@@ -382,9 +382,3 @@ export default function ${funcName}() {
 }
 `;
 }
-
-// ---------------------------------------------------------------------------
-// DEFAULT_STYLES_CSS — re-exported from design-system-pages.ts
-// ---------------------------------------------------------------------------
-
-export { DEFAULT_STYLES_CSS } from './design-system-pages';

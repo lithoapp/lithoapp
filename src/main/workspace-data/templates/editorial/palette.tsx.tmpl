@@ -1,0 +1,91 @@
+import '@styles.css';
+
+const colors = [
+  {
+    name: 'Dusty Rose',
+    role: 'Primary',
+    desc: 'The heart of the brand. Feminine strength without fragility.',
+    light: 'bg-primary-100',
+    mid: 'bg-primary-400',
+    deep: 'bg-primary-700',
+    hex: ['#eedce3', '#cd9fad', '#875d6e'],
+  },
+  {
+    name: 'Warm Gold',
+    role: 'Accent',
+    desc: 'Depth and warmth. The editorial highlight that makes everything glow.',
+    light: 'bg-accent-100',
+    mid: 'bg-accent-400',
+    deep: 'bg-accent-700',
+    hex: ['#f8efd9', '#d9b56b', '#926d36'],
+  },
+  {
+    name: 'Warm Taupe',
+    role: 'Secondary',
+    desc: 'The quiet anchor. Grounding the palette without pulling focus.',
+    light: 'bg-secondary-100',
+    mid: 'bg-secondary-400',
+    deep: 'bg-secondary-700',
+    hex: ['#f3efeb', '#bda99b', '#67544a'],
+  },
+  {
+    name: 'Linen',
+    role: 'Light Neutral',
+    desc: 'The canvas. Warm off-white that breathes life into every page.',
+    light: 'bg-neutral-50',
+    mid: 'bg-neutral-200',
+    deep: 'bg-neutral-400',
+    hex: ['#fdfbf8', '#eee7de', '#c4b4a5'],
+  },
+  {
+    name: 'Charcoal',
+    role: 'Dark Neutral',
+    desc: 'Sharp and grounded. For text and contrast that commands attention.',
+    light: 'bg-neutral-600',
+    mid: 'bg-neutral-800',
+    deep: 'bg-neutral-950',
+    hex: ['#7d6a60', '#433a37', '#1a191d'],
+  },
+];
+
+export default function Palette() {
+  return (
+    <div className="h-full flex flex-col bg-neutral-50 px-16 py-14">
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent-600">
+        Colour Palette
+      </p>
+      <h2 className="mt-3 font-display text-4xl font-semibold text-neutral-900">
+        Colours with intention.
+      </h2>
+      <p className="mt-3 font-sans text-sm text-neutral-400 max-w-md">
+        Each colour was chosen to work in harmony — never competing, always complementing.
+      </p>
+
+      {/* Color blocks */}
+      <div className="mt-10 flex flex-1 gap-3">
+        {colors.map(({ name, role, desc, light, mid, deep, hex }) => (
+          <div key={name} className="flex flex-1 flex-col gap-2">
+            {/* Three tonal blocks */}
+            <div className={`h-16 rounded-xl ${light}`} />
+            <div className={`h-28 rounded-xl ${mid}`} />
+            <div className={`h-20 rounded-xl ${deep}`} />
+
+            {/* Label */}
+            <div className="mt-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-400">{role}</p>
+              <p className="mt-0.5 font-display text-lg font-semibold text-neutral-800">{name}</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-neutral-400">{desc}</p>
+            </div>
+
+            {/* Hex chips */}
+            <div className="mt-3 flex flex-col gap-1">
+              {hex.map((h) => (
+                <p key={h} className="font-mono text-[9px] text-neutral-400">{h}</p>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

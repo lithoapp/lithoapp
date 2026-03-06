@@ -1,0 +1,66 @@
+import '@styles.css';
+
+function ScaleLine({ label, className }: { label: string; className: string }) {
+  return (
+    <div className="flex items-baseline gap-4">
+      <p className="w-12 text-right font-mono text-[10px] text-neutral-400">{label}</p>
+      <p className={`${className} truncate text-neutral-900`}>Shape the message with confident type.</p>
+    </div>
+  );
+}
+
+export default function Type() {
+  return (
+    <div className="h-full bg-white p-14">
+      <h1 className="font-display text-4xl font-bold text-neutral-900">Type</h1>
+      <p className="mt-2 text-base text-neutral-500">Punchy headlines, clean reading rhythm.</p>
+
+      <div className="mt-8 grid grid-cols-2 gap-8">
+        <div className="rounded-2xl border border-neutral-200 p-6">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-400">Display</p>
+          <p className="mt-3 font-display text-6xl font-bold leading-[0.95] text-neutral-900 tracking-tight">
+            Big ideas,
+            <br />
+            instantly felt.
+          </p>
+          <p className="mt-5 text-sm text-neutral-500">Space Grotesk leads headlines with modern character.</p>
+        </div>
+
+        <div className="rounded-2xl border border-neutral-200 p-6">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-400">Body</p>
+          <p className="mt-3 text-lg leading-relaxed text-neutral-700">
+            Inter keeps long-form content clear, focused, and highly readable. It balances the display style so layouts feel polished, not overwhelming.
+          </p>
+          <p className="mt-4 text-sm font-semibold text-neutral-900">Medium for interface labels, regular for paragraphs.</p>
+        </div>
+      </div>
+
+      <div className="mt-8 grid grid-cols-3 gap-4">
+        <div className="rounded-xl bg-neutral-950 p-5 text-white">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-400">Voice</p>
+          <p className="mt-3 font-display text-3xl leading-none">Confident and direct.</p>
+        </div>
+        <div className="rounded-xl border border-neutral-200 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-400">Do</p>
+          <p className="mt-2 text-sm text-neutral-700">Use strong size jumps between headline levels.</p>
+        </div>
+        <div className="rounded-xl border border-neutral-200 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-400">Avoid</p>
+          <p className="mt-2 text-sm text-neutral-700">Stacking too many bold lines at similar sizes.</p>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-neutral-200 p-6">
+        <p className="mb-5 text-xs font-bold uppercase tracking-[0.14em] text-neutral-400">Hierarchy</p>
+        <div className="space-y-2.5">
+          <ScaleLine label="7xl" className="font-display text-7xl font-bold leading-none tracking-tight" />
+          <ScaleLine label="5xl" className="font-display text-5xl font-bold leading-none tracking-tight" />
+          <ScaleLine label="3xl" className="font-display text-3xl font-semibold leading-tight" />
+          <ScaleLine label="xl" className="text-xl font-medium leading-tight" />
+          <ScaleLine label="base" className="text-base leading-relaxed" />
+          <ScaleLine label="sm" className="text-sm leading-relaxed text-neutral-600" />
+        </div>
+      </div>
+    </div>
+  );
+}

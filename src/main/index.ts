@@ -36,7 +36,7 @@ import {
 } from './auto-updater';
 import { DocumentExporter, exportPage } from './exporter';
 import { buildExportFileName } from './exporter/export-filename';
-import { buildPage } from './renderer';
+import { buildAllTemplatePreviews, buildPage } from './renderer';
 import { compileTailwind, formatCssError } from './renderer/build-shared';
 import { initSentry } from './sentry';
 import {
@@ -226,8 +226,8 @@ ipcMain.handle('workspace:list', () => listWorkspaces());
 
 ipcMain.handle('workspace:getActive', () => getWorkspaceState());
 
-ipcMain.handle('workspace:create', async (_event, title: string) => {
-  const slug = await createNewWorkspace(title);
+ipcMain.handle('workspace:create', async (_event, title: string, templateId?: string) => {
+  const slug = await createNewWorkspace(title, templateId as Parameters<typeof createNewWorkspace>[1]);
   setActiveWorkspace(slug);
   emitWorkspaceChanged();
   return slug;
@@ -370,6 +370,7 @@ ipcMain.handle(
     buildPage(ws, doc, page, approach),
 );
 ipcMain.handle('renderer:export', (_event, options) => exportPage(options));
+ipcMain.handle('template:buildPreviews', () => buildAllTemplatePreviews());
 
 ipcMain.handle(
   'renderer:validateCss',

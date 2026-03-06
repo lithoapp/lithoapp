@@ -1,0 +1,56 @@
+import '@styles.css';
+
+export default function BrandStory() {
+  return (
+    <div className="h-full flex flex-col bg-neutral-900 px-16 py-14">
+      {/* Eyebrow */}
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent-400">
+        The Brand
+      </p>
+
+      {/* Hero quote */}
+      <h2 className="mt-7 font-display text-5xl font-medium leading-tight text-neutral-50">
+        Designed for those<br />who value craft —<br />
+        <span className="italic text-primary-300">and the courage to be distinct.</span>
+      </h2>
+
+      {/* Divider */}
+      <div className="mt-8 h-px w-16 bg-accent-500" />
+
+      {/* Body copy — two columns */}
+      <div className="mt-7 flex gap-12">
+        <p className="flex-1 font-sans text-base leading-relaxed text-neutral-400">
+          This is a creative studio rooted in the belief that good design is never decoration —
+          it's communication. Every color, every typeface, every breath of space is chosen with intention,
+          to tell a story that resonates before a single word is read.
+        </p>
+        <p className="flex-1 font-sans text-base leading-relaxed text-neutral-400">
+          This brand book is a living document of those choices. It captures not just the visual language
+          of the studio, but the feeling it's meant to evoke: warmth, confidence, quiet elegance.
+        </p>
+      </div>
+
+      {/* Three brand principles */}
+      <div className="mt-10 flex gap-6">
+        {[
+          { word: 'Intentional', desc: 'Every element earns its place. Nothing added without purpose.' },
+          { word: 'Warm', desc: 'Approachable without being casual. It invites you in.' },
+          { word: 'Refined', desc: 'Detail-first, never overdone. Elegance lives in restraint.' },
+        ].map(({ word, desc }, i) => (
+          <div key={word} className="flex-1 border-t border-neutral-700 pt-6">
+            <p className="font-sans text-[10px] font-semibold uppercase tracking-widest text-neutral-600 mb-3">0{i + 1}</p>
+            <p className="font-display text-2xl font-medium text-neutral-100">{word}</p>
+            <p className="mt-2 font-sans text-xs leading-relaxed text-neutral-500">{desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom accent strip */}
+      <div className="mt-10 flex gap-2">
+        <div className="h-1 flex-[4] rounded-full bg-primary-700" />
+        <div className="h-1 flex-[2] rounded-full bg-accent-600" />
+        <div className="h-1 flex-1 rounded-full bg-secondary-700" />
+      </div>
+    </div>
+  );
+}

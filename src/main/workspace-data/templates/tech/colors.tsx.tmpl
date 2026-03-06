@@ -1,0 +1,134 @@
+function ColorScale({
+  name,
+  role,
+  colors,
+}: {
+  name: string;
+  role: string;
+  colors: { shade: string; hex: string; className: string }[];
+}) {
+  return (
+    <div className="rounded-2xl bg-neutral-900 border border-neutral-800 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <p className="font-mono text-sm text-secondary-300 uppercase tracking-widest">{name}</p>
+        <p className="font-mono text-xs text-neutral-500">{role}</p>
+      </div>
+      <div className="grid grid-cols-11 gap-2">
+        {colors.map((color) => (
+          <div key={color.shade} className="min-w-0">
+            <div className={`h-14 rounded-md ${color.className} ring-1 ring-white/10`} />
+            <p className="mt-1.5 font-mono text-[10px] text-neutral-500 text-center">{color.shade}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HeroColorCard({
+  name,
+  hex,
+  use,
+  className,
+  glow,
+}: {
+  name: string;
+  hex: string;
+  use: string;
+  className: string;
+  glow: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-neutral-900 border border-neutral-800 p-5">
+      <div className={`h-24 rounded-xl ${className} ${glow}`} />
+      <p className="mt-4 font-sans text-lg font-semibold text-neutral-100">{name}</p>
+      <p className="font-mono text-sm text-neutral-500">{hex}</p>
+      <p className="mt-2 font-mono text-xs text-neutral-600">{use}</p>
+    </div>
+  );
+}
+
+export default function Colors() {
+  const neutralColors = [
+    { shade: '50', hex: '#f8f8f9', className: 'bg-neutral-50' },
+    { shade: '100', hex: '#f0f0f2', className: 'bg-neutral-100' },
+    { shade: '200', hex: '#dcdee2', className: 'bg-neutral-200' },
+    { shade: '300', hex: '#bec2ca', className: 'bg-neutral-300' },
+    { shade: '400', hex: '#969ca8', className: 'bg-neutral-400' },
+    { shade: '500', hex: '#707784', className: 'bg-neutral-500' },
+    { shade: '600', hex: '#565c68', className: 'bg-neutral-600' },
+    { shade: '700', hex: '#3f444e', className: 'bg-neutral-700' },
+    { shade: '800', hex: '#282c34', className: 'bg-neutral-800' },
+    { shade: '900', hex: '#171a20', className: 'bg-neutral-900' },
+    { shade: '950', hex: '#0d0d0d', className: 'bg-neutral-950' },
+  ];
+
+  const secondaryColors = [
+    { shade: '50', hex: '#f5f3ff', className: 'bg-secondary-50' },
+    { shade: '100', hex: '#ede9fe', className: 'bg-secondary-100' },
+    { shade: '200', hex: '#ddd6fe', className: 'bg-secondary-200' },
+    { shade: '300', hex: '#c4b5fd', className: 'bg-secondary-300' },
+    { shade: '400', hex: '#a78bfa', className: 'bg-secondary-400' },
+    { shade: '500', hex: '#8b5cf6', className: 'bg-secondary-500' },
+    { shade: '600', hex: '#7c3aed', className: 'bg-secondary-600' },
+    { shade: '700', hex: '#6d28d9', className: 'bg-secondary-700' },
+    { shade: '800', hex: '#5b21b6', className: 'bg-secondary-800' },
+    { shade: '900', hex: '#4c1d95', className: 'bg-secondary-900' },
+    { shade: '950', hex: '#2e1065', className: 'bg-secondary-950' },
+  ];
+
+  const accentColors = [
+    { shade: '50', hex: '#ecfeff', className: 'bg-accent-50' },
+    { shade: '100', hex: '#cffafe', className: 'bg-accent-100' },
+    { shade: '200', hex: '#a5f3fc', className: 'bg-accent-200' },
+    { shade: '300', hex: '#67e8f9', className: 'bg-accent-300' },
+    { shade: '400', hex: '#3adbf1', className: 'bg-accent-400' },
+    { shade: '500', hex: '#22d3ee', className: 'bg-accent-500' },
+    { shade: '600', hex: '#06b6d4', className: 'bg-accent-600' },
+    { shade: '700', hex: '#0891b2', className: 'bg-accent-700' },
+    { shade: '800', hex: '#0e7490', className: 'bg-accent-800' },
+    { shade: '900', hex: '#155e75', className: 'bg-accent-900' },
+    { shade: '950', hex: '#083344', className: 'bg-accent-950' },
+  ];
+
+  return (
+    <div className="h-full bg-primary-950 p-14">
+      <div className="flex items-center gap-3 mb-8">
+        <span className="font-mono text-sm text-accent-500">01</span>
+        <h1 className="font-display text-4xl font-bold text-neutral-50 tracking-tight">Color System</h1>
+      </div>
+
+      <div className="space-y-6">
+        <div className="grid grid-cols-3 gap-6">
+          <HeroColorCard
+            name="Deep Charcoal"
+            hex="#0D0D0D"
+            use="Primary background and base surfaces"
+            className="bg-neutral-950 ring-1 ring-neutral-700"
+            glow=""
+          />
+          <HeroColorCard
+            name="Electric Purple"
+            hex="#8B5CF6"
+            use="Primary emphasis, active states"
+            className="bg-secondary-500"
+            glow="shadow-xl shadow-secondary-500/35"
+          />
+          <HeroColorCard
+            name="Neon Cyan"
+            hex="#22D3EE"
+            use="Data highlights and technical signals"
+            className="bg-accent-500"
+            glow="shadow-xl shadow-accent-500/35"
+          />
+        </div>
+
+        <div className="space-y-4">
+          <ColorScale name="Neutral" role="Foundation" colors={neutralColors} />
+          <ColorScale name="Purple" role="Primary Accent" colors={secondaryColors} />
+          <ColorScale name="Cyan" role="Support Accent" colors={accentColors} />
+        </div>
+      </div>
+    </div>
+  );
+}

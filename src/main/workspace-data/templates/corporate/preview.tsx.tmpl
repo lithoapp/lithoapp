@@ -1,0 +1,68 @@
+import '@styles.css';
+
+export default function Preview() {
+  return (
+    <div className="relative flex h-full bg-primary-950">
+      {/* Left panel — hero / branding */}
+      <div className="flex w-[55%] flex-col justify-between px-7 py-6">
+        <div className="flex flex-col gap-2.5">
+          <p className="font-display text-[42px] font-bold leading-none tracking-tight text-white">
+            Corporate
+          </p>
+          <div className="h-1 w-12 bg-accent-500" />
+        </div>
+
+        {/* Font specimens */}
+        <div className="flex flex-col gap-1.5">
+          <p className="font-display text-[28px] text-primary-200">Fraunces</p>
+          <p className="font-sans text-[28px] text-primary-300">Inter</p>
+          <p className="font-mono text-[24px] text-primary-400">JetBrains Mono</p>
+        </div>
+      </div>
+
+      {/* Right panel — mini page mockup */}
+      <div className="flex flex-1 items-center justify-center py-4 pr-4">
+        <div className="flex h-full w-full flex-col rounded-sm bg-white p-4.5 shadow-lg">
+          <p className="font-display text-[22px] font-semibold leading-tight text-primary-900">
+            Annual Report
+          </p>
+          <div className="my-2 h-0.5 w-8 bg-accent-500" />
+
+          {/* Two column layout */}
+          <div className="flex flex-1 gap-2.5">
+            {/* Left col — text lines */}
+            <div className="flex flex-1 flex-col gap-1.5">
+              <div className="h-2 w-[90%] rounded-sm bg-neutral-200" />
+              <div className="h-2 w-[70%] rounded-sm bg-neutral-200" />
+              <div className="h-2 w-[80%] rounded-sm bg-neutral-200" />
+              <div className="h-2 w-[55%] rounded-sm bg-neutral-100" />
+              <p className="font-mono text-[11px] text-accent-600">$4.2B</p>
+              <div className="h-2 w-[85%] rounded-sm bg-neutral-200" />
+              <div className="h-2 w-[65%] rounded-sm bg-neutral-100" />
+              <div className="h-2 w-[75%] rounded-sm bg-neutral-200" />
+              <div className="h-2 w-[50%] rounded-sm bg-neutral-100" />
+            </div>
+            {/* Right col — accent block */}
+            <div className="flex flex-1 flex-col gap-1 rounded-sm bg-primary-50 p-2.5">
+              <div className="h-1.5 w-[80%] rounded-sm bg-primary-200" />
+              <div className="h-1.5 w-[60%] rounded-sm bg-primary-200" />
+              <div className="h-1.5 w-[70%] rounded-sm bg-primary-200" />
+              <div className="mt-auto h-5 rounded-sm bg-primary-600" />
+            </div>
+          </div>
+
+          {/* Color dots */}
+          <div className="mt-2.5 flex gap-2">
+            <div className="h-5.5 w-5.5 rounded-full bg-primary-600" />
+            <div className="h-5.5 w-5.5 rounded-full bg-accent-500" />
+            <div className="h-5.5 w-5.5 rounded-full bg-secondary-500" />
+            <div className="h-5.5 w-5.5 rounded-full bg-neutral-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom gradient strip */}
+      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-sunset" />
+    </div>
+  );
+}

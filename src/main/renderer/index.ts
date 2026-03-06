@@ -1,9 +1,16 @@
+import { tmpdir } from 'node:os';
 import type { PageBuildData, RenderApproach, RendererResult } from '../../shared/types';
 import {
   readPageSource,
   readStyles,
   readDocumentConfig as wsReadDocumentConfig,
 } from '../workspace-data';
+import {
+  type TemplateId,
+  TEMPLATE_IDS,
+  getTemplatePreviewSource,
+  getTemplateStyles,
+} from '../workspace-data/design-system-pages';
 import { resolveWorkspacePath } from '../workspace-paths';
 import { inlineAssetRefs } from './build-shared';
 import { detectApproach } from './detect-approach';
@@ -83,4 +90,48 @@ function inferStage(err: unknown): 'esbuild' | 'tailwind' | 'ssr-render' | undef
   if (message.includes('SSR render failed') || message.includes('SSR eval failed'))
     return 'ssr-render';
   return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Template preview builds (cached in memory — templates are static)
+// ---------------------------------------------------------------------------
+
+const previewCache = new Map<TemplateId, string>();
+
+const PREVIEW_SIZE = { width: 640, height: 360, unit: 'px' as const };
+
+export async function buildTemplatePreview(templateId: TemplateId): Promise<string> {
+  const cached = previewCache.get(templateId);
+  if (cached) return cached;
+
+  const css = getTemplateStyles(templateId);
+  const pageSource = getTemplatePreviewSource(templateId);
+  const dummyPath = tmpdir();
+
+  const resolved = detectApproach(pageSource);
+
+  let html: string;
+  if (resolved === 'ssr') {
+    const { buildPageSsr } = await import('./build-ssr');
+    ({ html } = await buildPageSsr(dummyPath, pageSource, css, PREVIEW_SIZE));
+  } else {
+    const { buildPageCsr } = await import('./build-csr');
+    ({ html } = await buildPageCsr(dummyPath, pageSource, css, PREVIEW_SIZE));
+  }
+
+  previewCache.set(templateId, html);
+  return html;
+}
+
+export async function buildAllTemplatePreviews(): Promise<Record<TemplateId, string>> {
+  const results = {} as Record<TemplateId, string>;
+  for (const id of TEMPLATE_IDS) {
+    try {
+      results[id] = await buildTemplatePreview(id);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Template preview build failed for "${id}": ${message}`);
+    }
+  }
+  return results;
 }

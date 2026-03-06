@@ -1,0 +1,73 @@
+function FontSpecimen({ name, label, specimen, className }: { name: string; label: string; specimen: string; className: string }) {
+  return (
+    <div className="p-6 rounded-xl bg-neutral-900/50 border border-neutral-800">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="font-mono text-[10px] text-accent-500 uppercase tracking-widest">{label}</span>
+        <div className="flex-1 h-px bg-neutral-800" />
+        <span className="font-mono text-[10px] text-neutral-600">{name}</span>
+      </div>
+      <p className={`text-2xl text-neutral-100 ${className}`}>{specimen}</p>
+    </div>
+  );
+}
+
+function TypeScaleRow({ label, size, className }: { label: string; size: string; className: string }) {
+  return (
+    <div className="flex items-baseline gap-6 py-2 border-b border-neutral-800/50">
+      <div className="w-16 shrink-0 flex items-center gap-2">
+        <span className="font-mono text-xs text-secondary-400">{label}</span>
+      </div>
+      <div className="w-20 shrink-0">
+        <span className="font-mono text-[10px] text-neutral-600">{size}</span>
+      </div>
+      <p className={`text-neutral-100 ${className} truncate`}>
+        The quick brown fox jumps
+      </p>
+    </div>
+  );
+}
+
+export default function Typography() {
+  return (
+    <div className="h-full bg-primary-950 p-14">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-10">
+        <span className="font-mono text-xs text-accent-500">02</span>
+        <h1 className="font-display text-3xl font-bold text-neutral-50 tracking-tight">Typography</h1>
+      </div>
+
+      {/* Font families */}
+      <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">Font Families</p>
+      <div className="grid grid-cols-2 gap-4 mb-12">
+        <FontSpecimen
+          label="Display"
+          name="Space Grotesk"
+          specimen="Geometric precision for headlines"
+          className="font-display font-semibold"
+        />
+        <FontSpecimen
+          label="Mono"
+          name="JetBrains Mono"
+          specimen="console.log('code first')"
+          className="font-mono"
+        />
+      </div>
+
+      {/* Type scale */}
+      <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">Type Scale</p>
+      <div className="rounded-xl bg-neutral-900/30 border border-neutral-800 p-6">
+        <TypeScaleRow label="7xl" size="4.5rem" className="text-7xl font-display font-bold" />
+        <TypeScaleRow label="6xl" size="3.75rem" className="text-6xl font-display font-bold" />
+        <TypeScaleRow label="5xl" size="3rem" className="text-5xl font-display font-semibold" />
+        <TypeScaleRow label="4xl" size="2.25rem" className="text-4xl font-display font-semibold" />
+        <TypeScaleRow label="3xl" size="1.875rem" className="text-3xl font-display font-medium" />
+        <TypeScaleRow label="2xl" size="1.5rem" className="text-2xl" />
+        <TypeScaleRow label="xl" size="1.25rem" className="text-xl" />
+        <TypeScaleRow label="lg" size="1.125rem" className="text-lg" />
+        <TypeScaleRow label="base" size="1rem" className="text-base" />
+        <TypeScaleRow label="sm" size="0.875rem" className="text-sm" />
+        <TypeScaleRow label="xs" size="0.75rem" className="text-xs" />
+      </div>
+    </div>
+  );
+}

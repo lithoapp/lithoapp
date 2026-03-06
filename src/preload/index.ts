@@ -60,7 +60,8 @@ contextBridge.exposeInMainWorld('litho', {
   workspace: {
     list: (): Promise<unknown> => ipcRenderer.invoke('workspace:list'),
     getActive: (): Promise<unknown> => ipcRenderer.invoke('workspace:getActive'),
-    create: (name: string): Promise<string> => ipcRenderer.invoke('workspace:create', name),
+    create: (name: string, templateId?: string): Promise<string> =>
+      ipcRenderer.invoke('workspace:create', name, templateId),
     select: (name: string): Promise<void> => ipcRenderer.invoke('workspace:select', name),
     stop: (): Promise<void> => ipcRenderer.invoke('workspace:stop'),
     getDocumentCount: (name: string): Promise<number> =>
@@ -122,6 +123,10 @@ contextBridge.exposeInMainWorld('litho', {
     }): Promise<unknown> => ipcRenderer.invoke('renderer:export', options),
     validateCss: (workspace: string): Promise<{ ok: true } | { ok: false; errors: string[] }> =>
       ipcRenderer.invoke('renderer:validateCss', workspace),
+  },
+  template: {
+    buildPreviews: (): Promise<Record<string, string>> =>
+      ipcRenderer.invoke('template:buildPreviews'),
   },
   aiProvider: {
     list: (): Promise<unknown> => ipcRenderer.invoke('ai-provider:list'),

@@ -1,0 +1,115 @@
+import '@styles.css';
+
+export default function Typography() {
+  return (
+    <div className="h-full bg-white">
+      {/* Header strip */}
+      <div className="px-14 pt-6 pb-4 border-b border-neutral-100">
+        <p className="text-xs font-semibold uppercase tracking-widest text-neutral-400 mb-1">Design System</p>
+        <h1 className="font-display text-4xl font-bold text-neutral-900 leading-tight">Typography</h1>
+        <p className="mt-1 font-sans text-sm text-neutral-400">Two families. One voice. Infinite clarity.</p>
+      </div>
+
+      <div className="px-14 py-5 flex flex-col gap-6">
+
+        {/* Display + Sans pairing — hero specimen */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-300 mb-4">Primary Pairing</p>
+          <div className="rounded-2xl bg-neutral-950 px-8 py-5">
+            <p className="font-sans text-[10px] font-semibold uppercase tracking-widest text-accent-400 mb-2">Featured Story</p>
+            <h2 className="font-display text-4xl font-bold text-white leading-none mb-3">
+              The Art of<br />Saying Less.
+            </h2>
+            <p className="font-sans text-sm text-neutral-400 leading-relaxed max-w-md">
+              Great design isn't about adding more — it's about knowing exactly what to keep. Every token in this system earns its place.
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-neutral-800" />
+              <p className="font-sans text-[10px] text-neutral-600 uppercase tracking-wider">Fraunces Display · Inter Body</p>
+              <div className="h-px flex-1 bg-neutral-800" />
+            </div>
+          </div>
+        </div>
+
+        {/* Font families — side by side */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-300 mb-4">Font Families</p>
+          <div className="grid grid-cols-2 gap-5">
+            {/* Display */}
+            <div className="rounded-xl border border-neutral-100 bg-neutral-50 px-6 py-5">
+              <p className="font-sans text-[10px] font-semibold uppercase tracking-widest text-neutral-400 mb-3">Display — Fraunces</p>
+              <p className="font-display text-3xl font-bold text-neutral-900 leading-tight mb-1">Aa Bb Cc</p>
+              <p className="font-display text-base text-neutral-600 leading-snug">
+                Elegant. Expressive. Built for headlines.
+              </p>
+              <div className="mt-3 flex gap-3">
+                <span className="font-display text-xs text-neutral-400 font-light">Light</span>
+                <span className="font-display text-xs text-neutral-500 font-normal">Regular</span>
+                <span className="font-display text-xs text-neutral-700 font-semibold">Semibold</span>
+                <span className="font-display text-xs text-neutral-900 font-bold">Bold</span>
+              </div>
+            </div>
+            {/* Sans */}
+            <div className="rounded-xl border border-neutral-100 bg-neutral-50 px-6 py-5">
+              <p className="font-sans text-[10px] font-semibold uppercase tracking-widest text-neutral-400 mb-3">Sans — Inter</p>
+              <p className="font-sans text-3xl font-bold text-neutral-900 leading-tight mb-1">Aa Bb Cc</p>
+              <p className="font-sans text-base text-neutral-600 leading-snug">
+                Neutral. Legible. Built for everything else.
+              </p>
+              <div className="mt-3 flex gap-3">
+                <span className="font-sans text-xs text-neutral-400 font-light">Light</span>
+                <span className="font-sans text-xs text-neutral-500 font-normal">Regular</span>
+                <span className="font-sans text-xs text-neutral-700 font-semibold">Semibold</span>
+                <span className="font-sans text-xs text-neutral-900 font-bold">Bold</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Type scale — editorial waterfall */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-300 mb-4">Type Scale</p>
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-5 py-1 border-b border-neutral-50">
+              <span className="w-10 shrink-0 font-mono text-[9px] text-neutral-300 text-right">7xl</span>
+              <p className="text-7xl font-bold font-display text-neutral-900 leading-tight truncate">Brand Voice</p>
+            </div>
+            <div className="flex items-baseline gap-5 py-1 border-b border-neutral-50">
+              <span className="w-10 shrink-0 font-mono text-[9px] text-neutral-300 text-right">5xl</span>
+              <p className="text-5xl font-bold font-display text-neutral-900 leading-tight truncate">Chapter Heading</p>
+            </div>
+            <div className="flex items-baseline gap-5 py-1 border-b border-neutral-50">
+              <span className="w-10 shrink-0 font-mono text-[9px] text-neutral-300 text-right">3xl</span>
+              <p className="text-3xl font-semibold font-display text-neutral-900 leading-tight truncate">Section Title</p>
+            </div>
+            <div className="flex items-baseline gap-5 py-1 border-b border-neutral-50">
+              <span className="w-10 shrink-0 font-mono text-[9px] text-neutral-300 text-right">2xl</span>
+              <p className="text-2xl font-semibold font-sans text-neutral-900 leading-tight truncate">Subsection Header</p>
+            </div>
+            <div className="flex items-baseline gap-5 py-1 border-b border-neutral-50">
+              <span className="w-10 shrink-0 font-mono text-[9px] text-neutral-300 text-right">xl</span>
+              <p className="text-xl font-medium font-sans text-neutral-900 leading-tight truncate">Card Title</p>
+            </div>
+            <div className="flex items-baseline gap-5 py-1 border-b border-neutral-50">
+              <span className="w-10 shrink-0 font-mono text-[9px] text-neutral-300 text-right">lg</span>
+              <p className="text-lg font-normal font-sans text-neutral-900 leading-tight truncate">Lead paragraph text for introductions</p>
+            </div>
+            <div className="flex items-baseline gap-5 py-1 border-b border-neutral-50">
+              <span className="w-10 shrink-0 font-mono text-[9px] text-neutral-300 text-right">base</span>
+              <p className="text-base font-normal font-sans text-neutral-900 leading-tight truncate">Body copy, readable at any length, clear and balanced</p>
+            </div>
+            <div className="flex items-baseline gap-5 py-1 border-b border-neutral-50">
+              <span className="w-10 shrink-0 font-mono text-[9px] text-neutral-300 text-right">sm</span>
+              <p className="text-sm font-normal font-sans text-neutral-900 leading-tight truncate">Captions, labels, and supporting metadata</p>
+            </div>
+            <div className="flex items-baseline gap-5 py-1 border-b border-neutral-50">
+              <span className="w-10 shrink-0 font-mono text-[9px] text-neutral-300 text-right">xs</span>
+              <p className="text-xs font-medium font-sans text-neutral-900 leading-tight truncate">FINE PRINT · EYEBROW LABELS · TIMESTAMPS</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}

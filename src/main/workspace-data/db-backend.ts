@@ -12,7 +12,12 @@ import type {
 } from '../../shared/types';
 import { resolveWorkspacePath, WORKSPACES_BASE } from '../workspace-paths';
 import { generateId, getWorkspaceDb } from './db';
-import { DEFAULT_STYLES_CSS, insertDesignSystemDocument } from './design-system-pages';
+import {
+  type TemplateId,
+  DEFAULT_TEMPLATE_ID,
+  getTemplateStyles,
+  insertDesignSystemDocument,
+} from './design-system-pages';
 import {
   applyUpdates,
   categorizeTokens,
@@ -59,7 +64,10 @@ export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
   return results;
 }
 
-export async function createNewWorkspace(title: string): Promise<string> {
+export async function createNewWorkspace(
+  title: string,
+  templateId: TemplateId = DEFAULT_TEMPLATE_ID,
+): Promise<string> {
   const slug = slugify(title) || 'untitled';
   const root = resolveWorkspacePath(slug);
 
@@ -71,9 +79,9 @@ export async function createNewWorkspace(title: string): Promise<string> {
 
   const db = getWorkspaceDb(slug);
 
-  db.prepare('INSERT INTO styles (id, css) VALUES (1, ?)').run(DEFAULT_STYLES_CSS);
+  db.prepare('INSERT INTO styles (id, css) VALUES (1, ?)').run(getTemplateStyles(templateId));
 
-  insertDesignSystemDocument(db, generateId, title);
+  insertDesignSystemDocument(db, generateId, title, templateId);
 
   createWorkspaceEntry(slug, title);
 

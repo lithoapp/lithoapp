@@ -1,0 +1,175 @@
+import '@styles.css';
+
+function RhythmRow({ step, widthClass, desc }: { step: string; widthClass: string; desc: string }) {
+  return (
+    <div className="flex items-center gap-6">
+      <div className="w-12 shrink-0 text-right">
+        <p className="font-mono text-[10px] font-semibold text-neutral-500">{step}</p>
+      </div>
+      <div className="flex items-center gap-3 flex-1">
+        <div className={`h-4 rounded-sm bg-primary-400 shrink-0 ${widthClass}`} />
+        <p className="text-xs text-neutral-400">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+export default function RhythmSpace() {
+  return (
+    <div className="h-full bg-white">
+      {/* Header */}
+      <div className="px-14 pt-8 pb-6 border-b border-neutral-100">
+        <p className="text-xs font-semibold uppercase tracking-widest text-neutral-400 mb-1">Design System</p>
+        <h1 className="font-display text-4xl font-bold text-neutral-900 leading-tight">Rhythm & Space</h1>
+        <p className="mt-1 font-sans text-sm text-neutral-400">Spacing, radius, and elevation — how things breathe and sit in space.</p>
+      </div>
+
+      <div className="px-14 py-7 flex flex-col gap-8">
+
+        {/* Spacing scale */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-300 mb-4">Spacing Scale</p>
+          <div className="flex flex-col gap-2">
+            <RhythmRow step="1" widthClass="w-1" desc="Hairline — icon gaps, tight nudges" />
+            <RhythmRow step="2" widthClass="w-2" desc="Micro — inline spacing between small elements" />
+            <RhythmRow step="4" widthClass="w-4" desc="Base unit — default internal padding" />
+            <RhythmRow step="6" widthClass="w-6" desc="Comfortable — card padding, form fields" />
+            <RhythmRow step="8" widthClass="w-8" desc="Generous — section gaps within a block" />
+            <RhythmRow step="12" widthClass="w-12" desc="Open — breathing room between sections" />
+            <RhythmRow step="16" widthClass="w-16" desc="Airy — major layout separations" />
+            <RhythmRow step="24" widthClass="w-24" desc="Spacious — page-level vertical rhythm" />
+            <RhythmRow step="32" widthClass="w-32" desc="Grand — hero and cover spacing" />
+          </div>
+        </div>
+
+        {/* Radius */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-300 mb-4">Border Radius</p>
+          <div className="flex items-end gap-5">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-14 h-14 bg-primary-100 border border-primary-200 rounded-sm" />
+              <p className="font-mono text-[9px] text-neutral-400">sm</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-14 h-14 bg-primary-100 border border-primary-200 rounded-md" />
+              <p className="font-mono text-[9px] text-neutral-400">md</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-14 h-14 bg-primary-100 border border-primary-200 rounded-lg" />
+              <p className="font-mono text-[9px] text-neutral-400">lg</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-14 h-14 bg-primary-100 border border-primary-200 rounded-xl" />
+              <p className="font-mono text-[9px] text-neutral-400">xl</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-14 h-14 bg-primary-100 border border-primary-200 rounded-2xl" />
+              <p className="font-mono text-[9px] text-neutral-400">2xl</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-14 h-14 bg-primary-100 border border-primary-200 rounded-3xl" />
+              <p className="font-mono text-[9px] text-neutral-400">3xl</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-14 h-14 bg-primary-100 border border-primary-200 rounded-full" />
+              <p className="font-mono text-[9px] text-neutral-400">full</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Elevation */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-300 mb-4">Elevation</p>
+          <div className="flex items-end gap-5">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-xl bg-white border border-neutral-100 flex items-end p-2">
+                <div className="h-1 w-full rounded-full bg-neutral-100" />
+              </div>
+              <div className="text-center">
+                <p className="font-mono text-[9px] font-semibold text-neutral-500">Flat</p>
+                <p className="font-sans text-[8px] text-neutral-300">No elevation</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-xl bg-white border border-neutral-100 shadow-xs flex items-end p-2">
+                <div className="h-1 w-full rounded-full bg-neutral-100" />
+              </div>
+              <div className="text-center">
+                <p className="font-mono text-[9px] font-semibold text-neutral-500">xs</p>
+                <p className="font-sans text-[8px] text-neutral-300">Subtle lift</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-xl bg-white border border-neutral-100 shadow-sm flex items-end p-2">
+                <div className="h-1 w-full rounded-full bg-neutral-100" />
+              </div>
+              <div className="text-center">
+                <p className="font-mono text-[9px] font-semibold text-neutral-500">sm</p>
+                <p className="font-sans text-[8px] text-neutral-300">Card default</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-xl bg-white border border-neutral-100 shadow-md flex items-end p-2">
+                <div className="h-1 w-full rounded-full bg-neutral-100" />
+              </div>
+              <div className="text-center">
+                <p className="font-mono text-[9px] font-semibold text-neutral-500">md</p>
+                <p className="font-sans text-[8px] text-neutral-300">Raised panel</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-xl bg-white border border-neutral-100 shadow-lg flex items-end p-2">
+                <div className="h-1 w-full rounded-full bg-neutral-100" />
+              </div>
+              <div className="text-center">
+                <p className="font-mono text-[9px] font-semibold text-neutral-500">lg</p>
+                <p className="font-sans text-[8px] text-neutral-300">Floating layer</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-xl bg-white border border-neutral-100 shadow-xl flex items-end p-2">
+                <div className="h-1 w-full rounded-full bg-neutral-100" />
+              </div>
+              <div className="text-center">
+                <p className="font-mono text-[9px] font-semibold text-neutral-500">xl</p>
+                <p className="font-sans text-[8px] text-neutral-300">Modal depth</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-xl bg-white border border-neutral-100 shadow-2xl flex items-end p-2">
+                <div className="h-1 w-full rounded-full bg-neutral-100" />
+              </div>
+              <div className="text-center">
+                <p className="font-mono text-[9px] font-semibold text-neutral-500">2xl</p>
+                <p className="font-sans text-[8px] text-neutral-300">Top layer</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* In Context */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-300 mb-4">In Context</p>
+          <div className="grid grid-cols-3 gap-5">
+            <div className="rounded-md shadow-sm border border-neutral-100 p-4">
+              <div className="h-1.5 w-6 rounded-full bg-primary-400 mb-3" />
+              <p className="font-sans text-sm font-semibold text-neutral-900">Compact</p>
+              <p className="font-sans text-xs text-neutral-400 mt-1">Tight radius, subtle shadow. Good for dense layouts.</p>
+            </div>
+            <div className="rounded-xl shadow-md border border-neutral-100 p-5">
+              <div className="h-1.5 w-8 rounded-full bg-accent-400 mb-3" />
+              <p className="font-sans text-sm font-semibold text-neutral-900">Comfortable</p>
+              <p className="font-sans text-xs text-neutral-400 mt-1">Medium radius, moderate shadow. The everyday workhorse.</p>
+            </div>
+            <div className="rounded-2xl shadow-xl border border-neutral-50 p-6">
+              <div className="h-1.5 w-10 rounded-full bg-success-400 mb-3" />
+              <p className="font-sans text-sm font-semibold text-neutral-900">Open</p>
+              <p className="font-sans text-xs text-neutral-400 mt-1">Large radius, strong shadow. Commanding and modern.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}

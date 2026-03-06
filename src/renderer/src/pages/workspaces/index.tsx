@@ -1,6 +1,6 @@
 import { formatDistanceToNow, parseISO } from 'date-fns';
-import { Clock, FileText, FolderOpen, Loader2, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { Check, Clock, FileText, FolderOpen, Loader2, Plus } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { WorkspaceInfo, WorkspaceState } from '@/hooks/use-workspace';
 import { cn } from '@/lib/utils';
+
+// ---------------------------------------------------------------------------
+// Template definitions
+// ---------------------------------------------------------------------------
+
+type TemplateId = 'corporate' | 'brightside' | 'editorial' | 'tech';
+
+interface TemplateOption {
+  id: TemplateId;
+  label: string;
+}
+
+const TEMPLATES: TemplateOption[] = [
+  { id: 'corporate', label: 'Corporate' },
+  { id: 'brightside', label: 'Brightside' },
+  { id: 'editorial', label: 'Editorial' },
+  { id: 'tech', label: 'Tech' },
+];
+
+// ---------------------------------------------------------------------------
+// Workspaces page
+// ---------------------------------------------------------------------------
 
 interface WorkspacesPageProps {
   workspaces: WorkspaceInfo[];
@@ -34,6 +56,7 @@ export function WorkspacesPage({
 }: WorkspacesPageProps): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('corporate');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [selectingSlug, setSelectingSlug] = useState<string | null>(null);
@@ -43,10 +66,11 @@ export function WorkspacesPage({
     setIsCreating(true);
     setCreateError(null);
     try {
-      await window.litho.workspace.create(newName.trim());
+      await window.litho.workspace.create(newName.trim(), selectedTemplate);
       await refreshWorkspaces();
       setCreateOpen(false);
       setNewName('');
+      setSelectedTemplate('corporate');
       onWorkspaceSelected();
     } catch (err) {
       const message =
@@ -95,6 +119,8 @@ export function WorkspacesPage({
           onOpenChange={setCreateOpen}
           name={newName}
           onNameChange={setNewName}
+          selectedTemplate={selectedTemplate}
+          onTemplateChange={setSelectedTemplate}
           onSubmit={handleCreate}
           isCreating={isCreating}
           error={createError}
@@ -176,6 +202,8 @@ export function WorkspacesPage({
         onOpenChange={setCreateOpen}
         name={newName}
         onNameChange={setNewName}
+        selectedTemplate={selectedTemplate}
+        onTemplateChange={setSelectedTemplate}
         onSubmit={handleCreate}
         isCreating={isCreating}
         error={createError}
@@ -185,11 +213,71 @@ export function WorkspacesPage({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Template preview thumbnail
+// ---------------------------------------------------------------------------
+
+const PREVIEW_WIDTH = 640;
+const PREVIEW_HEIGHT = 360;
+const THUMB_HEIGHT = 120;
+
+function TemplatePreview({ html }: { html: string | null }): React.JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const scale = containerWidth > 0 ? containerWidth / PREVIEW_WIDTH : 0;
+  const scaledHeight = PREVIEW_HEIGHT * scale;
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative overflow-hidden rounded-t-lg bg-muted/30"
+      style={{ height: scaledHeight > 0 ? scaledHeight : THUMB_HEIGHT }}
+    >
+      {html && containerWidth > 0 ? (
+        <iframe
+          srcDoc={html}
+          title="Template preview"
+          className="pointer-events-none absolute top-0 left-0 origin-top-left"
+          style={{
+            width: PREVIEW_WIDTH,
+            height: PREVIEW_HEIGHT,
+            transform: `scale(${scale})`,
+            border: 'none',
+          }}
+          tabIndex={-1}
+          sandbox="allow-scripts allow-same-origin"
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center" style={{ height: THUMB_HEIGHT }}>
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/40" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Create dialog with template picker
+// ---------------------------------------------------------------------------
+
 function CreateDialog({
   open,
   onOpenChange,
   name,
   onNameChange,
+  selectedTemplate,
+  onTemplateChange,
   onSubmit,
   isCreating,
   error,
@@ -199,11 +287,30 @@ function CreateDialog({
   onOpenChange: (open: boolean) => void;
   name: string;
   onNameChange: (name: string) => void;
+  selectedTemplate: TemplateId;
+  onTemplateChange: (id: TemplateId) => void;
   onSubmit: () => void;
   isCreating: boolean;
   error: string | null;
   onErrorClear: () => void;
 }): React.JSX.Element {
+  const [previews, setPreviews] = useState<Record<string, string> | null>(null);
+
+  const loadPreviews = useCallback(async () => {
+    try {
+      const result = (await window.litho.template.buildPreviews()) as Record<string, string>;
+      setPreviews(result);
+    } catch (err) {
+      console.error('[workspaces] Failed to build template previews:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open && !previews) {
+      void loadPreviews();
+    }
+  }, [open, previews, loadPreviews]);
+
   function handleNameChange(value: string): void {
     onNameChange(value);
     if (error) onErrorClear();
@@ -211,27 +318,52 @@ function CreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>New Project</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
+          <Input
+            id="ws-name"
+            placeholder="Project name"
+            value={name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && name.trim()) void onSubmit();
+            }}
+            className="h-11 px-4 text-base"
+            autoFocus
+          />
+
           <div className="flex flex-col gap-2">
-            <Label htmlFor="ws-name" className="text-base">
-              Name
-            </Label>
-            <Input
-              id="ws-name"
-              placeholder="My Brand"
-              value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && name.trim()) void onSubmit();
-              }}
-              className="h-11 px-4 text-base"
-              autoFocus
-            />
+            <Label className="text-base">Design System Template</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {TEMPLATES.map((tmpl) => {
+                const isSelected = selectedTemplate === tmpl.id;
+                return (
+                  <button
+                    key={tmpl.id}
+                    type="button"
+                    onClick={() => onTemplateChange(tmpl.id)}
+                    className={cn(
+                      'relative cursor-pointer overflow-hidden rounded-lg border-2 transition-all',
+                      isSelected
+                        ? 'border-forge ring-2 ring-forge/30'
+                        : 'border-border hover:border-muted-foreground/30',
+                    )}
+                  >
+                    <TemplatePreview html={previews?.[tmpl.id] ?? null} />
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-forge shadow-md">
+                        <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>

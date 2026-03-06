@@ -1,0 +1,72 @@
+import '@styles.css';
+
+export default function Typography() {
+  return (
+    <div className="h-full flex flex-col bg-neutral-50 px-16 py-14">
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent-600">
+        Typography
+      </p>
+
+      {/* Display specimen */}
+      <div className="mt-8 border-b border-neutral-200 pb-8">
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-neutral-400">
+          Display — Cormorant Garamond
+        </p>
+        <h2
+          className="font-display text-6xl font-semibold leading-tight text-neutral-900"
+        >
+          Elegance is not<br />about being noticed.
+        </h2>
+        <p className="mt-4 font-display text-2xl font-normal italic text-neutral-400">
+          It's about being remembered.
+        </p>
+      </div>
+
+      {/* Sans specimen */}
+      <div className="mt-8 border-b border-neutral-200 pb-8">
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-neutral-400">
+          Body — Manrope
+        </p>
+        <div className="flex gap-12">
+          <p className="flex-1 font-sans text-base leading-relaxed text-neutral-700">
+            Manrope brings clarity to every line of body copy. It's modern without feeling cold,
+            precise without losing warmth — the perfect counterpart to Cormorant's drama.
+          </p>
+          <div className="flex flex-col gap-2">
+            <p className="font-sans text-2xl font-light text-neutral-700">Light 300</p>
+            <p className="font-sans text-2xl font-normal text-neutral-700">Regular 400</p>
+            <p className="font-sans text-2xl font-semibold text-neutral-700">Semibold 600</p>
+            <p className="font-sans text-2xl font-bold text-neutral-700">Bold 700</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Pairing showcase */}
+      <div className="mt-8">
+        <p className="mb-5 text-[10px] font-semibold uppercase tracking-widest text-neutral-400">
+          In Context
+        </p>
+        <div className="flex gap-6">
+          {/* Card 1 */}
+          <div className="flex-1 rounded-2xl bg-neutral-900 p-7">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-primary-400">Feature Story</p>
+            <h3 className="mt-3 font-display text-3xl font-medium leading-snug text-white">
+              The Art of Quiet Luxury
+            </h3>
+            <p className="mt-3 font-sans text-sm leading-relaxed text-neutral-400">
+              How restraint became the defining aesthetic of a generation of designers.
+            </p>
+          </div>
+          {/* Card 2 — type hierarchy */}
+          <div className="flex-1 rounded-2xl bg-primary-50 border border-primary-100 p-7">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-accent-600 mb-4">Type Hierarchy</p>
+            <p className="font-display text-3xl font-semibold text-neutral-900 leading-tight">Display Heading</p>
+            <p className="font-display text-xl font-normal text-neutral-500 mt-2">Subheading in serif</p>
+            <p className="font-sans text-sm text-neutral-500 mt-3 leading-relaxed">Body copy — readable, measured, never competing with the heading above it.</p>
+            <p className="font-sans text-xs text-accent-600 mt-3 font-semibold uppercase tracking-wider">Caption · Label</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
