@@ -72,6 +72,7 @@ const AGENTS: Record<AgentId, AgentConfig> = {
       'listWorkspaceAssets',
       'listDocumentAssets',
       'createDocument',
+      'updateDocumentSize',
       'deleteDocument',
       'renameDocument',
       'moveDocumentToFolder',
@@ -92,7 +93,7 @@ export function getAgentConfig(agentId: AgentId): AgentConfig {
 }
 
 export function resolveAgentTools(agentId: AgentId, workspace: string): Record<string, Tool> {
-  const allTools = createLithoTools(workspace);
+  const allTools = createLithoTools(workspace, agentId);
   const allowed = AGENTS[agentId].tools;
   const filtered: Record<string, Tool> = {};
   for (const name of allowed) {

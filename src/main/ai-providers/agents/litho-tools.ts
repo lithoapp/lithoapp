@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { PAGE_SIZE_NAMES } from '../../../shared/types';
+import { type AgentId, PAGE_SIZE_NAMES, PAGE_SIZES } from '../../../shared/types';
 import { listAssets } from '../../assets-manager';
 import { analyzePage, formatAnalysisSummary } from '../../renderer/analyze-page';
 import { buildPage } from '../../renderer/index';
@@ -47,7 +47,7 @@ function detectForbiddenOverflow(source: string): string | null {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createLithoTools(workspace: string) {
+export function createLithoTools(workspace: string, agentId: AgentId) {
   const db = () => getWorkspaceDb(workspace);
 
   function getPageLabel(docId: string, pageId: string): string {
@@ -93,7 +93,9 @@ export function createLithoTools(workspace: string) {
           .all(docId) as Array<{ id: string; name: string; description: string }>;
 
         if (rows.length === 0) {
-          return '(no pages yet — use createPage to add one)';
+          return agentId === 'workspace'
+            ? '(no pages yet)'
+            : '(no pages yet — use createPage to add one)';
         }
         return rows.map((r) => `${r.id}\t${r.name}\t${r.description}`).join('\n');
       },
@@ -709,6 +711,41 @@ export function createLithoTools(workspace: string) {
         return entries
           .map((e) => `@assets/documents/${docId}/${e.name}\t${e.ext}\t${e.size}`)
           .join('\n');
+      },
+    }),
+
+    // ── updateDocumentSize ──────────────────────────────────────────────
+    updateDocumentSize: tool({
+      description:
+        'Change a document\'s page size. Only works if the document has no pages yet.',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID'),
+        size: z.enum(PAGE_SIZE_NAMES).describe('New page size preset'),
+      }),
+      execute: async ({ docId, size }) => {
+        const d = db();
+        const doc = d.prepare('SELECT title FROM documents WHERE id = ?').get(docId) as
+          | { title: string }
+          | undefined;
+
+        if (!doc) throw new Error(`Document "${docId}" not found`);
+
+        const pageCount = d
+          .prepare('SELECT COUNT(*) as count FROM pages WHERE document_id = ?')
+          .get(docId) as { count: number };
+
+        if (pageCount.count > 0) {
+          throw new Error(
+            `Cannot change size — "${doc.title}" already has ${pageCount.count} pages. Size can only be changed before pages are added.`,
+          );
+        }
+
+        const dimensions = PAGE_SIZES[size];
+        d.prepare(
+          "UPDATE documents SET size_preset = ?, size_width = ?, size_height = ?, size_unit = ?, updated_at = datetime('now') WHERE id = ?",
+        ).run(size, dimensions.width, dimensions.height, dimensions.unit, docId);
+
+        return `Changed "${doc.title}" to ${size} (${dimensions.width}×${dimensions.height} ${dimensions.unit}).`;
       },
     }),
 

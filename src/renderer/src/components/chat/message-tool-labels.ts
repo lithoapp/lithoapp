@@ -147,6 +147,13 @@ export function resolveToolLabel(
         icon: 'plus',
       };
 
+    case 'updateDocumentSize':
+      return {
+        activeLabel: 'Changing document size',
+        doneLabel: 'Changed document size',
+        icon: 'pencil',
+      };
+
     default:
       return { activeLabel: tool, doneLabel: tool, icon: 'terminal' };
   }
