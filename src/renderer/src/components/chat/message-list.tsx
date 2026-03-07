@@ -1,5 +1,6 @@
-import { AlertTriangle, CircleAlert, RotateCcw } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { AlertTriangle, CircleAlert, Copy, RotateCcw } from 'lucide-react';
+import { useEffect, useMemo, useRef } from 'react';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +21,7 @@ import type {
   StoredMessage,
   StoredUserMessage,
 } from '../../../../shared/types';
+import { promptTemplates, renderTemplate } from '../../lib/prompt-templates';
 import { PersistedActivityLog, StreamingActivityLog } from './activity-log';
 import { PersistedDebugView, StreamingDebugView } from './debug-view';
 import type { DisplayMode, StreamingPart } from './types';
@@ -201,6 +203,45 @@ function AssistantTurnView({
 }
 
 // ---------------------------------------------------------------------------
+// Copy conversation button (debug only)
+// ---------------------------------------------------------------------------
+
+function CopyConversationButton({
+  messages,
+  agentId,
+  agentContext,
+}: {
+  messages: StoredMessage[];
+  agentId?: AgentId;
+  agentContext?: AgentContext;
+}): React.JSX.Element {
+  const systemPrompt = useMemo(
+    () =>
+      agentId && agentContext
+        ? renderTemplate(promptTemplates[agentId].system, agentContext)
+        : null,
+    [agentId, agentContext],
+  );
+
+  function handleCopy(): void {
+    const json = JSON.stringify({ systemPrompt, messages }, null, 2);
+    navigator.clipboard.writeText(json).catch(() => null);
+    toast.success('Copied conversation JSON');
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+    >
+      <Copy className="h-3 w-3" />
+      Copy conversation JSON
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Message list
 // ---------------------------------------------------------------------------
 
@@ -281,6 +322,10 @@ export function MessageList({
         ) : (
           <StreamingActivityLog streamingParts={streamingParts} pages={pages} />
         ))}
+
+      {displayMode === 'debug' && messages.length > 0 && !isStreaming && (
+        <CopyConversationButton messages={messages} agentId={agentId} agentContext={agentContext} />
+      )}
 
       <div ref={endRef} />
     </div>
