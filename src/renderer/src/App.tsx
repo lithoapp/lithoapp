@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useDesignSystem } from '@/hooks/use-design-system';
 import { useWorkspace } from '@/hooks/use-workspace';
+import { NavigationContext } from '@/lib/navigation-context';
 import { cn } from '@/lib/utils';
 import type { DocumentInfo } from '../../shared/types';
 import { AssetsPage } from './pages/assets';
@@ -22,7 +23,7 @@ import { DesignSystemDocPage } from './pages/design-system-doc';
 import { DocumentPage } from './pages/document';
 import { DocumentsPage } from './pages/documents';
 import { OnboardingPage } from './pages/onboarding';
-import { SettingsV2Page } from './pages/settings-v2';
+import { type SettingsCategory, SettingsV2Page } from './pages/settings-v2';
 import { WorkspaceTransitionPage } from './pages/workspace-transition';
 import { WorkspacesPage } from './pages/workspaces';
 
@@ -68,6 +69,9 @@ function App(): React.JSX.Element {
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [agentBusy, setAgentBusy] = useState(false);
   const [pendingNav, setPendingNav] = useState<Page | null>(null);
+  const [settingsInitialCategory, setSettingsInitialCategory] = useState<
+    SettingsCategory | undefined
+  >();
   const pendingNavCallbackRef = useRef<(() => void) | null>(null);
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -123,6 +127,16 @@ function App(): React.JSX.Element {
       setPendingNav(null);
     }
   }
+
+  const navigationActions = useMemo(
+    () => ({
+      openSettings: (category?: SettingsCategory) => {
+        setSettingsInitialCategory(category);
+        navigateTo('settings');
+      },
+    }),
+    [navigateTo],
+  );
 
   const [designSystemDoc, setDesignSystemDoc] = useState<DocumentInfo | null>(null);
 
@@ -337,83 +351,89 @@ function App(): React.JSX.Element {
       </div>
 
       {/* Main content */}
-      <div
-        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'documents' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
-      >
-        {page === 'workspaces' && (
-          <WorkspacesPage
-            workspaces={workspaces}
-            activeInfo={workspaceInfo}
-            onWorkspaceSelected={() => setPage('workspace-loading')}
-            refreshWorkspaces={refreshWorkspaces}
-            userName={userProfile.name ?? undefined}
-          />
-        )}
-        {page === 'workspace-loading' && (
-          <WorkspaceTransitionPage
-            mode="loading"
-            workspaceName={workspaceInfo.workspaceName}
-            ready={workspaceInfo.status === 'active'}
-            onBack={() => setPage('workspaces')}
-            onComplete={() => setPage('documents')}
-          />
-        )}
-        {page === 'workspace-closing' && (
-          <WorkspaceTransitionPage
-            mode="closing"
-            workspaceName={workspaceInfo.workspaceName}
-            ready={workspaceInfo.status === 'inactive'}
-            onComplete={() => setPage('workspaces')}
-          />
-        )}
-        {page === 'documents' && workspaceName && (
-          <DocumentsPage
-            workspaceName={workspaceName}
-            workspaceTitle={workspaceTitle ?? workspaceName}
-            documents={documents}
-            designSystemDoc={designSystemDoc}
-            designSystem={designSystem}
-            isLoading={documentsLoading}
-            refetch={loadDocuments}
-            onSelectDocument={(docId) => {
-              setActiveDocId(docId);
-              setPage('document');
-            }}
-            onOpenDesignSystem={() => setPage('design-system-doc')}
-            onOpenAssets={() => setPage('assets')}
-            onCloseWorkspace={handleCloseWorkspace}
-          />
-        )}
-        {page === 'assets' && workspaceName && (
-          <AssetsPage workspaceName={workspaceName} onBack={() => setPage('documents')} />
-        )}
-        {page === 'document' && activeDoc && workspaceName && (
-          <DocumentPage
-            doc={activeDoc}
-            workspaceName={workspaceName}
-            workspaceTitle={workspaceTitle ?? workspaceName}
-            workspacePath={workspacePath ?? ''}
-            onBack={() => navigateTo('documents')}
-            onDocumentsChange={loadDocuments}
-            userName={userProfile.name ?? undefined}
-            onAgentBusyChange={setAgentBusy}
-          />
-        )}
-        {page === 'design-system-doc' && workspaceName && (
-          <DesignSystemDocPage
-            workspaceName={workspaceName}
-            workspaceTitle={workspaceTitle ?? workspaceName}
-            workspacePath={workspacePath}
-            onBack={() => navigateTo('documents')}
-            onAgentBusyChange={setAgentBusy}
-          />
-        )}
-        {page === 'settings' && (
-          <SettingsV2Page
-            onBack={() => setPage(workspaceInfo.status === 'active' ? 'documents' : 'workspaces')}
-          />
-        )}
-      </div>
+      <NavigationContext.Provider value={navigationActions}>
+        <div
+          className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'documents' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
+        >
+          {page === 'workspaces' && (
+            <WorkspacesPage
+              workspaces={workspaces}
+              activeInfo={workspaceInfo}
+              onWorkspaceSelected={() => setPage('workspace-loading')}
+              refreshWorkspaces={refreshWorkspaces}
+              userName={userProfile.name ?? undefined}
+            />
+          )}
+          {page === 'workspace-loading' && (
+            <WorkspaceTransitionPage
+              mode="loading"
+              workspaceName={workspaceInfo.workspaceName}
+              ready={workspaceInfo.status === 'active'}
+              onBack={() => setPage('workspaces')}
+              onComplete={() => setPage('documents')}
+            />
+          )}
+          {page === 'workspace-closing' && (
+            <WorkspaceTransitionPage
+              mode="closing"
+              workspaceName={workspaceInfo.workspaceName}
+              ready={workspaceInfo.status === 'inactive'}
+              onComplete={() => setPage('workspaces')}
+            />
+          )}
+          {page === 'documents' && workspaceName && (
+            <DocumentsPage
+              workspaceName={workspaceName}
+              workspaceTitle={workspaceTitle ?? workspaceName}
+              documents={documents}
+              designSystemDoc={designSystemDoc}
+              designSystem={designSystem}
+              isLoading={documentsLoading}
+              refetch={loadDocuments}
+              onSelectDocument={(docId) => {
+                setActiveDocId(docId);
+                setPage('document');
+              }}
+              onOpenDesignSystem={() => setPage('design-system-doc')}
+              onOpenAssets={() => setPage('assets')}
+              onCloseWorkspace={handleCloseWorkspace}
+            />
+          )}
+          {page === 'assets' && workspaceName && (
+            <AssetsPage workspaceName={workspaceName} onBack={() => setPage('documents')} />
+          )}
+          {page === 'document' && activeDoc && workspaceName && (
+            <DocumentPage
+              doc={activeDoc}
+              workspaceName={workspaceName}
+              workspaceTitle={workspaceTitle ?? workspaceName}
+              workspacePath={workspacePath ?? ''}
+              onBack={() => navigateTo('documents')}
+              onDocumentsChange={loadDocuments}
+              userName={userProfile.name ?? undefined}
+              onAgentBusyChange={setAgentBusy}
+            />
+          )}
+          {page === 'design-system-doc' && workspaceName && (
+            <DesignSystemDocPage
+              workspaceName={workspaceName}
+              workspaceTitle={workspaceTitle ?? workspaceName}
+              workspacePath={workspacePath}
+              onBack={() => navigateTo('documents')}
+              onAgentBusyChange={setAgentBusy}
+            />
+          )}
+          {page === 'settings' && (
+            <SettingsV2Page
+              initialCategory={settingsInitialCategory}
+              onBack={() => {
+                setSettingsInitialCategory(undefined);
+                setPage(workspaceInfo.status === 'active' ? 'documents' : 'workspaces');
+              }}
+            />
+          )}
+        </div>
+      </NavigationContext.Provider>
 
       <AlertDialog open={pendingNav !== null} onOpenChange={(open) => !open && setPendingNav(null)}>
         <AlertDialogContent>

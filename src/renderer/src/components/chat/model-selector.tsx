@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, Loader2, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,6 +10,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useNavigation } from '@/lib/navigation-context';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,6 +47,7 @@ export function ModelSelector({
   modelId,
   onSelect,
 }: ModelSelectorProps): React.JSX.Element {
+  const navigation = useNavigation();
   const [open, setOpen] = useState(false);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [connectedIds, setConnectedIds] = useState<string[]>([]);
@@ -74,6 +76,11 @@ export function ModelSelector({
   const connectedProviders = useMemo(
     () => providers.filter((p) => connectedIds.includes(p.id)),
     [providers, connectedIds],
+  );
+
+  const hasOnlyFreeModels = useMemo(
+    () => connectedProviders.length > 0 && connectedProviders.every((p) => p.id === 'free'),
+    [connectedProviders],
   );
 
   // Fetch models for all connected providers on mount + refresh when popover opens
@@ -149,6 +156,21 @@ export function ModelSelector({
                 })}
               </CommandGroup>
             ))}
+            {hasOnlyFreeModels && (
+              <div className="my-1 flex justify-center p-1">
+                <button
+                  type="button"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  onClick={() => {
+                    setOpen(false);
+                    navigation.openSettings('ai-providers');
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add AI provider
+                </button>
+              </div>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

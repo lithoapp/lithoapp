@@ -7,7 +7,7 @@ import { AiProvidersSection } from './ai-providers-section';
 import { PrivacySection } from './privacy-section';
 import { ProfileSection } from './profile-section';
 
-type SettingsCategory = 'profile' | 'ai-providers' | 'privacy' | 'about' | 'advanced';
+export type SettingsCategory = 'profile' | 'ai-providers' | 'privacy' | 'about' | 'advanced';
 
 const categories: { id: SettingsCategory; label: string }[] = [
   { id: 'profile', label: 'Profile' },
@@ -19,10 +19,14 @@ const categories: { id: SettingsCategory; label: string }[] = [
 
 interface SettingsV2PageProps {
   onBack: () => void;
+  initialCategory?: SettingsCategory;
 }
 
-export function SettingsV2Page({ onBack }: SettingsV2PageProps): React.JSX.Element {
-  const [active, setActive] = useState<SettingsCategory>('profile');
+export function SettingsV2Page({
+  onBack,
+  initialCategory,
+}: SettingsV2PageProps): React.JSX.Element {
+  const [active, setActive] = useState<SettingsCategory>(initialCategory ?? 'profile');
 
   return (
     <div className="flex h-full">
