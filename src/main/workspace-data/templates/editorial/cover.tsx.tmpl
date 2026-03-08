@@ -2,70 +2,32 @@ import '@styles.css';
 
 export default function Cover() {
   return (
-    <div className="h-full flex flex-col bg-neutral-50">
-      {/* Top color bar */}
-      <div className="flex h-1.5">
-        <div className="flex-[5] bg-primary-400" />
-        <div className="flex-[2] bg-accent-400" />
-        <div className="flex-1 bg-secondary-300" />
-      </div>
-
-      <div className="flex flex-1 flex-col px-16 pt-14 pb-12">
-        {/* Eyebrow */}
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent-600">
-          Brand Identity System
-        </p>
-
-        {/* Studio name */}
-        <h1
-          className="mt-5 font-display text-[5.5rem] font-semibold leading-none text-neutral-900"
-        >
-          {{{workspaceName}}}
-        </h1>
-
-        {/* Tagline */}
-        <p className="mt-5 font-display text-2xl font-normal italic text-neutral-500">
-          "Beauty is in the details — and in the space between them."
-        </p>
-
-        {/* Divider */}
-        <div className="mt-8 flex items-center gap-4">
-          <div className="h-px flex-1 bg-neutral-200" />
-          <div className="h-1.5 w-1.5 rounded-full bg-accent-400" />
-          <div className="h-px w-12 bg-neutral-200" />
+    <div className="relative h-full overflow-hidden bg-white">
+      <div className="flex h-full flex-col justify-between px-16 py-12">
+        {/* Top — label */}
+        <div className="flex items-center gap-3">
+          <div className="h-1.5 w-1.5 rounded-full bg-neutral-900" />
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+            Design System
+          </p>
         </div>
 
-        {/* Color mood row */}
-        <div className="mt-8 flex flex-1 items-end gap-6 min-h-0">
-          <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-primary-400" />
-            <p className="text-xs text-neutral-400 tracking-wide">Dusty Rose</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-accent-400" />
-            <p className="text-xs text-neutral-400 tracking-wide">Warm Gold</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-secondary-400" />
-            <p className="text-xs text-neutral-400 tracking-wide">Warm Taupe</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-neutral-700" />
-            <p className="text-xs text-neutral-400 tracking-wide">Charcoal</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-neutral-200 border border-neutral-300" />
-            <p className="text-xs text-neutral-400 tracking-wide">Linen</p>
-          </div>
+        {/* Center — title */}
+        <div className="max-w-4xl">
+          <h1 className="font-display text-[7rem] font-semibold leading-[0.88] tracking-tight text-neutral-900">
+            {{{workspaceName}}}
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-neutral-500">
+            A warm, editorial foundation for your brand. Customize colors, typography, and style to make it yours.
+          </p>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 flex items-end justify-between">
-          <div>
-            <p className="text-xs text-neutral-400">Prepared for</p>
-            <p className="mt-0.5 text-sm font-semibold text-neutral-700">{{{workspaceName}}}</p>
-          </div>
-          <p className="text-xs text-neutral-300 tabular-nums">{{{currentYear}}}</p>
+        {/* Bottom — color bar */}
+        <div className="flex gap-3">
+          <div className="h-10 flex-1 rounded-md bg-primary-500" />
+          <div className="h-10 flex-1 rounded-md bg-accent-500" />
+          <div className="h-10 flex-1 rounded-md bg-secondary-400" />
+          <div className="h-10 flex-1 rounded-md bg-neutral-200" />
         </div>
       </div>
     </div>

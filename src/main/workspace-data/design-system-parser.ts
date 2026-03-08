@@ -185,20 +185,6 @@ const CATEGORY_RULES: CategoryRule[] = [
     group: () => 'gradients',
     label: (m) => formatLabel(m[1]),
   },
-  {
-    pattern: /^--ease-(.+)$/,
-    category: 'transition',
-    control: 'text',
-    group: () => 'transitions',
-    label: (m) => formatLabel(m[1]),
-  },
-  {
-    pattern: /^--z-(.+)$/,
-    category: 'z-index',
-    control: 'number',
-    group: () => 'z-index',
-    label: (m) => formatLabel(m[1]),
-  },
 ];
 
 function formatLabel(raw: string): string {
@@ -226,7 +212,7 @@ function categorizeToken(raw: RawToken): DesignSystemToken {
   return {
     variable: raw.variable,
     value: raw.value,
-    category: 'z-index',
+    category: 'gradient',
     control: 'text',
     label: raw.variable,
     group: 'unknown',
@@ -269,8 +255,6 @@ export function categorizeTokens(rawTokens: RawToken[], fonts: string[]): Design
     radius: byCategory('radius'),
     shadows: byCategory('shadow'),
     gradients: byCategory('gradient'),
-    transitions: byCategory('transition'),
-    zIndex: byCategory('z-index'),
     fonts,
   };
 }
@@ -307,8 +291,6 @@ const SECTION_ORDER: Array<{ prefix: string; comment: string }> = [
   { prefix: '--spacing-', comment: 'Spacing' },
   { prefix: '--radius-', comment: 'Border radius' },
   { prefix: '--shadow-', comment: 'Shadows' },
-  { prefix: '--ease-', comment: 'Transitions' },
-  { prefix: '--z-', comment: 'Z-index scale' },
 ];
 
 function serializeThemeBlock(tokens: RawToken[]): string {

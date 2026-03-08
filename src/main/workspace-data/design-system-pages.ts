@@ -14,7 +14,6 @@ import Mustache from 'mustache';
 import brightsideStylesRaw from './templates/brightside/styles.css?raw';
 import corporateStylesRaw from './templates/corporate/styles.css?raw';
 import editorialStylesRaw from './templates/editorial/styles.css?raw';
-import techStylesRaw from './templates/tech/styles.css?raw';
 import minimalStylesRaw from './templates/minimal/styles.css?raw';
 
 // -- Preview pages (thumbnail only, not inserted into workspace) --------------
@@ -23,54 +22,42 @@ import brightsidePreviewRaw from './templates/brightside/preview.tsx.tmpl?raw';
 import corporatePreviewRaw from './templates/corporate/preview.tsx.tmpl?raw';
 import editorialPreviewRaw from './templates/editorial/preview.tsx.tmpl?raw';
 import minimalPreviewRaw from './templates/minimal/preview.tsx.tmpl?raw';
-import techPreviewRaw from './templates/tech/preview.tsx.tmpl?raw';
 
 // -- Corporate pages ----------------------------------------------------------
 
-import corporateBrandInActionRaw from './templates/corporate/brand-in-action.tsx.tmpl?raw';
 import corporateColorsRaw from './templates/corporate/colors.tsx.tmpl?raw';
 import corporateCoverRaw from './templates/corporate/cover.tsx.tmpl?raw';
-import corporateRhythmSpaceRaw from './templates/corporate/rhythm-space.tsx.tmpl?raw';
+import corporateStoryRaw from './templates/corporate/story.tsx.tmpl?raw';
 import corporateTypographyRaw from './templates/corporate/typography.tsx.tmpl?raw';
 
 // -- Brightside pages ---------------------------------------------------------
 
+import brightsideColorsRaw from './templates/brightside/colors.tsx.tmpl?raw';
 import brightsideCoverRaw from './templates/brightside/cover.tsx.tmpl?raw';
-import brightsideElementsRaw from './templates/brightside/elements.tsx.tmpl?raw';
-import brightsideLayoutRaw from './templates/brightside/layout.tsx.tmpl?raw';
-import brightsidePaletteRaw from './templates/brightside/palette.tsx.tmpl?raw';
-import brightsideTypeRaw from './templates/brightside/type.tsx.tmpl?raw';
+import brightsideStoryRaw from './templates/brightside/story.tsx.tmpl?raw';
+import brightsideTypographyRaw from './templates/brightside/typography.tsx.tmpl?raw';
 
 // -- Editorial pages ----------------------------------------------------------
 
-import editorialBrandStoryRaw from './templates/editorial/brand-story.tsx.tmpl?raw';
+import editorialColorsRaw from './templates/editorial/colors.tsx.tmpl?raw';
 import editorialCoverRaw from './templates/editorial/cover.tsx.tmpl?raw';
-import editorialCraftPracticeRaw from './templates/editorial/craft-practice.tsx.tmpl?raw';
-import editorialPaletteRaw from './templates/editorial/palette.tsx.tmpl?raw';
+import editorialStoryRaw from './templates/editorial/story.tsx.tmpl?raw';
 import editorialTypographyRaw from './templates/editorial/typography.tsx.tmpl?raw';
-
-// -- Tech pages ---------------------------------------------------------------
-
-import techBrandInActionRaw from './templates/tech/brand-in-action.tsx.tmpl?raw';
-import techColorsRaw from './templates/tech/colors.tsx.tmpl?raw';
-import techCoverRaw from './templates/tech/cover.tsx.tmpl?raw';
-import techSpacingRaw from './templates/tech/spacing.tsx.tmpl?raw';
-import techSurfacesRaw from './templates/tech/surfaces.tsx.tmpl?raw';
-import techTypographyRaw from './templates/tech/typography.tsx.tmpl?raw';
 
 // -- Minimal pages ------------------------------------------------------------
 
 import minimalColorsRaw from './templates/minimal/colors.tsx.tmpl?raw';
 import minimalCoverRaw from './templates/minimal/cover.tsx.tmpl?raw';
+import minimalStoryRaw from './templates/minimal/story.tsx.tmpl?raw';
 import minimalTypographyRaw from './templates/minimal/typography.tsx.tmpl?raw';
 
 // -- Types --------------------------------------------------------------------
 
-export type TemplateId = 'corporate' | 'brightside' | 'editorial' | 'tech' | 'minimal';
+export type TemplateId = 'minimal' | 'corporate' | 'brightside' | 'editorial';
 
-export const TEMPLATE_IDS: TemplateId[] = ['corporate', 'brightside', 'editorial', 'tech', 'minimal'];
+export const TEMPLATE_IDS: TemplateId[] = ['minimal', 'corporate', 'brightside', 'editorial'];
 
-export const DEFAULT_TEMPLATE_ID: TemplateId = 'corporate';
+export const DEFAULT_TEMPLATE_ID: TemplateId = 'minimal';
 
 interface PageTemplate {
   name: string;
@@ -87,30 +74,39 @@ interface DesignSystemTemplate {
 // -- Template registry --------------------------------------------------------
 
 const TEMPLATES: Record<TemplateId, DesignSystemTemplate> = {
+  minimal: {
+    styles: minimalStylesRaw,
+    previewSource: minimalPreviewRaw,
+    pages: [
+      { name: 'Cover', description: 'Brand identity overview', source: minimalCoverRaw },
+      { name: 'Colors', description: 'Color palette and gradients', source: minimalColorsRaw },
+      {
+        name: 'Typography',
+        description: 'Font families and type scale',
+        source: minimalTypographyRaw,
+      },
+      {
+        name: 'Story',
+        description: 'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
+        source: minimalStoryRaw,
+      },
+    ],
+  },
   corporate: {
     styles: corporateStylesRaw,
     previewSource: corporatePreviewRaw,
     pages: [
       { name: 'Cover', description: 'Brand identity overview', source: corporateCoverRaw },
-      {
-        name: 'Colors',
-        description: 'Color palette and semantic swatches',
-        source: corporateColorsRaw,
-      },
+      { name: 'Colors', description: 'Color palette and gradients', source: corporateColorsRaw },
       {
         name: 'Typography',
         description: 'Font families and type scale',
         source: corporateTypographyRaw,
       },
       {
-        name: 'Rhythm & Space',
-        description: 'Spacing, radius, and elevation',
-        source: corporateRhythmSpaceRaw,
-      },
-      {
-        name: 'Brand in Action',
-        description: 'Design tokens in context',
-        source: corporateBrandInActionRaw,
+        name: 'Story',
+        description: 'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
+        source: corporateStoryRaw,
       },
     ],
   },
@@ -119,25 +115,16 @@ const TEMPLATES: Record<TemplateId, DesignSystemTemplate> = {
     previewSource: brightsidePreviewRaw,
     pages: [
       { name: 'Cover', description: 'Brand identity overview', source: brightsideCoverRaw },
+      { name: 'Colors', description: 'Color palette and gradients', source: brightsideColorsRaw },
       {
-        name: 'Palette',
-        description: 'Curated brand colors and expressive gradients',
-        source: brightsidePaletteRaw,
+        name: 'Typography',
+        description: 'Font families and type scale',
+        source: brightsideTypographyRaw,
       },
       {
-        name: 'Type',
-        description: 'Modern typography pairings and hierarchy',
-        source: brightsideTypeRaw,
-      },
-      {
-        name: 'Layout',
-        description: 'Spacing, radius, and depth system',
-        source: brightsideLayoutRaw,
-      },
-      {
-        name: 'Elements',
-        description: 'Document components, icons, and chart styles',
-        source: brightsideElementsRaw,
+        name: 'Story',
+        description: 'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
+        source: brightsideStoryRaw,
       },
     ],
   },
@@ -146,62 +133,16 @@ const TEMPLATES: Record<TemplateId, DesignSystemTemplate> = {
     previewSource: editorialPreviewRaw,
     pages: [
       { name: 'Cover', description: 'Brand identity overview', source: editorialCoverRaw },
-      {
-        name: 'Palette',
-        description: 'Brand colors as evocative editorial blocks',
-        source: editorialPaletteRaw,
-      },
+      { name: 'Colors', description: 'Color palette and gradients', source: editorialColorsRaw },
       {
         name: 'Typography',
-        description: 'Fonts shown through editorial pairings',
+        description: 'Font families and type scale',
         source: editorialTypographyRaw,
       },
       {
-        name: 'Brand Story',
-        description: 'Creative philosophy and brand voice narrative',
-        source: editorialBrandStoryRaw,
-      },
-      {
-        name: 'Craft & Practice',
-        description: 'Details, spacing, and brand in context',
-        source: editorialCraftPracticeRaw,
-      },
-    ],
-  },
-  tech: {
-    styles: techStylesRaw,
-    previewSource: techPreviewRaw,
-    pages: [
-      { name: 'Cover', description: 'Brand identity overview', source: techCoverRaw },
-      { name: 'Colors', description: 'Color palette and semantic swatches', source: techColorsRaw },
-      {
-        name: 'Typography',
-        description: 'Font families and type scale',
-        source: techTypographyRaw,
-      },
-      { name: 'Spacing', description: 'Spatial rhythm visualization', source: techSpacingRaw },
-      { name: 'Surfaces', description: 'Border radius and elevation', source: techSurfacesRaw },
-      {
-        name: 'Brand in Action',
-        description: 'Live dashboard mock and design manifesto',
-        source: techBrandInActionRaw,
-      },
-    ],
-  },
-  minimal: {
-    styles: minimalStylesRaw,
-    previewSource: minimalPreviewRaw,
-    pages: [
-      { name: 'Cover', description: 'Brand identity overview', source: minimalCoverRaw },
-      {
-        name: 'Colors',
-        description: 'Color palette and scales',
-        source: minimalColorsRaw,
-      },
-      {
-        name: 'Typography',
-        description: 'Font families and type scale',
-        source: minimalTypographyRaw,
+        name: 'Story',
+        description: 'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
+        source: editorialStoryRaw,
       },
     ],
   },
@@ -210,7 +151,7 @@ const TEMPLATES: Record<TemplateId, DesignSystemTemplate> = {
 // -- Public API ---------------------------------------------------------------
 
 /** Re-export for consumers — resolves the styles CSS for a given template. */
-export const DEFAULT_STYLES_CSS = corporateStylesRaw;
+export const DEFAULT_STYLES_CSS = minimalStylesRaw;
 
 export function getTemplateStyles(templateId: TemplateId): string {
   return TEMPLATES[templateId].styles;

@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 // Template definitions
 // ---------------------------------------------------------------------------
 
-type TemplateId = 'corporate' | 'brightside' | 'editorial' | 'tech' | 'minimal';
+type TemplateId = 'minimal' | 'corporate' | 'brightside' | 'editorial';
 
 interface TemplateOption {
   id: TemplateId;
@@ -29,11 +29,10 @@ interface TemplateOption {
 }
 
 const TEMPLATES: TemplateOption[] = [
+  { id: 'minimal', label: 'Minimal' },
   { id: 'corporate', label: 'Corporate' },
   { id: 'brightside', label: 'Brightside' },
   { id: 'editorial', label: 'Editorial' },
-  { id: 'tech', label: 'Tech' },
-  { id: 'minimal', label: 'Minimal' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -57,7 +56,7 @@ export function WorkspacesPage({
 }: WorkspacesPageProps): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('corporate');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('minimal');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [selectingSlug, setSelectingSlug] = useState<string | null>(null);
@@ -71,7 +70,7 @@ export function WorkspacesPage({
       await refreshWorkspaces();
       setCreateOpen(false);
       setNewName('');
-      setSelectedTemplate('corporate');
+      setSelectedTemplate('minimal');
       onWorkspaceSelected();
     } catch (err) {
       const message =

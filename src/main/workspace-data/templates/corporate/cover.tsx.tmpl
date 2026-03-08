@@ -2,45 +2,32 @@ import '@styles.css';
 
 export default function Cover() {
   return (
-    <div className="h-full flex flex-col bg-gradient-dusk">
-      {/* Top accent strip */}
-      <div className="flex h-2">
-        <div className="flex-[3] bg-primary-400/30" />
-        <div className="flex-1 bg-accent-500" />
-        <div className="flex-1 bg-primary-300/40" />
-      </div>
-
-      <div className="flex flex-1 flex-col justify-between px-14 py-10">
-        {/* Title area */}
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary-300">
+    <div className="relative h-full overflow-hidden bg-white">
+      <div className="flex h-full flex-col justify-between px-16 py-12">
+        {/* Top — label */}
+        <div className="flex items-center gap-3">
+          <div className="h-1.5 w-1.5 rounded-full bg-neutral-900" />
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
             Design System
-          </p>
-          <h1 className="mt-4 font-display text-8xl font-bold leading-none text-white">
-            {{{workspaceName}}}
-          </h1>
-          <p className="mt-5 font-display text-3xl text-primary-200/80">
-            Crafted with intention.
-          </p>
-          <p className="mt-1 font-sans text-lg text-primary-300/60">
-            A cohesive system of colors, type, and spacing — ready to build with.
           </p>
         </div>
 
-        {/* Brand preview card */}
-        <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 p-6">
-          <div className="flex gap-3">
-            <div className="flex-1 h-20 rounded-xl bg-gradient-sunset" />
-            <div className="flex-1 h-20 rounded-xl bg-primary-500" />
-            <div className="flex-1 h-20 rounded-xl bg-accent-500" />
-            <div className="flex-1 h-20 rounded-xl bg-neutral-800" />
-          </div>
-          <div className="flex gap-3 mt-3">
-            <div className="flex-1 h-2 rounded-full bg-primary-300/40" />
-            <div className="flex-1 h-2 rounded-full bg-accent-400/40" />
-            <div className="flex-1 h-2 rounded-full bg-neutral-500/40" />
-            <div className="flex-1 h-2 rounded-full bg-primary-200/40" />
-          </div>
+        {/* Center — title */}
+        <div className="max-w-4xl">
+          <h1 className="font-display text-[7rem] font-semibold leading-[0.88] tracking-tight text-neutral-900">
+            {{{workspaceName}}}
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-neutral-500">
+            A professional foundation for your brand. Customize colors, typography, and style to make it yours.
+          </p>
+        </div>
+
+        {/* Bottom — color bar */}
+        <div className="flex gap-3">
+          <div className="h-10 flex-1 rounded-md bg-primary-600" />
+          <div className="h-10 flex-1 rounded-md bg-accent-500" />
+          <div className="h-10 flex-1 rounded-md bg-secondary-400" />
+          <div className="h-10 flex-1 rounded-md bg-neutral-200" />
         </div>
       </div>
     </div>

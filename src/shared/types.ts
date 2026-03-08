@@ -214,9 +214,7 @@ export type TokenCategory =
   | 'spacing'
   | 'radius'
   | 'shadow'
-  | 'gradient'
-  | 'transition'
-  | 'z-index';
+  | 'gradient';
 
 export type TokenControl = 'color' | 'text' | 'number' | 'shadow' | 'font-stack';
 
@@ -249,8 +247,6 @@ export interface DesignSystem {
   radius: DesignSystemToken[];
   shadows: DesignSystemToken[];
   gradients: DesignSystemToken[];
-  transitions: DesignSystemToken[];
-  zIndex: DesignSystemToken[];
   fonts: string[];
 }
 
