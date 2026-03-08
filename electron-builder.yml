@@ -1,4 +1,4 @@
-appId: com.kareemaly.litho
+appId: com.lithoapp.litho
 productName: Litho
 copyright: Copyright © 2026 Kareem Elbahrawy
 directories:
@@ -41,7 +41,7 @@ linux:
     - AppImage
     - snap
     - deb
-  maintainer: kareemaly
+  maintainer: Kareem Elbahrawy
   category: Utility
   synopsis: PDF Design Tool
   description: Design and export beautiful PDFs with AI assistance

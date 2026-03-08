@@ -420,7 +420,7 @@ nativeTheme.on('updated', () => {
 });
 
 app.whenReady().then(async () => {
-  electronApp.setAppUserModelId('com.litho');
+  electronApp.setAppUserModelId('com.lithoapp.litho');
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window);
