@@ -165,10 +165,12 @@ export function formatAnalysisSummary(analysis: PageLayoutAnalysis): string {
   const fillPct = Math.round((1 - analysis.emptyBottomRatio) * 100);
   const details: string[] = [];
 
-  if (analysis.overflowX > 0) {
+  const OVERFLOW_TOLERANCE = 20;
+
+  if (analysis.overflowX > OVERFLOW_TOLERANCE) {
     details.push(`Horizontal overflow: ${analysis.overflowX}px`);
   }
-  if (analysis.overflowY > 0) {
+  if (analysis.overflowY > OVERFLOW_TOLERANCE) {
     details.push(`Vertical overflow: ${analysis.overflowY}px`);
   }
 

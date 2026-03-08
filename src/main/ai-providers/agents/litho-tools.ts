@@ -48,8 +48,11 @@ function detectForbiddenOverflow(source: string): string | null {
 // Factory
 // ---------------------------------------------------------------------------
 
+const WRITE_PAGE_LIMIT = 3;
+
 export function createLithoTools(workspace: string, agentId: AgentId) {
   const db = () => getWorkspaceDb(workspace);
+  let writePageCount = 0;
 
   function getPageLabel(docId: string, pageId: string): string {
     const pages = db()
@@ -161,6 +164,8 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           throw new Error(`Page "${pageId}" not found in document "${docId}"`);
         }
 
+        writePageCount++;
+
         const lineCount = content.split('\n').length;
         let msg = `Wrote ${getPageLabel(docId, pageId)} (${lineCount} lines)`;
 
@@ -173,6 +178,11 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         }
 
         msg += await runLayoutAnalysis(docId, pageId);
+
+        if (writePageCount === WRITE_PAGE_LIMIT) {
+          msg +=
+            `\n\n[LIMIT REACHED] You've written ${WRITE_PAGE_LIMIT} pages. Stop here and ask the user to review before continuing.`;
+        }
 
         return msg;
       },
