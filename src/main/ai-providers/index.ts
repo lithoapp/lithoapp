@@ -15,6 +15,7 @@ import {
   fetchModels,
   getModelsCache,
   getModelsCacheError,
+  getOAuthConfig,
   getProviderList,
   getProviderModels,
   initModelsCache,
@@ -71,13 +72,18 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
   // --- OAuth ---
 
   ipcMain.handle('ai-provider:start-oauth', async (_event, providerId: string, mode?: string) => {
+    await waitForModelsReady();
     if (providerId === 'anthropic') {
+      const clientId = getOAuthConfig('anthropic')?.clientId;
+      if (!clientId) throw new Error('Anthropic OAuth client ID not configured');
       const anthropicMode = mode?.includes('console') ? 'console' : 'max';
-      const { url, verifier } = await startAnthropicOAuth(anthropicMode);
+      const { url, verifier } = await startAnthropicOAuth(anthropicMode, clientId);
       return { url, verifier, method: 'code' as const };
     }
     if (providerId === 'openai') {
-      const result = await startOpenAIOAuth((id, cred) => setCredential(id, cred));
+      const clientId = getOAuthConfig('openai')?.clientId;
+      if (!clientId) throw new Error('OpenAI OAuth client ID not configured');
+      const result = await startOpenAIOAuth((id, cred) => setCredential(id, cred), clientId);
       return { ...result, method: 'auto' as const };
     }
     throw new Error(`OAuth is not supported for ${providerId}`);
@@ -86,12 +92,15 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
   ipcMain.handle(
     'ai-provider:complete-oauth',
     async (_event, providerId: string, code?: string, verifier?: string, mode?: string) => {
+      await waitForModelsReady();
       if (providerId === 'anthropic') {
         if (!code || !verifier) {
           throw new Error('Anthropic OAuth requires code and verifier');
         }
+        const clientId = getOAuthConfig('anthropic')?.clientId;
+        if (!clientId) throw new Error('Anthropic OAuth client ID not configured');
         const anthropicMode = mode?.includes('console') ? 'console' : 'max';
-        return completeAnthropicOAuth(code, verifier, anthropicMode, setCredential);
+        return completeAnthropicOAuth(code, verifier, anthropicMode, setCredential, clientId);
       }
       if (providerId === 'openai') {
         return completeOpenAIOAuth(getCredential);

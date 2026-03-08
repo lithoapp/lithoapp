@@ -14,10 +14,15 @@ export interface LithoModel {
   releaseDate?: string;
 }
 
+export interface OAuthConfig {
+  clientId: string;
+}
+
 export interface LithoApiAuthMethod {
   type: string;
   name: string;
   description: string;
+  oauth?: OAuthConfig;
 }
 
 export interface LithoProvider {
@@ -82,6 +87,7 @@ export interface AuthMethod {
   type: 'api' | 'oauth' | 'free';
   label: string;
   id?: string;
+  oauth?: OAuthConfig;
 }
 
 export interface PkceCodes {

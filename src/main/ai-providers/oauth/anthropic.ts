@@ -1,21 +1,10 @@
 import { shell } from 'electron';
-import type { AuthMethod, Credential, CredentialOAuth } from '../types';
+import type { Credential, CredentialOAuth } from '../types';
 import { generatePKCE } from './pkce';
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const ANTHROPIC_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const ANTHROPIC_REDIRECT_URI = 'https://console.anthropic.com/oauth/code/callback';
 const ANTHROPIC_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
 const ANTHROPIC_SCOPES = 'org:create_api_key user:profile user:inference';
-
-export const ANTHROPIC_AUTH_METHODS: AuthMethod[] = [
-  { type: 'oauth', id: 'anthropic-max', label: 'Claude Pro/Max' },
-  { type: 'oauth', id: 'anthropic-console', label: 'Create an API Key (via OAuth)' },
-  { type: 'api', label: 'API Key' },
-];
 
 // ---------------------------------------------------------------------------
 // Token exchange & refresh
@@ -24,6 +13,7 @@ export const ANTHROPIC_AUTH_METHODS: AuthMethod[] = [
 async function exchangeAnthropicCode(
   code: string,
   verifier: string,
+  clientId: string,
 ): Promise<{ refresh_token: string; access_token: string; expires_in: number }> {
   const splits = code.split('#');
   const response = await fetch(ANTHROPIC_TOKEN_URL, {
@@ -33,7 +23,7 @@ async function exchangeAnthropicCode(
       code: splits[0],
       state: splits[1],
       grant_type: 'authorization_code',
-      client_id: ANTHROPIC_CLIENT_ID,
+      client_id: clientId,
       redirect_uri: ANTHROPIC_REDIRECT_URI,
       code_verifier: verifier,
     }),
@@ -48,6 +38,7 @@ async function exchangeAnthropicCode(
 
 export async function refreshAnthropicToken(
   refreshToken: string,
+  clientId: string,
 ): Promise<{ refresh_token: string; access_token: string; expires_in: number }> {
   const response = await fetch(ANTHROPIC_TOKEN_URL, {
     method: 'POST',
@@ -55,7 +46,7 @@ export async function refreshAnthropicToken(
     body: JSON.stringify({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      client_id: ANTHROPIC_CLIENT_ID,
+      client_id: clientId,
     }),
   });
   if (!response.ok) throw new Error(`Anthropic token refresh failed: ${response.status}`);
@@ -72,12 +63,13 @@ export async function refreshAnthropicToken(
 
 export async function startAnthropicOAuth(
   mode: 'max' | 'console',
+  clientId: string,
 ): Promise<{ url: string; verifier: string }> {
   const pkce = await generatePKCE();
   const host = mode === 'console' ? 'console.anthropic.com' : 'claude.ai';
   const url = new URL(`https://${host}/oauth/authorize`);
   url.searchParams.set('code', 'true');
-  url.searchParams.set('client_id', ANTHROPIC_CLIENT_ID);
+  url.searchParams.set('client_id', clientId);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('redirect_uri', ANTHROPIC_REDIRECT_URI);
   url.searchParams.set('scope', ANTHROPIC_SCOPES);
@@ -94,9 +86,10 @@ export async function completeAnthropicOAuth(
   verifier: string,
   mode: 'max' | 'console',
   persistCredential: (providerId: string, cred: Credential) => void,
+  clientId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const tokens = await exchangeAnthropicCode(code, verifier);
+    const tokens = await exchangeAnthropicCode(code, verifier, clientId);
 
     if (mode === 'console') {
       // Exchange OAuth tokens for a permanent API key
@@ -135,11 +128,12 @@ export async function completeAnthropicOAuth(
 export function createAnthropicFetchWrapper(
   oauthCred: CredentialOAuth,
   onCredentialUpdate: (cred: CredentialOAuth) => void,
+  clientId: string,
 ): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
   return async (requestInput: RequestInfo | URL, init?: RequestInit) => {
     // Refresh token if expired
     if (!oauthCred.access || oauthCred.expires < Date.now()) {
-      const tokens = await refreshAnthropicToken(oauthCred.refresh);
+      const tokens = await refreshAnthropicToken(oauthCred.refresh, clientId);
       oauthCred.access = tokens.access_token;
       oauthCred.refresh = tokens.refresh_token;
       oauthCred.expires = Date.now() + tokens.expires_in * 1000;

@@ -8,7 +8,7 @@ import { createOpenAIFetchWrapper } from '../oauth/openai-fetch';
 import { CODEX_DEFAULT_MODEL, OAUTH_DUMMY_KEY } from '../oauth/openai-flow';
 import type { CredentialApi, CredentialOAuth } from '../types';
 import { getCredential, setCredential } from './credential-store';
-import { getModelsCache } from './models-cache';
+import { getModelsCache, getOAuthConfig } from './models-cache';
 
 // ---------------------------------------------------------------------------
 // Max output token cap — matches OpenCode's ProviderTransform.OUTPUT_TOKEN_MAX
@@ -37,7 +37,9 @@ export function createModel(providerId: string, modelId: string): LanguageModel 
   const routingProviderId = providerData?.internalProvider ?? providerId;
 
   if (providerId === 'openai' && cred.type === 'oauth') {
-    const wrapper = createOpenAIFetchWrapper(cred, (c) => setCredential('openai', c));
+    const clientId = getOAuthConfig('openai')?.clientId;
+    if (!clientId) throw new Error('OpenAI OAuth client ID not configured');
+    const wrapper = createOpenAIFetchWrapper(cred, (c) => setCredential('openai', c), clientId);
     const provider = createOpenAI({ apiKey: OAUTH_DUMMY_KEY, fetch: wrapper });
     const fallback = CODEX_DEFAULT_MODEL;
     const selected = modelId || fallback;
@@ -50,8 +52,12 @@ export function createModel(providerId: string, modelId: string): LanguageModel 
   }
 
   if (providerId === 'anthropic' && cred.type === 'oauth') {
-    const wrapper = createAnthropicFetchWrapper(cred as CredentialOAuth, (c) =>
-      setCredential('anthropic', c),
+    const clientId = getOAuthConfig('anthropic')?.clientId;
+    if (!clientId) throw new Error('Anthropic OAuth client ID not configured');
+    const wrapper = createAnthropicFetchWrapper(
+      cred as CredentialOAuth,
+      (c) => setCredential('anthropic', c),
+      clientId,
     );
     const provider = createAnthropic({
       apiKey: 'oauth-placeholder',

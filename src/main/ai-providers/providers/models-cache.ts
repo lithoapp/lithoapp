@@ -1,7 +1,11 @@
 import { getAiDb } from '../db';
-import type { CredentialApi, LithoModelsData, ModelInfo, ProviderInfo } from '../types';
-
-const STALE_MS = 24 * 60 * 60 * 1000; // 24 hours
+import type {
+  CredentialApi,
+  LithoModelsData,
+  ModelInfo,
+  OAuthConfig,
+  ProviderInfo,
+} from '../types';
 
 let modelsCache: LithoModelsData | null = null;
 let modelsCacheError: string | null = null;
@@ -17,15 +21,6 @@ export function loadCacheFromDb(): void {
   } catch {
     // Corrupted cache row — ignore, will re-fetch
   }
-}
-
-function isCacheStale(): boolean {
-  const row = getAiDb().prepare('SELECT fetched_at FROM ai_models_cache WHERE id = 1').get() as
-    | { fetched_at: string }
-    | undefined;
-  if (!row) return true;
-  const fetchedAt = new Date(`${row.fetched_at}Z`).getTime();
-  return Date.now() - fetchedAt > STALE_MS;
 }
 
 export async function fetchModels(): Promise<void> {
@@ -52,19 +47,16 @@ export async function fetchModels(): Promise<void> {
 let readyPromise: Promise<void> | null = null;
 
 /**
- * Initialize the models cache. Returns a promise that resolves once the cache
- * is populated (from DB or network). Callers that need providers to be available
+ * Initialize the models cache. Loads from DB immediately, then fetches
+ * fresh data from network. Callers that need providers to be available
  * should await the returned promise.
  */
 export function initModelsCache(onLoad?: () => void): Promise<void> {
   loadCacheFromDb();
   if (modelsCache) onLoad?.();
 
-  if (isCacheStale()) {
-    readyPromise = fetchModels().then(() => onLoad?.());
-  } else {
-    readyPromise = Promise.resolve();
-  }
+  // Always fetch fresh data on startup
+  readyPromise = fetchModels().then(() => onLoad?.());
 
   return readyPromise;
 }
@@ -84,6 +76,13 @@ export function getModelsCacheError(): string | null {
 
 export function getProviderInfo(providerId: string) {
   return modelsCache?.providers?.[providerId] ?? null;
+}
+
+export function getOAuthConfig(providerId: string): OAuthConfig | null {
+  const provider = getProviderInfo(providerId);
+  if (!provider) return null;
+  const oauthMethod = provider.authMethods.find((m) => m.type === 'oauth');
+  return oauthMethod?.oauth ?? null;
 }
 
 export function getProviderList(): ProviderInfo[] {

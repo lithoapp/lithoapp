@@ -1,24 +1,18 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { shell } from 'electron';
-import type { AuthMethod, CredentialOAuth, OAuthTokenResponse, PkceCodes } from '../types';
+import type { CredentialOAuth, OAuthTokenResponse, PkceCodes } from '../types';
 import { generatePKCE, generateState } from './pkce';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const OPENAI_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
 const OPENAI_ISSUER = 'https://auth.openai.com';
 const OAUTH_PORT = 1455;
 
 export const CODEX_API_ENDPOINT = 'https://chatgpt.com/backend-api/codex/responses';
 export const CODEX_DEFAULT_MODEL = 'gpt-5.3-codex';
 export const OAUTH_DUMMY_KEY = 'litho-oauth-dummy-key';
-
-export const OPENAI_AUTH_METHODS: AuthMethod[] = [
-  { type: 'oauth', label: 'ChatGPT Pro/Plus (browser)' },
-  { type: 'api', label: 'API Key' },
-];
 
 // ---------------------------------------------------------------------------
 // HTML templates
@@ -42,6 +36,7 @@ const HTML_ERROR = (error: string): string => `<!doctype html>
 interface PendingOAuth {
   pkce: PkceCodes;
   state: string;
+  clientId: string;
   resolve: (tokens: OAuthTokenResponse) => void;
   reject: (error: Error) => void;
 }
@@ -57,6 +52,7 @@ async function exchangeCodeForTokens(
   code: string,
   redirectUri: string,
   pkce: PkceCodes,
+  clientId: string,
 ): Promise<OAuthTokenResponse> {
   const response = await fetch(`${OPENAI_ISSUER}/oauth/token`, {
     method: 'POST',
@@ -65,7 +61,7 @@ async function exchangeCodeForTokens(
       grant_type: 'authorization_code',
       code,
       redirect_uri: redirectUri,
-      client_id: OPENAI_CLIENT_ID,
+      client_id: clientId,
       code_verifier: pkce.verifier,
     }).toString(),
   });
@@ -73,14 +69,17 @@ async function exchangeCodeForTokens(
   return response.json() as Promise<OAuthTokenResponse>;
 }
 
-export async function refreshOpenAIToken(refreshToken: string): Promise<OAuthTokenResponse> {
+export async function refreshOpenAIToken(
+  refreshToken: string,
+  clientId: string,
+): Promise<OAuthTokenResponse> {
   const response = await fetch(`${OPENAI_ISSUER}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      client_id: OPENAI_CLIENT_ID,
+      client_id: clientId,
     }).toString(),
   });
   if (!response.ok) throw new Error(`Token refresh failed: ${response.status}`);
@@ -187,7 +186,7 @@ function startOAuthServer(): Promise<{ port: number; redirectUri: string }> {
       res.end(HTML_SUCCESS);
 
       const redirectUri = `http://localhost:${OAUTH_PORT}/auth/callback`;
-      exchangeCodeForTokens(code, redirectUri, current.pkce)
+      exchangeCodeForTokens(code, redirectUri, current.pkce, current.clientId)
         .then((tokens) => current.resolve(tokens))
         .catch((err) => current.reject(err instanceof Error ? err : new Error(String(err))));
     });
@@ -216,6 +215,7 @@ export function stopOpenAIOAuthServer(): void {
 
 export async function startOpenAIOAuth(
   persistCredential: (providerId: string, cred: CredentialOAuth) => void,
+  clientId: string,
 ): Promise<{ url: string }> {
   const { redirectUri } = await startOAuthServer();
   const pkce = await generatePKCE();
@@ -223,7 +223,7 @@ export async function startOpenAIOAuth(
 
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: OPENAI_CLIENT_ID,
+    client_id: clientId,
     redirect_uri: redirectUri,
     scope: 'openid profile email offline_access',
     code_challenge: pkce.challenge,
@@ -251,6 +251,7 @@ export async function startOpenAIOAuth(
     pendingOAuth = {
       pkce,
       state,
+      clientId,
       resolve: (tokens) => {
         clearTimeout(timeout);
         resolve(tokens);

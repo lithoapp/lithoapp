@@ -8,6 +8,7 @@ import { CODEX_API_ENDPOINT, extractAccountId, refreshOpenAIToken } from './open
 export function createOpenAIFetchWrapper(
   oauthCred: CredentialOAuth,
   onCredentialUpdate: (cred: CredentialOAuth) => void,
+  clientId: string,
 ): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
   return async (requestInput: RequestInfo | URL, init?: RequestInit) => {
     // Remove dummy API key authorization header
@@ -28,7 +29,7 @@ export function createOpenAIFetchWrapper(
 
     // Refresh token if expired
     if (!oauthCred.access || oauthCred.expires < Date.now()) {
-      const tokens = await refreshOpenAIToken(oauthCred.refresh);
+      const tokens = await refreshOpenAIToken(oauthCred.refresh, clientId);
       const newAccountId = extractAccountId(tokens) || oauthCred.accountId;
       oauthCred.access = tokens.access_token;
       oauthCred.expires = Date.now() + (tokens.expires_in ?? 3600) * 1000;
