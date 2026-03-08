@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import type {
@@ -80,7 +81,12 @@ export async function createNewWorkspace(
 
   const db = getWorkspaceDb(slug);
 
-  db.prepare('INSERT INTO styles (id, css) VALUES (1, ?)').run(getTemplateStyles(templateId));
+  const templateCss = getTemplateStyles(templateId);
+  const cssHash = createHash('sha256').update(templateCss).digest('hex');
+  db.prepare('INSERT INTO styles (id, css, original_css_hash) VALUES (1, ?, ?)').run(
+    templateCss,
+    cssHash,
+  );
 
   insertDesignSystemDocument(db, generateId, title, templateId);
 
@@ -576,7 +582,6 @@ export interface ConversationData {
 
 /** Synthetic document ID used by the workspace-level agent conversation. */
 const WORKSPACE_CONVERSATION_ID = '__workspace__';
-
 
 const EMPTY_CONVERSATION: ConversationData = {
   messages: [],

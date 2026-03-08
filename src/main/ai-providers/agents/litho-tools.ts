@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { type AgentId, PAGE_SIZE_NAMES, PAGE_SIZES } from '../../../shared/types';
@@ -615,15 +616,25 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         'Read the workspace styles.css file. Returns the design system CSS with line numbers.',
       inputSchema: z.object({}),
       execute: async () => {
-        const row = db().prepare('SELECT css FROM styles WHERE id = 1').get() as
-          | { css: string }
-          | undefined;
+        const row = db()
+          .prepare('SELECT css, original_css_hash FROM styles WHERE id = 1')
+          .get() as { css: string; original_css_hash: string | null } | undefined;
 
         if (!row) {
           throw new Error('Styles not found');
         }
 
-        return numberLines(row.css);
+        let result = numberLines(row.css);
+
+        if (agentId === 'design-system' && row.original_css_hash) {
+          const currentHash = createHash('sha256').update(row.css).digest('hex');
+          if (currentHash === row.original_css_hash) {
+            result +=
+              '\n\n[NOTE: This is the original starter template — it has not been customized yet. Guide the user to personalize it for their brand.]';
+          }
+        }
+
+        return result;
       },
     }),
 
@@ -754,7 +765,9 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
       description: 'Create a new document in the workspace. Returns the new document ID.',
       inputSchema: z.object({
         title: z.string().describe('Document title (e.g. "Q4 Proposal", "Team Directory")'),
-        size: z.enum(PAGE_SIZE_NAMES).default('A4').describe('Page size preset'),
+        size: z
+          .enum(PAGE_SIZE_NAMES)
+          .describe('Page size preset — ask the user if not obvious from context'),
         folder: z
           .string()
           .optional()

@@ -61,6 +61,7 @@ END;
 CREATE TABLE IF NOT EXISTS styles (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   css TEXT NOT NULL,
+  original_css_hash TEXT,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

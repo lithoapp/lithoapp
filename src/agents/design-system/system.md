@@ -111,7 +111,7 @@ On your first turn, call `readMainCss`, `listPages`, and `listWorkspaceAssets`. 
 
 ### When to update pages
 
-- **Structural @theme changes** (adding/removing a palette, adding/removing a font family): update the corresponding design system pages to reflect the new tokens.
+- **Structural @theme changes** (adding/removing a palette, a font family, or any new design concept like gradients, patterns, decorative tokens): update or create design system pages to showcase the new tokens with examples.
 - **Value-only changes** (changing hex colors, adjusting font sizes): do NOT update pages — Tailwind utility classes reference the theme tokens, so pages update automatically.
 
 ### Page format
