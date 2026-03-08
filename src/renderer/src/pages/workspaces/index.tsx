@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 // Template definitions
 // ---------------------------------------------------------------------------
 
-type TemplateId = 'corporate' | 'brightside' | 'editorial' | 'tech';
+type TemplateId = 'corporate' | 'brightside' | 'editorial' | 'tech' | 'minimal';
 
 interface TemplateOption {
   id: TemplateId;
@@ -33,6 +33,7 @@ const TEMPLATES: TemplateOption[] = [
   { id: 'brightside', label: 'Brightside' },
   { id: 'editorial', label: 'Editorial' },
   { id: 'tech', label: 'Tech' },
+  { id: 'minimal', label: 'Minimal' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -318,7 +319,7 @@ function CreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>New Project</DialogTitle>
         </DialogHeader>
@@ -337,7 +338,7 @@ function CreateDialog({
 
           <div className="flex flex-col gap-2">
             <Label className="text-base">Design System Template</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {TEMPLATES.map((tmpl) => {
                 const isSelected = selectedTemplate === tmpl.id;
                 return (

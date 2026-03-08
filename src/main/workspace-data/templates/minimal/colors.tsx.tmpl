@@ -1,0 +1,134 @@
+import '@styles.css';
+
+export default function Colors() {
+  return (
+    <div className="flex h-full flex-col bg-white px-16 py-12">
+      {/* Header */}
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">
+          01 — Colors
+        </p>
+        <h2 className="font-display text-4xl font-semibold tracking-tight text-neutral-900">
+          Color Palette
+        </h2>
+        <p className="mt-1 max-w-lg text-base text-neutral-500">
+          A restrained palette built on neutrals. Replace primary and secondary scales to establish your brand identity.
+        </p>
+      </div>
+
+      {/* Color scales */}
+      <div className="mt-10 flex flex-1 flex-col gap-6">
+        {/* Primary */}
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-neutral-700">Primary</p>
+          <div className="flex gap-1.5">
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-50 p-1.5">
+              <span className="font-mono text-[10px] text-primary-500">50</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-100 p-1.5">
+              <span className="font-mono text-[10px] text-primary-600">100</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-200 p-1.5">
+              <span className="font-mono text-[10px] text-primary-700">200</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-300 p-1.5">
+              <span className="font-mono text-[10px] text-primary-800">300</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-400 p-1.5">
+              <span className="font-mono text-[10px] text-white">400</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-500 p-1.5">
+              <span className="font-mono text-[10px] text-white">500</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-600 p-1.5">
+              <span className="font-mono text-[10px] text-white">600</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-700 p-1.5">
+              <span className="font-mono text-[10px] text-white">700</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-800 p-1.5">
+              <span className="font-mono text-[10px] text-white">800</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-primary-900 p-1.5">
+              <span className="font-mono text-[10px] text-white">900</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Secondary */}
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-neutral-700">Secondary</p>
+          <div className="flex gap-1.5">
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-50 p-1.5">
+              <span className="font-mono text-[10px] text-secondary-500">50</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-100 p-1.5">
+              <span className="font-mono text-[10px] text-secondary-600">100</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-200 p-1.5">
+              <span className="font-mono text-[10px] text-secondary-700">200</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-300 p-1.5">
+              <span className="font-mono text-[10px] text-secondary-800">300</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-400 p-1.5">
+              <span className="font-mono text-[10px] text-white">400</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-500 p-1.5">
+              <span className="font-mono text-[10px] text-white">500</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-600 p-1.5">
+              <span className="font-mono text-[10px] text-white">600</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-700 p-1.5">
+              <span className="font-mono text-[10px] text-white">700</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-800 p-1.5">
+              <span className="font-mono text-[10px] text-white">800</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-secondary-900 p-1.5">
+              <span className="font-mono text-[10px] text-white">900</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Neutral */}
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-neutral-700">Neutral</p>
+          <div className="flex gap-1.5">
+            <div className="flex h-14 flex-1 items-end rounded-md border border-neutral-200 bg-neutral-50 p-1.5">
+              <span className="font-mono text-[10px] text-neutral-500">50</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-neutral-100 p-1.5">
+              <span className="font-mono text-[10px] text-neutral-600">100</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-neutral-200 p-1.5">
+              <span className="font-mono text-[10px] text-neutral-700">200</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-neutral-300 p-1.5">
+              <span className="font-mono text-[10px] text-neutral-800">300</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-neutral-400 p-1.5">
+              <span className="font-mono text-[10px] text-white">400</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-neutral-500 p-1.5">
+              <span className="font-mono text-[10px] text-white">500</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-neutral-600 p-1.5">
+              <span className="font-mono text-[10px] text-white">600</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-neutral-700 p-1.5">
+              <span className="font-mono text-[10px] text-white">700</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-neutral-800 p-1.5">
+              <span className="font-mono text-[10px] text-white">800</span>
+            </div>
+            <div className="flex h-14 flex-1 items-end rounded-md bg-neutral-900 p-1.5">
+              <span className="font-mono text-[10px] text-white">900</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

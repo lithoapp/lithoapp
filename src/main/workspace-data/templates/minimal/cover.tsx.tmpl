@@ -1,0 +1,35 @@
+import '@styles.css';
+
+export default function Cover() {
+  return (
+    <div className="relative h-full overflow-hidden bg-white">
+      <div className="flex h-full flex-col justify-between px-16 py-12">
+        {/* Top — label */}
+        <div className="flex items-center gap-3">
+          <div className="h-1.5 w-1.5 rounded-full bg-neutral-900" />
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+            Design System
+          </p>
+        </div>
+
+        {/* Center — title */}
+        <div className="max-w-4xl">
+          <h1 className="font-display text-[7rem] font-semibold leading-[0.88] tracking-tight text-neutral-900">
+            {{{workspaceName}}}
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-neutral-500">
+            A clean foundation for your brand. Customize colors, typography, and spacing to make it yours.
+          </p>
+        </div>
+
+        {/* Bottom — color bar */}
+        <div className="flex gap-3">
+          <div className="h-10 flex-1 rounded-md bg-neutral-900" />
+          <div className="h-10 flex-1 rounded-md bg-primary-500" />
+          <div className="h-10 flex-1 rounded-md bg-secondary-400" />
+          <div className="h-10 flex-1 rounded-md bg-neutral-200" />
+        </div>
+      </div>
+    </div>
+  );
+}

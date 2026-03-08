@@ -1,0 +1,88 @@
+import '@styles.css';
+
+export default function Typography() {
+  return (
+    <div className="flex h-full flex-col bg-white px-16 py-12">
+      {/* Header */}
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">
+          02 — Typography
+        </p>
+        <h2 className="font-display text-4xl font-semibold tracking-tight text-neutral-900">
+          Type Scale
+        </h2>
+        <p className="mt-1 max-w-lg text-base text-neutral-500">
+          A single versatile typeface for both display and body. Swap in your own fonts to personalize.
+        </p>
+      </div>
+
+      {/* Type specimens */}
+      <div className="mt-10 flex flex-1 flex-col gap-6">
+        {/* Display */}
+        <div className="flex items-baseline gap-6 border-b border-neutral-100 pb-5">
+          <p className="w-24 shrink-0 font-mono text-xs text-neutral-400">Display</p>
+          <div className="flex flex-col gap-1">
+            <p className="font-display text-5xl font-semibold tracking-tight text-neutral-900">
+              Inter
+            </p>
+            <p className="font-mono text-xs text-neutral-400">
+              font-display · semibold · tracking-tight
+            </p>
+          </div>
+        </div>
+
+        {/* Heading */}
+        <div className="flex items-baseline gap-6 border-b border-neutral-100 pb-5">
+          <p className="w-24 shrink-0 font-mono text-xs text-neutral-400">Heading</p>
+          <div className="flex flex-col gap-1">
+            <p className="font-sans text-3xl font-semibold text-neutral-900">
+              The quick brown fox jumps
+            </p>
+            <p className="font-mono text-xs text-neutral-400">
+              font-sans · semibold · text-3xl
+            </p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex items-baseline gap-6 border-b border-neutral-100 pb-5">
+          <p className="w-24 shrink-0 font-mono text-xs text-neutral-400">Body</p>
+          <div className="flex flex-col gap-1">
+            <p className="font-sans text-base leading-relaxed text-neutral-700">
+              Body text is set in Inter at 1rem with relaxed leading. It provides comfortable reading for longer passages and works well at various sizes from small to large.
+            </p>
+            <p className="font-mono text-xs text-neutral-400">
+              font-sans · normal · text-base · leading-relaxed
+            </p>
+          </div>
+        </div>
+
+        {/* Small / Caption */}
+        <div className="flex items-baseline gap-6 border-b border-neutral-100 pb-5">
+          <p className="w-24 shrink-0 font-mono text-xs text-neutral-400">Caption</p>
+          <div className="flex flex-col gap-1">
+            <p className="font-sans text-sm text-neutral-500">
+              Captions and secondary text use a smaller size with muted color for hierarchy.
+            </p>
+            <p className="font-mono text-xs text-neutral-400">
+              font-sans · normal · text-sm
+            </p>
+          </div>
+        </div>
+
+        {/* Mono */}
+        <div className="flex items-baseline gap-6">
+          <p className="w-24 shrink-0 font-mono text-xs text-neutral-400">Mono</p>
+          <div className="flex flex-col gap-1">
+            <p className="font-mono text-sm text-neutral-700">
+              JetBrains Mono for code, data, and technical labels.
+            </p>
+            <p className="font-mono text-xs text-neutral-400">
+              font-mono · normal · text-sm
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -15,12 +15,14 @@ import brightsideStylesRaw from './templates/brightside/styles.css?raw';
 import corporateStylesRaw from './templates/corporate/styles.css?raw';
 import editorialStylesRaw from './templates/editorial/styles.css?raw';
 import techStylesRaw from './templates/tech/styles.css?raw';
+import minimalStylesRaw from './templates/minimal/styles.css?raw';
 
 // -- Preview pages (thumbnail only, not inserted into workspace) --------------
 
 import brightsidePreviewRaw from './templates/brightside/preview.tsx.tmpl?raw';
 import corporatePreviewRaw from './templates/corporate/preview.tsx.tmpl?raw';
 import editorialPreviewRaw from './templates/editorial/preview.tsx.tmpl?raw';
+import minimalPreviewRaw from './templates/minimal/preview.tsx.tmpl?raw';
 import techPreviewRaw from './templates/tech/preview.tsx.tmpl?raw';
 
 // -- Corporate pages ----------------------------------------------------------
@@ -56,11 +58,17 @@ import techSpacingRaw from './templates/tech/spacing.tsx.tmpl?raw';
 import techSurfacesRaw from './templates/tech/surfaces.tsx.tmpl?raw';
 import techTypographyRaw from './templates/tech/typography.tsx.tmpl?raw';
 
+// -- Minimal pages ------------------------------------------------------------
+
+import minimalColorsRaw from './templates/minimal/colors.tsx.tmpl?raw';
+import minimalCoverRaw from './templates/minimal/cover.tsx.tmpl?raw';
+import minimalTypographyRaw from './templates/minimal/typography.tsx.tmpl?raw';
+
 // -- Types --------------------------------------------------------------------
 
-export type TemplateId = 'corporate' | 'brightside' | 'editorial' | 'tech';
+export type TemplateId = 'corporate' | 'brightside' | 'editorial' | 'tech' | 'minimal';
 
-export const TEMPLATE_IDS: TemplateId[] = ['corporate', 'brightside', 'editorial', 'tech'];
+export const TEMPLATE_IDS: TemplateId[] = ['corporate', 'brightside', 'editorial', 'tech', 'minimal'];
 
 export const DEFAULT_TEMPLATE_ID: TemplateId = 'corporate';
 
@@ -177,6 +185,23 @@ const TEMPLATES: Record<TemplateId, DesignSystemTemplate> = {
         name: 'Brand in Action',
         description: 'Live dashboard mock and design manifesto',
         source: techBrandInActionRaw,
+      },
+    ],
+  },
+  minimal: {
+    styles: minimalStylesRaw,
+    previewSource: minimalPreviewRaw,
+    pages: [
+      { name: 'Cover', description: 'Brand identity overview', source: minimalCoverRaw },
+      {
+        name: 'Colors',
+        description: 'Color palette and scales',
+        source: minimalColorsRaw,
+      },
+      {
+        name: 'Typography',
+        description: 'Font families and type scale',
+        source: minimalTypographyRaw,
       },
     ],
   },

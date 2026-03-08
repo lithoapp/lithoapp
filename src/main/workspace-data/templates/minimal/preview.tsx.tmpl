@@ -1,0 +1,55 @@
+import '@styles.css';
+
+export default function Preview() {
+  return (
+    <div className="relative flex h-full bg-neutral-950">
+      {/* Left panel — branding */}
+      <div className="flex w-[55%] flex-col justify-between px-7 py-6">
+        <div className="flex flex-col gap-2">
+          <p className="font-display text-[40px] font-semibold leading-none tracking-tight text-white">
+            Minimal
+          </p>
+          <div className="h-px w-10 bg-neutral-600" />
+        </div>
+
+        {/* Font specimen */}
+        <div className="flex flex-col gap-1">
+          <p className="font-sans text-[26px] font-light text-neutral-400">Inter</p>
+          <p className="font-mono text-[22px] text-neutral-600">JetBrains Mono</p>
+        </div>
+      </div>
+
+      {/* Right panel — mini page mockup */}
+      <div className="flex flex-1 items-center justify-center py-4 pr-4">
+        <div className="flex h-full w-full flex-col rounded-sm bg-white p-4.5 shadow-lg">
+          <p className="font-display text-[20px] font-semibold leading-tight text-neutral-900">
+            Start Here
+          </p>
+          <div className="my-2 h-px w-8 bg-neutral-300" />
+
+          {/* Content lines */}
+          <div className="flex flex-1 flex-col gap-1.5">
+            <div className="h-2 w-[90%] rounded-sm bg-neutral-100" />
+            <div className="h-2 w-[70%] rounded-sm bg-neutral-100" />
+            <div className="h-2 w-[80%] rounded-sm bg-neutral-100" />
+            <div className="h-2 w-[55%] rounded-sm bg-neutral-50" />
+            <div className="mt-1 h-2 w-[85%] rounded-sm bg-neutral-100" />
+            <div className="h-2 w-[65%] rounded-sm bg-neutral-50" />
+            <div className="h-2 w-[75%] rounded-sm bg-neutral-100" />
+          </div>
+
+          {/* Color dots */}
+          <div className="mt-2.5 flex gap-2">
+            <div className="h-5.5 w-5.5 rounded-full bg-primary-600" />
+            <div className="h-5.5 w-5.5 rounded-full bg-secondary-500" />
+            <div className="h-5.5 w-5.5 rounded-full bg-neutral-400" />
+            <div className="h-5.5 w-5.5 rounded-full bg-neutral-200" />
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom line */}
+      <div className="absolute inset-x-0 bottom-0 h-px bg-neutral-700" />
+    </div>
+  );
+}
