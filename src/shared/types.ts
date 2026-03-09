@@ -265,6 +265,16 @@ export interface AgentContext {
   designSystemDocId?: string | null;
 }
 
+// --- Token Usage (per-message) ---
+
+export interface MessageUsage {
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}
+
 // --- Stored Messages (conversation persistence) ---
 
 export interface StoredTextPart {
@@ -302,6 +312,8 @@ export interface StoredAssistantMessage {
   content:
     | string
     | Array<StoredTextPart | StoredReasoningPart | StoredToolCallPart | StoredToolResultPart>;
+  /** Per-turn token usage — attached by the main process after each AI response. */
+  usage?: MessageUsage;
 }
 
 export interface StoredToolMessage {

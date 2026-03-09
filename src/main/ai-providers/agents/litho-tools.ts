@@ -120,9 +120,7 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
             ? '(no pages yet)'
             : '(no pages yet — use createPage to add one)';
         }
-        return rows
-          .map((r, i) => `${i + 1}\t${r.id}\t${r.name}\t${r.description}`)
-          .join('\n');
+        return rows.map((r, i) => `${i + 1}\t${r.id}\t${r.name}\t${r.description}`).join('\n');
       },
     }),
 

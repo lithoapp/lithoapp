@@ -1,4 +1,5 @@
 import { type LanguageModel, type ModelMessage, streamText, type Tool } from 'ai';
+import type { StoredAssistantMessage } from '../../../shared/types';
 import { getActiveWorkspace } from '../../active-workspace-store';
 import { renderSystemPrompt, resolveAgentTools } from '../agents/config';
 import { parseError } from '../lib/parse-error';
@@ -108,7 +109,13 @@ async function runStepLoop(
 ): Promise<void> {
   let currentMessages = initialMessages;
   let allResponseMessages: ResponseMessage[] = [];
-  const totalUsage = { inputTokens: 0, outputTokens: 0 };
+  const turnUsage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    reasoningTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  };
   let streamErrorEmitted = false;
 
   // Get model's context window for progress tracking
@@ -181,9 +188,14 @@ async function runStepLoop(
           console.log(`    tool-result: ${p.toolName}`);
         } else if (p.type === 'finish') {
           stepFinishReason = p.finishReason ?? 'unknown';
-          // Replace (not accumulate) input tokens - each step reports full context size
-          totalUsage.inputTokens = p.totalUsage?.inputTokens ?? 0;
-          totalUsage.outputTokens += p.totalUsage?.outputTokens ?? 0;
+          // Replace input/reasoning/cache (each step reports full context) — accumulate output
+          turnUsage.inputTokens = p.totalUsage?.inputTokens ?? 0;
+          turnUsage.outputTokens += p.totalUsage?.outputTokens ?? 0;
+          turnUsage.reasoningTokens = p.totalUsage?.reasoningTokens ?? 0;
+          turnUsage.cacheReadTokens = p.totalUsage?.cachedInputTokens ?? 0;
+          // biome-ignore lint/suspicious/noExplicitAny: providerMetadata shape varies by provider
+          const meta = (p as any).providerMetadata;
+          turnUsage.cacheWriteTokens = (meta?.anthropic?.cacheCreationInputTokens as number) ?? 0;
         } else if (p.type === 'error') {
           hadStreamError = true;
         }
@@ -218,13 +230,30 @@ async function runStepLoop(
     // Emit final finish with all accumulated response messages
     const responseMessages = responseToStoredMessages(allResponseMessages);
 
+    // Attach per-turn usage to the last assistant message (for context tracking)
+    for (let i = responseMessages.length - 1; i >= 0; i--) {
+      if (responseMessages[i].role === 'assistant') {
+        (responseMessages[i] as StoredAssistantMessage).usage = {
+          inputTokens: turnUsage.inputTokens,
+          outputTokens: turnUsage.outputTokens,
+          ...(turnUsage.reasoningTokens ? { reasoningTokens: turnUsage.reasoningTokens } : {}),
+          ...(turnUsage.cacheReadTokens ? { cacheReadTokens: turnUsage.cacheReadTokens } : {}),
+          ...(turnUsage.cacheWriteTokens ? { cacheWriteTokens: turnUsage.cacheWriteTokens } : {}),
+        };
+        break;
+      }
+    }
+
     emit('chat:delta', chatId, {
       type: 'finish',
       finishReason: 'stop',
       usage: {
-        inputTokens: totalUsage.inputTokens,
-        outputTokens: totalUsage.outputTokens,
-        totalTokens: totalUsage.inputTokens + totalUsage.outputTokens,
+        inputTokens: turnUsage.inputTokens,
+        outputTokens: turnUsage.outputTokens,
+        reasoningTokens: turnUsage.reasoningTokens,
+        cacheReadTokens: turnUsage.cacheReadTokens,
+        cacheWriteTokens: turnUsage.cacheWriteTokens,
+        totalTokens: turnUsage.inputTokens + turnUsage.outputTokens,
         contextWindow,
       },
       responseMessages,
@@ -234,7 +263,15 @@ async function runStepLoop(
       emit('chat:delta', chatId, {
         type: 'finish',
         finishReason: 'abort',
-        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, contextWindow },
+        usage: {
+          inputTokens: 0,
+          outputTokens: 0,
+          reasoningTokens: 0,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          totalTokens: 0,
+          contextWindow,
+        },
         responseMessages: responseToStoredMessages(allResponseMessages),
       } satisfies ChatStreamEvent);
       return;

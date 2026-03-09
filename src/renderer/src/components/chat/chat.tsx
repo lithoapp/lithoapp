@@ -56,23 +56,28 @@ function formatTokens(count: number): string {
 }
 
 function TokenUsageIndicator({
-  totalTokens,
+  costTokens,
+  contextTokens,
   contextWindow,
 }: {
-  totalTokens: number;
+  costTokens: number;
+  contextTokens: number;
   contextWindow?: number;
 }) {
-  if (totalTokens === 0) return null;
+  if (costTokens === 0 && contextTokens === 0) return null;
 
-  if (!contextWindow) {
+  // Show context bar when we have active context data + a known window
+  const hasContextBar = contextTokens > 0 && contextWindow;
+
+  if (!hasContextBar) {
     return (
       <span className="text-xs tabular-nums text-muted-foreground">
-        {formatTokens(totalTokens)} tokens
+        {formatTokens(costTokens)} tokens
       </span>
     );
   }
 
-  const percent = Math.min((totalTokens / contextWindow) * 100, 100);
+  const percent = Math.min((contextTokens / contextWindow) * 100, 100);
   const isWarning = percent > 50;
   const isCritical = percent > 90;
 
@@ -88,7 +93,7 @@ function TokenUsageIndicator({
           />
         </div>
         <span className="text-xs tabular-nums text-muted-foreground">
-          {formatTokens(totalTokens)} / {formatTokens(contextWindow)}
+          {formatTokens(contextTokens)} / {formatTokens(contextWindow)}
         </span>
       </div>
     </div>
@@ -559,7 +564,8 @@ export function Chat({
           {chat.isStreaming && <PulseLoader size={5} color="#e8652b" speedMultiplier={0.7} />}
           <div className="flex-1" />
           <TokenUsageIndicator
-            totalTokens={chat.usage.totalTokens}
+            costTokens={chat.usage.costInputTokens + chat.usage.costOutputTokens}
+            contextTokens={chat.usage.contextTokens}
             contextWindow={chat.usage.contextWindow}
           />
         </div>

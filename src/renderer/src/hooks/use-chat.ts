@@ -4,6 +4,7 @@ import type {
   ChatError,
   ChatErrorType,
   RevertResult,
+  StoredAssistantMessage,
   StoredMessage,
   StoredUserMessage,
 } from '../../../shared/types';
@@ -34,9 +35,12 @@ export interface UseChatV2Return {
   isLoading: boolean;
   error: ChatError | null;
   usage: {
-    inputTokens: number;
-    outputTokens: number;
-    totalTokens: number;
+    /** Cumulative cost: sum of all turns' input tokens */
+    costInputTokens: number;
+    /** Cumulative cost: sum of all turns' output tokens */
+    costOutputTokens: number;
+    /** Context: last turn's total tokens (how full the context window is) */
+    contextTokens: number;
     contextWindow?: number;
   };
   sendMessage: (text: string) => Promise<void>;
@@ -72,6 +76,25 @@ function generateMessageId(): string {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 }
 
+/** Compute cumulative cost from per-message usage data on assistant messages. */
+function computeCumulativeCost(messages: StoredMessage[]): {
+  inputTokens: number;
+  outputTokens: number;
+} {
+  let inputTokens = 0;
+  let outputTokens = 0;
+  for (const msg of messages) {
+    if (msg.role === 'assistant') {
+      const u = (msg as StoredAssistantMessage).usage;
+      if (u) {
+        inputTokens += u.inputTokens;
+        outputTokens += u.outputTokens;
+      }
+    }
+  }
+  return { inputTokens, outputTokens };
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -94,11 +117,11 @@ export function useChatV2({
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<ChatError | null>(null);
 
-  // Accumulated usage across all turns
+  // Usage: cumulative cost + current context depth
   const [usage, setUsage] = useState({
-    inputTokens: 0,
-    outputTokens: 0,
-    totalTokens: 0,
+    costInputTokens: 0,
+    costOutputTokens: 0,
+    contextTokens: 0,
     contextWindow: undefined as number | undefined,
   });
   const usageRef = useRef(usage);
@@ -136,9 +159,23 @@ export function useChatV2({
       try {
         const loaded = await window.litho.conversation.load(workspaceName, documentId);
         setMessages(loaded.messages);
+
+        // Recompute cost from per-message usage if available, otherwise fall back to DB values
+        const perMessageCost = computeCumulativeCost(loaded.messages);
+        const hasPerMessageUsage =
+          perMessageCost.inputTokens > 0 || perMessageCost.outputTokens > 0;
+        const costInput = hasPerMessageUsage
+          ? perMessageCost.inputTokens
+          : loaded.usage.inputTokens;
+        const costOutput = hasPerMessageUsage
+          ? perMessageCost.outputTokens
+          : loaded.usage.outputTokens;
+
         setUsage({
-          ...loaded.usage,
-          contextWindow: loaded.usage.contextWindow ?? undefined,
+          costInputTokens: costInput,
+          costOutputTokens: costOutput,
+          contextTokens: 0, // no active turn on load
+          contextWindow: undefined,
         });
       } catch {
         setMessages([]);
@@ -269,30 +306,39 @@ export function useChatV2({
           setIsStreaming(false);
           chatIdRef.current = null;
 
-          // Accumulate usage
-          const newUsage = event.usage
-            ? {
-                inputTokens: usageRef.current.inputTokens + event.usage.inputTokens,
-                outputTokens: usageRef.current.outputTokens + event.usage.outputTokens,
-                totalTokens:
-                  usageRef.current.totalTokens + event.usage.inputTokens + event.usage.outputTokens,
-                contextWindow: event.usage.contextWindow,
-              }
-            : usageRef.current;
-          usageRef.current = newUsage;
-          setUsage(newUsage);
-
-          // Append response messages and persist
+          // Append response messages (which carry per-message usage) and recompute
           const responseMessages = event.responseMessages ?? [];
           if (responseMessages.length > 0) {
             setMessages((prev) => {
               const updated = [...prev, ...responseMessages];
+
+              // Cumulative cost: sum all assistant messages' per-turn usage
+              const cost = computeCumulativeCost(updated);
+
+              const newUsage = {
+                costInputTokens: cost.inputTokens,
+                costOutputTokens: cost.outputTokens,
+                // Context: this turn's input tokens = how full the context window is
+                contextTokens: event.usage?.inputTokens ?? 0,
+                contextWindow: event.usage?.contextWindow,
+              };
+              usageRef.current = newUsage;
+              setUsage(newUsage);
+
               void window.litho.conversation.save(workspaceName, documentId, updated, {
-                inputTokens: newUsage.inputTokens,
-                outputTokens: newUsage.outputTokens,
+                inputTokens: cost.inputTokens,
+                outputTokens: cost.outputTokens,
               });
               return updated;
             });
+          } else if (event.usage) {
+            const newUsage = {
+              ...usageRef.current,
+              contextTokens: event.usage.inputTokens,
+              contextWindow: event.usage.contextWindow,
+            };
+            usageRef.current = newUsage;
+            setUsage(newUsage);
           }
 
           // Clear streaming state
@@ -338,8 +384,8 @@ export function useChatV2({
       // Snapshot document state before agent processes this message (skip kickoff)
       if (!isKickoff) {
         await window.litho.snapshot.create(workspaceName, documentId, userMessageId, messages, {
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
+          inputTokens: usage.costInputTokens,
+          outputTokens: usage.costOutputTokens,
         });
       }
 
@@ -382,10 +428,14 @@ export function useChatV2({
       )) as RevertResult;
 
       setMessages(result.messages);
+
+      // Recompute cost from per-message usage after revert
+      const cost = computeCumulativeCost(result.messages);
+      const hasPerMessage = cost.inputTokens > 0 || cost.outputTokens > 0;
       setUsage({
-        inputTokens: result.usage.inputTokens,
-        outputTokens: result.usage.outputTokens,
-        totalTokens: result.usage.totalTokens,
+        costInputTokens: hasPerMessage ? cost.inputTokens : result.usage.inputTokens,
+        costOutputTokens: hasPerMessage ? cost.outputTokens : result.usage.outputTokens,
+        contextTokens: 0,
         contextWindow: undefined,
       });
 
@@ -454,10 +504,14 @@ export function useChatV2({
     )) as RevertResult;
 
     setMessages(result.messages);
+
+    // Recompute cost from per-message usage after revert
+    const cost = computeCumulativeCost(result.messages);
+    const hasPerMessage = cost.inputTokens > 0 || cost.outputTokens > 0;
     setUsage({
-      inputTokens: result.usage.inputTokens,
-      outputTokens: result.usage.outputTokens,
-      totalTokens: result.usage.totalTokens,
+      costInputTokens: hasPerMessage ? cost.inputTokens : result.usage.inputTokens,
+      costOutputTokens: hasPerMessage ? cost.outputTokens : result.usage.outputTokens,
+      contextTokens: 0,
       contextWindow: undefined,
     });
     setError(null);
@@ -498,7 +552,12 @@ export function useChatV2({
     setIsStreaming(false);
     setError(null);
     lastUserMessageRef.current = null;
-    setUsage({ inputTokens: 0, outputTokens: 0, totalTokens: 0, contextWindow: undefined });
+    setUsage({
+      costInputTokens: 0,
+      costOutputTokens: 0,
+      contextTokens: 0,
+      contextWindow: undefined,
+    });
     streamingPartsRef.current = [];
     pendingReasoningRef.current = '';
 

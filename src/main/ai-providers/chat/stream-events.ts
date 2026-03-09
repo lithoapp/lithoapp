@@ -20,6 +20,9 @@ export type ChatStreamEvent =
       usage: {
         inputTokens: number;
         outputTokens: number;
+        reasoningTokens: number;
+        cacheReadTokens: number;
+        cacheWriteTokens: number;
         totalTokens: number;
         contextWindow?: number;
       };
