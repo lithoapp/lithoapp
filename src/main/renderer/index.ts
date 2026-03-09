@@ -12,6 +12,7 @@ import {
   type TemplateId,
 } from '../workspace-data/design-system-pages';
 import { resolveWorkspacePath } from '../workspace-paths';
+import { captureException } from '../sentry';
 import { inlineAssetRefs } from './build-shared';
 import { detectApproach } from './detect-approach';
 
@@ -77,12 +78,17 @@ export async function buildPage(
       },
     };
   } catch (err) {
+    const stage = inferStage(err);
+    captureException(err, {
+      tags: { component: 'renderer', stage: stage ?? 'unknown' },
+      extras: { workspace, document, page, approach },
+    });
     return {
       ok: false,
       error: {
         code: 'BUILD_FAILED',
         message: err instanceof Error ? err.message : String(err),
-        stage: inferStage(err),
+        stage,
       },
     };
   }
@@ -125,6 +131,10 @@ export async function buildAllTemplatePreviews(): Promise<Record<TemplateId, str
     try {
       results[id] = await buildTemplatePreview(id);
     } catch (err) {
+      captureException(err, {
+        tags: { component: 'renderer', stage: 'template-preview' },
+        extras: { templateId: id },
+      });
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(`Template preview build failed for "${id}": ${message}`);
     }

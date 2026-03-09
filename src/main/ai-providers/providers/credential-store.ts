@@ -1,15 +1,5 @@
-import { safeStorage } from 'electron';
 import { getAiDb } from '../db';
 import type { Credential } from '../types';
-
-function encrypt(cred: Credential): string {
-  return safeStorage.encryptString(JSON.stringify(cred)).toString('base64');
-}
-
-function decrypt(blob: string): Credential {
-  const json = safeStorage.decryptString(Buffer.from(blob, 'base64'));
-  return JSON.parse(json) as Credential;
-}
 
 export function getCredential(providerId: string): Credential | undefined {
   const row = getAiDb()
@@ -17,7 +7,7 @@ export function getCredential(providerId: string): Credential | undefined {
     .get(providerId) as { credential_blob: string } | undefined;
   if (!row) return undefined;
   try {
-    return decrypt(row.credential_blob);
+    return JSON.parse(row.credential_blob) as Credential;
   } catch {
     return undefined;
   }
@@ -33,7 +23,7 @@ export function setCredential(providerId: string, cred: Credential): void {
          credential_blob = excluded.credential_blob,
          updated_at = datetime('now')`,
     )
-    .run(providerId, cred.type, encrypt(cred));
+    .run(providerId, cred.type, JSON.stringify(cred));
 }
 
 export function removeCredential(providerId: string): void {
