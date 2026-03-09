@@ -31,6 +31,12 @@ importers:
       '@electron-toolkit/utils':
         specifier: ^4.0.0
         version: 4.0.0(electron@40.6.0)
+      '@esbuild/win32-x64':
+        specifier: 0.25.12
+        version: 0.25.12
+      '@floating-ui/core':
+        specifier: ^1.7.5
+        version: 1.7.5
       '@fontsource-variable/fraunces':
         specifier: ^5.2.9
         version: 5.2.9
@@ -43,27 +49,54 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.71.2(react@19.2.4))
+      '@jridgewell/resolve-uri':
+        specifier: ^3.1.2
+        version: 3.1.2
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@radix-ui/react-use-rect':
+        specifier: ^1.1.1
+        version: 1.1.1(@types/react@19.2.14)(react@19.2.4)
+      '@radix-ui/rect':
+        specifier: ^1.1.1
+        version: 1.1.1
+      '@sentry-internal/browser-utils':
+        specifier: ^10.42.0
+        version: 10.42.0
+      '@sentry-internal/feedback':
+        specifier: ^10.42.0
+        version: 10.42.0
+      '@sentry-internal/replay':
+        specifier: ^10.42.0
+        version: 10.42.0
+      '@sentry-internal/replay-canvas':
+        specifier: ^10.42.0
+        version: 10.42.0
       '@sentry/electron':
         specifier: ^7.8.0
         version: 7.8.0
       '@sentry/react':
         specifier: ^10.39.0
         version: 10.39.0(react@19.2.4)
-      '@sentry/vite-plugin':
-        specifier: ^4.9.1
-        version: 4.9.1(encoding@0.1.13)
       '@tailwindcss/node':
         specifier: ^4.1.10
         version: 4.2.1
+      acorn:
+        specifier: ^8.16.0
+        version: 8.16.0
+      acorn-import-attributes:
+        specifier: ^1.9.5
+        version: 1.9.5(acorn@8.16.0)
       ai:
         specifier: 5.0.124
         version: 5.0.124(zod@4.3.6)
       better-sqlite3:
         specifier: ^12.6.2
         version: 12.6.2
+      cjs-module-lexer:
+        specifier: ^2.2.0
+        version: 2.2.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -76,6 +109,9 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
+      detect-node-es:
+        specifier: ^1.1.0
+        version: 1.1.0
       electron-updater:
         specifier: ^6.6.2
         version: 6.8.3
@@ -85,15 +121,24 @@ importers:
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
+      get-nonce:
+        specifier: ^1.0.1
+        version: 1.0.1
       highlight.js:
         specifier: ^11.11.1
         version: 11.11.1
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      json-schema:
+        specifier: ^0.4.0
+        version: 0.4.0
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
+      lightningcss-win32-x64-msvc:
+        specifier: 1.31.1
+        version: 1.31.1
       lucide-react:
         specifier: ^0.525.0
         version: 0.525.0(react@19.2.4)
@@ -106,6 +151,12 @@ importers:
       markstream-react:
         specifier: 0.0.20-beta.7
         version: 0.0.20-beta.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      mimic-response:
+        specifier: ^4.0.0
+        version: 4.0.0
+      ms:
+        specifier: ^2.1.3
+        version: 2.1.3
       mustache:
         specifier: ^4.2.0
         version: 4.2.0
@@ -130,12 +181,18 @@ importers:
       react-hook-form:
         specifier: ^7.71.1
         version: 7.71.2(react@19.2.4)
+      react-remove-scroll-bar:
+        specifier: ^2.3.8
+        version: 2.3.8(@types/react@19.2.14)(react@19.2.4)
       react-resizable-panels:
         specifier: ^4.6.4
         version: 4.6.5(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-spinners:
         specifier: ^0.17.0
         version: 0.17.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react-style-singleton:
+        specifier: ^2.2.3
+        version: 2.2.3(@types/react@19.2.14)(react@19.2.4)
       recharts:
         specifier: 2.15.4
         version: 2.15.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -145,9 +202,21 @@ importers:
       tailwind-merge:
         specifier: ^3.4.1
         version: 3.5.0
+      undici-types:
+        specifier: ^7.22.0
+        version: 7.22.0
+      use-callback-ref:
+        specifier: ^1.3.3
+        version: 1.3.3(@types/react@19.2.14)(react@19.2.4)
+      use-sidecar:
+        specifier: ^1.1.3
+        version: 1.1.3(@types/react@19.2.14)(react@19.2.4)
       vaul:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      wrappy:
+        specifier: ^1.0.2
+        version: 1.0.2
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -161,6 +230,9 @@ importers:
       '@electron/rebuild':
         specifier: ^4.0.3
         version: 4.0.3
+      '@sentry/vite-plugin':
+        specifier: ^4.9.1
+        version: 4.9.1(encoding@0.1.13)
       '@tailwindcss/vite':
         specifier: ^4.1.10
         version: 4.2.1(vite@7.3.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.31.1))
@@ -806,8 +878,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@floating-ui/core@1.7.4':
-    resolution: {integrity: sha512-C3HlIdsBxszvm5McXlB8PeOEWfBhcGBTZGkGlWc2U0KFY5IwG5OQEuQ8rq52DZmcHDlPLd+YFBK+cZcytwIFWg==}
+  '@floating-ui/core@1.7.5':
+    resolution: {integrity: sha512-1Ih4WTWyw0+lKyFMcBHGbb5U5FtuHJuujoyyr5zTaWS5EYMeT6Jb2AuDeftsCsEuchO+mM2ij5+q9crhydzLhQ==}
 
   '@floating-ui/dom@1.7.5':
     resolution: {integrity: sha512-N0bD2kIPInNHUHehXhMke1rBGs1dwqvC9O9KYMyyjK7iXt7GAhnro7UlcuYcGdS/yYOlq0MAVgrow8IbWJwyqg==}
@@ -820,6 +892,9 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@floating-ui/utils@0.2.11':
+    resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
   '@fontsource-variable/fraunces@5.2.9':
     resolution: {integrity: sha512-Y6IjunlN9Ni723np+GIgAaKzCDBrPRrqNi01TZxHs5wtHYROWFM9W6yiT+/gGwSjWIRD18oX17kD/BRWekc/Lw==}
@@ -2131,16 +2206,32 @@ packages:
     resolution: {integrity: sha512-W6WODonMGiI13Az5P7jd/m2lj/JpIyuVKg7wE4X+YdlMehLspAv6I7gRE4OBSumS14ZjdaYDpD/lwtnBwKAzcA==}
     engines: {node: '>=18'}
 
+  '@sentry-internal/browser-utils@10.42.0':
+    resolution: {integrity: sha512-HCEICKvepxN4/6NYfnMMMlppcSwIEwtS66X6d1/mwaHdi2ivw0uGl52p7Nfhda/lIJArbrkWprxl0WcjZajhQA==}
+    engines: {node: '>=18'}
+
   '@sentry-internal/feedback@10.39.0':
     resolution: {integrity: sha512-cRXmmDeOr5FzVsBNRLU4WDEuC3fhuD0XV362EWl4DI3XBGao8ukaueKcLIKic5WZx6uXimjWw/UJmDLgxeCqkg==}
+    engines: {node: '>=18'}
+
+  '@sentry-internal/feedback@10.42.0':
+    resolution: {integrity: sha512-lpPcHsog10MVYFTWE0Pf8vQRqQWwZHJpkVl2FEb9/HDdHFyTBUhCVoWo1KyKaG7GJl9AVKMAg7bp9SSNArhFNQ==}
     engines: {node: '>=18'}
 
   '@sentry-internal/replay-canvas@10.39.0':
     resolution: {integrity: sha512-TTiX0XWCcqTqFGJjEZYObk93j/sJmXcqPzcu0cN2mIkKnnaHDY3w74SHZCshKqIr0AOQdt1HDNa36s3TCdt0Jw==}
     engines: {node: '>=18'}
 
+  '@sentry-internal/replay-canvas@10.42.0':
+    resolution: {integrity: sha512-am3m1Fj8ihoPfoYo41Qq4KeCAAICn4bySso8Oepu9dMNe9Lcnsf+reMRS2qxTPg3pZDc4JEMOcLyNCcgnAfrHw==}
+    engines: {node: '>=18'}
+
   '@sentry-internal/replay@10.39.0':
     resolution: {integrity: sha512-obZoYOrUfxIYBHkmtPpItRdE38VuzF1VIxSgZ8Mbtq/9UvCWh+eOaVWU2stN/cVu1KYuYX0nQwBvdN28L6y/JA==}
+    engines: {node: '>=18'}
+
+  '@sentry-internal/replay@10.42.0':
+    resolution: {integrity: sha512-Zh3EoaH39x2lqVY1YyVB2vJEyCIrT+YLUQxYl1yvP0MJgLxaR6akVjkgxbSUJahan4cX5DxpZiEHfzdlWnYPyQ==}
     engines: {node: '>=18'}
 
   '@sentry/babel-plugin-component-annotate@4.9.1':
@@ -2209,6 +2300,10 @@ packages:
 
   '@sentry/core@10.39.0':
     resolution: {integrity: sha512-xCLip2mBwCdRrvXHtVEULX0NffUTYZZBhEUGht0WFL+GNdNQ7gmBOGOczhZlrf2hgFFtDO0fs1xiP9bqq5orEQ==}
+    engines: {node: '>=18'}
+
+  '@sentry/core@10.42.0':
+    resolution: {integrity: sha512-L4rMrXMqUKBanpjpMT+TuAVk6xAijz6AWM6RiEYpohAr7SGcCEc1/T0+Ep1eLV8+pwWacfU27OvELIyNeOnGzA==}
     engines: {node: '>=18'}
 
   '@sentry/electron@7.8.0':
@@ -4040,6 +4135,10 @@ packages:
     resolution: {integrity: sha512-z0yWI+4FDrrweS8Zmt4Ej5HdJmky15+L2e6Wgn3+iK5fWzb6T3fhNFq2+MeTRb064c6Wr4N/wv0DzQTjNzHNGQ==}
     engines: {node: '>=10'}
 
+  mimic-response@4.0.0:
+    resolution: {integrity: sha512-e5ISH9xMYU0DzrT+jl8q2ze9D6eWBto+I8CNpe+VI+K2J/F/k3PdkdTdz4wvGVH4NTpo+NRYTVIuMQEMMcsLqg==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
   min-document@2.19.2:
     resolution: {integrity: sha512-8S5I8db/uZN8r9HSLFVWPdJCvYOejMcEC82VIzNUc6Zkklf/d1gg2psfE79/vyhWOj4+J8MtwmoOz3TmvaGu5A==}
 
@@ -5015,6 +5114,9 @@ packages:
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
 
+  undici-types@7.22.0:
+    resolution: {integrity: sha512-RKZvifiL60xdsIuC80UY0dq8Z7DbJUV8/l2hOVbyZAxBzEeQU4Z58+4ZzJ6WN2Lidi9KzT5EbiGX+PI/UGYuRw==}
+
   unique-filename@4.0.0:
     resolution: {integrity: sha512-XSnEewXmQ+veP7xX2dS5Q4yZAvO40cBN2MWkJ7D/6sW4Dg6wYBNwM1Vrnz1FhH5AdeLIlUXRI9e28z1YZi71NQ==}
     engines: {node: ^18.17.0 || >=20.5.0}
@@ -5800,19 +5902,18 @@ snapshots:
   '@esbuild/win32-ia32@0.27.3':
     optional: true
 
-  '@esbuild/win32-x64@0.25.12':
-    optional: true
+  '@esbuild/win32-x64@0.25.12': {}
 
   '@esbuild/win32-x64@0.27.3':
     optional: true
 
-  '@floating-ui/core@1.7.4':
+  '@floating-ui/core@1.7.5':
     dependencies:
-      '@floating-ui/utils': 0.2.10
+      '@floating-ui/utils': 0.2.11
 
   '@floating-ui/dom@1.7.5':
     dependencies:
-      '@floating-ui/core': 1.7.4
+      '@floating-ui/core': 1.7.5
       '@floating-ui/utils': 0.2.10
 
   '@floating-ui/react-dom@2.1.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
@@ -5822,6 +5923,8 @@ snapshots:
       react-dom: 19.2.4(react@19.2.4)
 
   '@floating-ui/utils@0.2.10': {}
+
+  '@floating-ui/utils@0.2.11': {}
 
   '@fontsource-variable/fraunces@5.2.9': {}
 
@@ -7276,19 +7379,37 @@ snapshots:
     dependencies:
       '@sentry/core': 10.39.0
 
+  '@sentry-internal/browser-utils@10.42.0':
+    dependencies:
+      '@sentry/core': 10.42.0
+
   '@sentry-internal/feedback@10.39.0':
     dependencies:
       '@sentry/core': 10.39.0
+
+  '@sentry-internal/feedback@10.42.0':
+    dependencies:
+      '@sentry/core': 10.42.0
 
   '@sentry-internal/replay-canvas@10.39.0':
     dependencies:
       '@sentry-internal/replay': 10.39.0
       '@sentry/core': 10.39.0
 
+  '@sentry-internal/replay-canvas@10.42.0':
+    dependencies:
+      '@sentry-internal/replay': 10.42.0
+      '@sentry/core': 10.42.0
+
   '@sentry-internal/replay@10.39.0':
     dependencies:
       '@sentry-internal/browser-utils': 10.39.0
       '@sentry/core': 10.39.0
+
+  '@sentry-internal/replay@10.42.0':
+    dependencies:
+      '@sentry-internal/browser-utils': 10.42.0
+      '@sentry/core': 10.42.0
 
   '@sentry/babel-plugin-component-annotate@4.9.1': {}
 
@@ -7359,6 +7480,8 @@ snapshots:
       - supports-color
 
   '@sentry/core@10.39.0': {}
+
+  '@sentry/core@10.42.0': {}
 
   '@sentry/electron@7.8.0':
     dependencies:
@@ -9161,8 +9284,7 @@ snapshots:
   lightningcss-win32-arm64-msvc@1.31.1:
     optional: true
 
-  lightningcss-win32-x64-msvc@1.31.1:
-    optional: true
+  lightningcss-win32-x64-msvc@1.31.1: {}
 
   lightningcss@1.31.1:
     dependencies:
@@ -9331,6 +9453,8 @@ snapshots:
   mimic-response@1.0.1: {}
 
   mimic-response@3.1.0: {}
+
+  mimic-response@4.0.0: {}
 
   min-document@2.19.2:
     dependencies:
@@ -10394,6 +10518,8 @@ snapshots:
   undici-types@6.21.0: {}
 
   undici-types@7.16.0: {}
+
+  undici-types@7.22.0: {}
 
   unique-filename@4.0.0:
     dependencies:

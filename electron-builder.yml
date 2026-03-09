@@ -12,6 +12,10 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+  - node_modules/esbuild/**
+  - node_modules/@esbuild/**
+  - node_modules/lightningcss/**
+  - node_modules/lightningcss-*/**
 extraResources:
   - from: resources/bin
     to: bin
@@ -19,6 +23,10 @@ extraResources:
       - "**/*"
 mac:
   category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
@@ -32,7 +40,7 @@ dmg:
 win:
   executableName: Litho
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  artifactName: ${name}-${version}-${arch}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
