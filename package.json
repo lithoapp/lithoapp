@@ -17,7 +17,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false",
-    "postinstall": "electron-rebuild -o better-sqlite3",
+    "postinstall": "electron-rebuild -o better-sqlite3 -f",
     "lint": "biome check .",
     "format": "biome check --fix .",
     "test": "vitest run",
