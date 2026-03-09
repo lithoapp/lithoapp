@@ -89,6 +89,7 @@ interface LithoAPI {
       document: string,
       page: string,
       approach?: 'ssr' | 'csr',
+      editMode?: boolean,
     ) => Promise<RendererResult<PageBuildData>>;
     export: (options: PageExportOptions) => Promise<RendererResult<void>>;
     validateCss: (workspace: string) => Promise<{ ok: true } | { ok: false; errors: string[] }>;

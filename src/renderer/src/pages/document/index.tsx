@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DocumentChat } from '@/components/chat/document-chat';
+import { PendingChangesPanel } from '@/components/edit-mode/pending-changes-panel';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
@@ -18,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useEditMode } from '@/hooks/use-edit-mode';
 import {
   addDiagnosticPrefix,
   type PostTurnValidator,
@@ -78,7 +80,6 @@ export function DocumentPage({
   const [fitToWidth, setFitToWidth] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const [pageHtmlMap, setPageHtmlMap] = useState<Map<string, string>>(new Map());
   const [pageAudits, setPageAudits] = useState<Map<string, PageAudit[]>>(new Map());
   const [isAgentBusy, setIsAgentBusy] = useState(false);
@@ -95,6 +96,21 @@ export function DocumentPage({
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const viewerRef = useRef<HTMLDivElement>(null);
   const sendMessageRef = useRef<((text: string) => void) | null>(null);
+
+  const {
+    editMode,
+    pendingChanges,
+    toggleEditMode,
+    removePendingChange,
+    confirmEdits,
+    discardEdits,
+  } = useEditMode({
+    workspaceName,
+    docId: doc.id,
+    pages,
+    setPageHtmlMap,
+    sendMessageRef,
+  });
 
   // TSX post-turn diagnostics: validate page builds after the agent finishes
   const tsxValidator: PostTurnValidator = useMemo(
@@ -420,7 +436,7 @@ export function DocumentPage({
       onZoomOut={handleZoomOut}
       onFitToWidth={handleFitToWidth}
       onToggleAssets={setViewMode}
-      onToggleEditMode={() => setEditMode((m) => !m)}
+      onToggleEditMode={toggleEditMode}
       onExport={() => setExportOpen(true)}
     />
   );
@@ -500,18 +516,42 @@ export function DocumentPage({
   if (editMode) {
     return (
       <TooltipProvider>
-        <div className="flex h-full flex-col">
-          {toolbar}
-          <div ref={viewerRef} className="relative min-w-0 flex-1">
-            <div
-              ref={scrollRef}
-              className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
-            >
-              {pageContent}
+        <ResizablePanelGroup orientation="horizontal" className="h-full">
+          <ResizablePanel defaultSize={70} minSize={40}>
+            <div className="flex h-full flex-col">
+              {toolbar}
+              <div className="flex min-h-0 flex-1">
+                <PageSidebar
+                  pages={pages}
+                  currentPage={currentPage}
+                  onPageClick={handleThumbnailClick}
+                />
+
+                {/* Page viewer */}
+                <div ref={viewerRef} className="relative min-w-0 flex-1">
+                  <div
+                    ref={scrollRef}
+                    className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
+                  >
+                    {pageContent}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          {exportDialog}
-        </div>
+            {exportDialog}
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          <ResizablePanel defaultSize={30} minSize={20}>
+            <PendingChangesPanel
+              changes={pendingChanges}
+              onRemove={removePendingChange}
+              onConfirm={confirmEdits}
+              onDiscard={discardEdits}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </TooltipProvider>
     );
   }
@@ -557,27 +597,12 @@ export function DocumentPage({
                 if (viewMode === 'preview') setViewMode('assets');
               }}
             >
-              {/* Sidebar — pages list */}
-              <div className="flex w-48 min-h-0 shrink-0 flex-col border-r">
-                <ScrollArea className="flex-1">
-                  <div className="flex flex-col gap-0.5 p-3">
-                    {hasPages ? (
-                      pages.map((page, index) => (
-                        <PageListItem
-                          key={page.id}
-                          index={index}
-                          name={page.name}
-                          isActive={currentPage === index}
-                          hasAuditWarning={(pageAudits.get(page.id)?.length ?? 0) > 0}
-                          onClick={handleThumbnailClick}
-                        />
-                      ))
-                    ) : (
-                      <p className="py-4 text-center text-xs text-muted-foreground">Empty</p>
-                    )}
-                  </div>
-                </ScrollArea>
-              </div>
+              <PageSidebar
+                pages={pages}
+                currentPage={currentPage}
+                pageAudits={pageAudits}
+                onPageClick={handleThumbnailClick}
+              />
 
               {/* Main content — preview or assets */}
               {viewMode === 'assets' ? (
@@ -755,6 +780,45 @@ function DocumentToolbar({
           <TooltipContent>Export document</TooltipContent>
         </Tooltip>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page sidebar
+// ---------------------------------------------------------------------------
+
+function PageSidebar({
+  pages,
+  currentPage,
+  pageAudits,
+  onPageClick,
+}: {
+  pages: { id: string; name: string }[];
+  currentPage: number;
+  pageAudits?: Map<string, unknown[]>;
+  onPageClick: (index: number) => void;
+}) {
+  return (
+    <div className="flex w-48 min-h-0 shrink-0 flex-col border-r">
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col gap-0.5 p-3">
+          {pages.length > 0 ? (
+            pages.map((page, index) => (
+              <PageListItem
+                key={page.id}
+                index={index}
+                name={page.name}
+                isActive={currentPage === index}
+                hasAuditWarning={(pageAudits?.get(page.id)?.length ?? 0) > 0}
+                onClick={onPageClick}
+              />
+            ))
+          ) : (
+            <p className="py-4 text-center text-xs text-muted-foreground">Empty</p>
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 }

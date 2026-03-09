@@ -401,8 +401,8 @@ registerAiProviderHandlers(ipcMain);
 // Renderer
 ipcMain.handle(
   'renderer:build',
-  (_event, ws: string, doc: string, page: string, approach?: 'ssr' | 'csr') =>
-    buildPage(ws, doc, page, approach),
+  (_event, ws: string, doc: string, page: string, approach?: 'ssr' | 'csr', editMode?: boolean) =>
+    buildPage(ws, doc, page, approach, editMode),
 );
 ipcMain.handle('renderer:export', (_event, options) => exportPage(options));
 ipcMain.handle('template:buildPreviews', () => buildAllTemplatePreviews());

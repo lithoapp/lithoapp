@@ -13,6 +13,8 @@ import {
   formatEsbuildError,
   toCssUnit,
 } from './build-shared';
+import { EDITOR_SCRIPT } from './editor-script';
+import { injectLocAttributes } from './loc-plugin';
 
 /** Pipeline timings returned before asset inlining. */
 export interface CsrPipelineTimings {
@@ -32,6 +34,7 @@ export async function buildPageCsr(
   pageSource: string,
   css: string,
   size: PageSize,
+  options?: { editMode?: boolean; pageId?: string },
 ): Promise<{ html: string; timings: CsrPipelineTimings }> {
   const cssUnit = toCssUnit(size.unit);
 
@@ -56,11 +59,16 @@ export async function buildPageCsr(
         path: 'virtual:page-entry',
         namespace: 'virtual-page',
       }));
-      b.onLoad({ filter: /.*/, namespace: 'virtual-page' }, () => ({
-        contents: pageSource.replace(/import\s+['"]@styles\.css['"];?\s*/g, ''),
-        loader: 'tsx' as const,
-        resolveDir: wsPath,
-      }));
+      b.onLoad({ filter: /.*/, namespace: 'virtual-page' }, () => {
+        // Inject loc attributes BEFORE stripping imports so line numbers match
+        // the original source that the AI agent reads from the database.
+        let contents = pageSource;
+        if (options?.editMode && options.pageId) {
+          contents = injectLocAttributes(contents, options.pageId);
+        }
+        contents = contents.replace(/import\s+['"]@styles\.css['"];?\s*/g, '');
+        return { contents, loader: 'tsx' as const, resolveDir: wsPath };
+      });
     },
   };
 
@@ -103,6 +111,10 @@ export async function buildPageCsr(
   }
   const tailwindMs = Math.round(performance.now() - tailwindStart);
 
-  const html = assembleHtml({ css: finalCss, scriptContent: jsBundle });
+  const html = assembleHtml({
+    css: finalCss,
+    scriptContent: jsBundle,
+    editorScript: options?.editMode ? EDITOR_SCRIPT : undefined,
+  });
   return { html, timings: { esbuild: esbuildMs, tailwind: tailwindMs, ssrRender: null } };
 }

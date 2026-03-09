@@ -110,8 +110,9 @@ contextBridge.exposeInMainWorld('litho', {
       document: string,
       page: string,
       approach?: 'ssr' | 'csr',
+      editMode?: boolean,
     ): Promise<unknown> =>
-      ipcRenderer.invoke('renderer:build', workspace, document, page, approach),
+      ipcRenderer.invoke('renderer:build', workspace, document, page, approach, editMode),
     export: (options: {
       html: string;
       approach: 'ssr' | 'csr';

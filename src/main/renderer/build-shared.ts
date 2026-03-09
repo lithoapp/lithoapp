@@ -189,6 +189,7 @@ export function assembleHtml(options: {
   css: string;
   scriptContent?: string;
   bodyHtml?: string;
+  editorScript?: string;
 }): string {
   const { linkTags, inlineCss } = extractUrlImports(options.css);
 
@@ -200,6 +201,8 @@ export function assembleHtml(options: {
     ? `\n<script type="module">${options.scriptContent}</script>`
     : '';
 
+  const editorTag = options.editorScript ? `\n<script>${options.editorScript}</script>` : '';
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -209,7 +212,7 @@ ${linkTags}
 <style>html, body { margin: 0; padding: 0; overflow: hidden; }</style>
 </head>
 <body>
-${bodyContent}${scriptTag}
+${bodyContent}${scriptTag}${editorTag}
 </body>
 </html>`;
 }

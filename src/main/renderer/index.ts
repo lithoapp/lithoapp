@@ -23,16 +23,17 @@ async function runPipeline(
   pageSource: string,
   css: string,
   size: PageSize,
+  options?: { editMode?: boolean; pageId?: string },
 ): Promise<{
   html: string;
   timings: { esbuild: number; tailwind: number; ssrRender: number | null };
 }> {
-  if (approach === 'ssr') {
+  if (approach === 'ssr' && !options?.editMode) {
     const { buildPageSsr } = await import('./build-ssr');
     return buildPageSsr(wsPath, pageSource, css, size);
   }
   const { buildPageCsr } = await import('./build-csr');
-  return buildPageCsr(wsPath, pageSource, css, size);
+  return buildPageCsr(wsPath, pageSource, css, size, options);
 }
 
 export async function buildPage(
@@ -40,6 +41,7 @@ export async function buildPage(
   document: string,
   page: string,
   approach?: RenderApproach,
+  editMode?: boolean,
 ): Promise<RendererResult<PageBuildData>> {
   try {
     const totalStart = performance.now();
@@ -58,6 +60,7 @@ export async function buildPage(
       pageSource,
       css,
       config.size,
+      editMode ? { editMode, pageId: page } : undefined,
     );
 
     const assetStart = performance.now();

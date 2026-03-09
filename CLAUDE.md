@@ -21,7 +21,7 @@ pnpm typecheck            # Type-check (main + renderer)
 
 - `index.ts` — Window creation, IPC handlers, `litho-asset://` custom protocol, app lifecycle
 - `ai-providers/` — AI SDK integration (see AI Architecture below)
-- `renderer/` — Offline build pipeline (TSX + Tailwind → HTML): `build-csr.ts`, `build-ssr.ts`, `build-shared.ts`, `detect-approach.ts`
+- `renderer/` — Offline build pipeline (TSX + Tailwind → HTML): `build-csr.ts`, `build-ssr.ts`, `build-shared.ts`, `detect-approach.ts`, `loc-plugin.ts` (Babel-based `data-litho-loc` injection for edit mode), `editor-script.ts` (iframe interaction script for visual editing)
 - `exporter/` — Export capture & assembly: `export-page.ts` (hidden BrowserWindow → PDF/PNG/JPG buffer), `document-exporter.ts` (multi-page orchestrator), `batch-export.ts` (CLI batch entry point)
 - `workspace-data/` — SQLite-backed data layer: `db.ts` (connection pool, schema v5, migrations), `db-backend.ts` (CRUD operations), `registry-db.ts` (global workspace registry), `design-system-parser.ts` (CSS token extraction), `design-system-pages.ts` (template page definitions), `export-source.ts` (workspace ZIP export), `templates/` (Mustache templates for design system pages)
 - `workspace-paths.ts` — Resolves workspace name → `{userData}/workspaces/<name>`
@@ -73,8 +73,9 @@ Each agent has: `system.md` (system prompt — runtime variables at top via Must
 - React 19 + Tailwind CSS v4 + shadcn/ui components (Radix UI)
 - **Router**: Centralized state machine in `App.tsx` — no file-based routing. `Page` union type drives navigation.
 - **Pages**: Onboarding (profile setup + provider picker), Workspaces, Documents (grid with thumbnails), Document viewer (with chat panel + page audit bar), Design System Doc (token editor + chat), Assets browser, Settings v2 (sidebar + tabs: profile, AI providers, privacy, about, advanced), Renderer POC (build/export testing)
-- **Hooks**: `useChat()` (streaming via IPC `chat:delta` events, messages, cost/tokens), `useProviderList()` (AI provider discovery + auth), `usePostTurnDiagnostics()` (post-agent validation on dirty pages), `useWorkspace()`, `useDesignSystem()`, `usePageBuild()`, `usePageExport()`, `useDocumentConfig()`, `useConnectFlow()`, `useMobile()`
+- **Hooks**: `useChat()` (streaming via IPC `chat:delta` events, messages, cost/tokens), `useProviderList()` (AI provider discovery + auth), `usePostTurnDiagnostics()` (post-agent validation on dirty pages), `useEditMode()` (visual edit mode state, pending changes, postMessage listener, confirm/discard), `useWorkspace()`, `useDesignSystem()`, `usePageBuild()`, `usePageExport()`, `useDocumentConfig()`, `useConnectFlow()`, `useMobile()`
 - **Chat** (`components/chat/`): Streams from main process via IPC events. Handles model selection, cost tracking. Renders hex colors as inline swatches.
+- **Edit Mode** (`components/edit-mode/`): Visual inline editing — users click elements in page preview iframes, make text edits inline or describe changes via floating input. Changes accumulate as pending, then compile into a structured prompt sent to the AI agent. Files: `types.ts` (PendingChange union), `pending-changes-panel.tsx` (UI panel), `compile-prompt.ts` (changes → agent prompt), `visual-edit-message.tsx` (renders visual edit messages in chat).
 - **Lib** (`src/renderer/src/lib/`): SSE message handlers, cost/token extraction, prompt templates (Mustache), chat preferences (localStorage), page auditors (overflow detection), provider actions (OAuth, API key, ping)
 - **Fonts**: Fraunces (display), Inter (sans), JetBrains Mono (mono)
 - **Design**: Dark mode, primary color #e8652b (orange)
