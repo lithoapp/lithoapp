@@ -12,7 +12,7 @@ import {
   storedToModelMessages,
 } from './message-mapping';
 import { buildProviderOptions } from './provider-options';
-import { type ChatErrorType, type ChatStreamEvent, mapStreamPart } from './stream-events';
+import { type ChatStreamEvent, mapStreamPart } from './stream-events';
 
 // ---------------------------------------------------------------------------
 // Active stream registry

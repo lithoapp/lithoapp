@@ -87,7 +87,8 @@ const TEMPLATES: Record<TemplateId, DesignSystemTemplate> = {
       },
       {
         name: 'Story',
-        description: 'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
+        description:
+          'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
         source: minimalStoryRaw,
       },
     ],
@@ -105,7 +106,8 @@ const TEMPLATES: Record<TemplateId, DesignSystemTemplate> = {
       },
       {
         name: 'Story',
-        description: 'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
+        description:
+          'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
         source: corporateStoryRaw,
       },
     ],
@@ -123,7 +125,8 @@ const TEMPLATES: Record<TemplateId, DesignSystemTemplate> = {
       },
       {
         name: 'Story',
-        description: 'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
+        description:
+          'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
         source: brightsideStoryRaw,
       },
     ],
@@ -141,7 +144,8 @@ const TEMPLATES: Record<TemplateId, DesignSystemTemplate> = {
       },
       {
         name: 'Story',
-        description: 'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
+        description:
+          'Placeholder page for brand voice, values, and personality — empty by default, meant to be filled in',
         source: editorialStoryRaw,
       },
     ],

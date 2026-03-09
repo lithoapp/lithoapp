@@ -44,6 +44,25 @@ function detectForbiddenOverflow(source: string): string | null {
   return `Page not saved — "${match[0]}" is forbidden. Pages are fixed-size print layouts and must not scroll.`;
 }
 
+/**
+ * Detect asset src paths that don't use the @assets/ prefix.
+ * Common mistakes: "/assets/...", "./assets/...", "/workspace-assets/...", bare filenames in src.
+ */
+const BAD_ASSET_SRC_RE =
+  /\bsrc=["'](?:\/assets\/|\.\/assets\/|\/workspace-assets\/|\/images\/|\.\/images\/)(.*?)["']/;
+
+function detectBadAssetPath(source: string): string | null {
+  const match = source.match(BAD_ASSET_SRC_RE);
+  if (!match) return null;
+  const badPath = match[0];
+  const filename = match[1];
+  return (
+    `Page not saved — ${badPath} uses a wrong asset path. ` +
+    `Use @assets/${filename} for workspace assets or @assets/documents/<docId>/${filename} for document assets. ` +
+    `The @assets/ prefix is required — it maps to the workspace asset directory at build time.`
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
@@ -101,7 +120,9 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
             ? '(no pages yet)'
             : '(no pages yet — use createPage to add one)';
         }
-        return rows.map((r) => `${r.id}\t${r.name}\t${r.description}`).join('\n');
+        return rows
+          .map((r, i) => `${i + 1}\t${r.id}\t${r.name}\t${r.description}`)
+          .join('\n');
       },
     }),
 
@@ -136,8 +157,9 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         const suffix =
           end < total ? `\n\n(${total - end} more lines — use offset=${end + 1} to continue)` : '';
 
+        const label = getPageLabel(docId, pageId);
         const layoutSummary = await runLayoutAnalysis(docId, pageId);
-        return numbered + suffix + layoutSummary;
+        return `${label}\n\n${numbered}${suffix}${layoutSummary}`;
       },
     }),
 
@@ -153,6 +175,9 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
       execute: async ({ docId, pageId, content }) => {
         const forbidden = detectForbiddenOverflow(content);
         if (forbidden) return forbidden;
+
+        const badAsset = detectBadAssetPath(content);
+        if (badAsset) return badAsset;
 
         const result = db()
           .prepare(
@@ -180,8 +205,7 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         msg += await runLayoutAnalysis(docId, pageId);
 
         if (writePageCount === WRITE_PAGE_LIMIT) {
-          msg +=
-            `\n\n[LIMIT REACHED] You've written ${WRITE_PAGE_LIMIT} pages. Stop here and ask the user to review before continuing.`;
+          msg += `\n\n[LIMIT REACHED] You've written ${WRITE_PAGE_LIMIT} pages. Stop here and ask the user to review before continuing.`;
         }
 
         return msg;
@@ -213,6 +237,9 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
 
         const forbidden = detectForbiddenOverflow(updated);
         if (forbidden) return forbidden;
+
+        const badAsset = detectBadAssetPath(updated);
+        if (badAsset) return badAsset;
 
         db()
           .prepare(
@@ -626,9 +653,9 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         'Read the workspace styles.css file. Returns the design system CSS with line numbers.',
       inputSchema: z.object({}),
       execute: async () => {
-        const row = db()
-          .prepare('SELECT css, original_css_hash FROM styles WHERE id = 1')
-          .get() as { css: string; original_css_hash: string | null } | undefined;
+        const row = db().prepare('SELECT css, original_css_hash FROM styles WHERE id = 1').get() as
+          | { css: string; original_css_hash: string | null }
+          | undefined;
 
         if (!row) {
           throw new Error('Styles not found');
@@ -698,7 +725,8 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
     listWorkspaceAssets: tool({
       description:
         'List workspace-level assets (images) shared across all documents. ' +
-        'Excludes per-document asset folders.',
+        'Excludes per-document asset folders. ' +
+        'Reference these in pages as @assets/filename (the paths returned already include the @assets/ prefix).',
       inputSchema: z.object({}),
       execute: async () => {
         const workspacePath = resolveWorkspacePath(workspace);
@@ -710,7 +738,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         );
 
         if (filtered.length === 0) return '(no workspace assets)';
-        return filtered.map((e) => `${e.path}\t${e.type}\t${e.ext}\t${e.size}`).join('\n');
+        return filtered
+          .map((e) =>
+            e.type === 'file'
+              ? `@assets/${e.path}\t${e.type}\t${e.ext}\t${e.size}`
+              : `${e.path}/\t${e.type}\t\t`,
+          )
+          .join('\n');
       },
     }),
 
@@ -737,8 +771,7 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
 
     // ── updateDocumentSize ──────────────────────────────────────────────
     updateDocumentSize: tool({
-      description:
-        'Change a document\'s page size. Only works if the document has no pages yet.',
+      description: "Change a document's page size. Only works if the document has no pages yet.",
       inputSchema: z.object({
         docId: z.string().describe('Document ID'),
         size: z.enum(PAGE_SIZE_NAMES).describe('New page size preset'),

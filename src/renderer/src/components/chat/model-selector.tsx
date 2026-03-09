@@ -71,7 +71,7 @@ export function ModelSelector({
         setLoading(false);
       }
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onSelect, providerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const connectedProviders = useMemo(
     () => providers.filter((p) => connectedIds.includes(p.id)),
@@ -100,7 +100,7 @@ export function ModelSelector({
       );
       setProviderModels(results.filter((r) => r.models.length > 0));
     })();
-  }, [open, connectedProviders]);
+  }, [connectedProviders]);
 
   // Resolve display name for the trigger
   const displayName = useMemo(() => {

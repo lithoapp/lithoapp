@@ -163,7 +163,11 @@ export function useChatV2({
   const startChat = useCallback(
     async (msgs: StoredMessage[]) => {
       try {
-        const { providerId, modelId } = providerModelRef.current!;
+        const providerModel = providerModelRef.current;
+        if (!providerModel) {
+          throw new Error('Provider/model not selected');
+        }
+        const { providerId, modelId } = providerModel;
         const { chatId } = await window.litho.chat.start({
           providerId,
           modelId,
@@ -230,12 +234,11 @@ export function useChatV2({
           break;
         }
         case 'tool-call': {
-          const callId = event.toolCallId!;
-          const callToolName = event.toolName!;
+          if (!event.toolCallId || !event.toolName) break;
           streamingPartsRef.current.push({
             type: 'tool-call',
-            toolCallId: callId,
-            toolName: callToolName,
+            toolCallId: event.toolCallId,
+            toolName: event.toolName,
             input: event.input,
             status: 'calling',
           });
@@ -243,10 +246,10 @@ export function useChatV2({
           break;
         }
         case 'tool-result': {
-          const resultCallId = event.toolCallId!;
+          if (!event.toolCallId) break;
           const toolPart = streamingPartsRef.current.find(
             (p): p is StreamingToolCallPart =>
-              p.type === 'tool-call' && p.toolCallId === resultCallId,
+              p.type === 'tool-call' && p.toolCallId === event.toolCallId,
           );
           const toolName = event.toolName ?? toolPart?.toolName ?? 'unknown';
           const args = (toolPart?.input ?? {}) as Record<string, unknown>;

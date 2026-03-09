@@ -1,5 +1,6 @@
 import { tmpdir } from 'node:os';
 import type { PageBuildData, PageSize, RenderApproach, RendererResult } from '../../shared/types';
+import { captureException } from '../sentry';
 import {
   readPageSource,
   readStyles,
@@ -12,7 +13,6 @@ import {
   type TemplateId,
 } from '../workspace-data/design-system-pages';
 import { resolveWorkspacePath } from '../workspace-paths';
-import { captureException } from '../sentry';
 import { inlineAssetRefs } from './build-shared';
 import { detectApproach } from './detect-approach';
 

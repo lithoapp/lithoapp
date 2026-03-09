@@ -31,7 +31,7 @@ export function parseError(err: unknown): ParsedError {
   let retryAfter: number | undefined;
   if (responseHeaders?.['retry-after']) {
     retryAfter = parseInt(responseHeaders['retry-after'], 10);
-    if (isNaN(retryAfter)) retryAfter = undefined;
+    if (Number.isNaN(retryAfter)) retryAfter = undefined;
   }
 
   // Extract clean message from response body
@@ -140,7 +140,7 @@ function extractCleanMessage(message: string): string {
     .replace(/^API error:\s*/i, '');
 
   if (cleaned.length > 200) {
-    cleaned = cleaned.slice(0, 200) + '…';
+    cleaned = `${cleaned.slice(0, 200)}…`;
   }
 
   return cleaned || 'An unexpected error occurred.';

@@ -1,6 +1,5 @@
 import { AlertCircle, Check, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { type ProviderInfo, useProviderList } from '@/hooks/use-provider-list';
 import { cn } from '@/lib/utils';
