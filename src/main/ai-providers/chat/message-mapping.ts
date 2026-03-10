@@ -6,12 +6,16 @@ import type {
   ToolModelMessage,
 } from 'ai';
 import type { StoredMessage } from '../../../shared/types';
+import { buildPruneSet, logPruneStats, prunedOutput } from './prune-tool-results';
 
 // ---------------------------------------------------------------------------
 // StoredMessage[] → ai-sdk ModelMessage[]
 // ---------------------------------------------------------------------------
 
 export function storedToModelMessages(messages: StoredMessage[]): ModelMessage[] {
+  const { pruneIds, stats } = buildPruneSet(messages);
+  logPruneStats(pruneIds, stats);
+
   return messages.map((msg): ModelMessage => {
     switch (msg.role) {
       case 'user':
@@ -42,7 +46,7 @@ export function storedToModelMessages(messages: StoredMessage[]): ModelMessage[]
                   type: 'tool-result' as const,
                   toolCallId: p.toolCallId,
                   toolName: p.toolName,
-                  output: p.output,
+                  output: pruneIds.has(p.toolCallId) ? prunedOutput(p.output) : p.output,
                 };
               default:
                 throw new Error(`Unknown part type: ${(p as { type: string }).type}`);
@@ -57,7 +61,7 @@ export function storedToModelMessages(messages: StoredMessage[]): ModelMessage[]
             type: 'tool-result' as const,
             toolCallId: p.toolCallId,
             toolName: p.toolName,
-            output: p.output,
+            output: pruneIds.has(p.toolCallId) ? prunedOutput(p.output) : p.output,
           })) as ToolContent,
         };
       default:
