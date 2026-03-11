@@ -154,6 +154,12 @@ Available libraries:
 - `recharts` for charts and data visualization. Import components directly from `recharts` (e.g. `import { BarChart, Bar, XAxis, YAxis } from 'recharts'`).
 - `@phosphor-icons/react` for icons. 9,000+ icons in 6 styles: thin, light, regular, bold, fill, and duotone. Import icons directly (e.g. `import { Horse, Heart, Cube } from '@phosphor-icons/react'`). Set size and weight via props: `<Heart size={32} weight="duotone" />`. Available weights: `"thin"`, `"light"`, `"regular"`, `"bold"`, `"fill"`, `"duotone"`.
 
+### Declarative markup only
+
+Pages are static visual layouts, not dynamic UIs. Write every element explicitly — never use `.map()`, `.forEach()`, loops, ternaries, `&&` conditionals, or any JavaScript logic inside JSX. If a page has 5 team members, write 5 blocks of markup. If a section is optional, include it or don't — never conditionally render it.
+
+This keeps page source simple, predictable, and easy to edit by string replacement.
+
 ### Layout constraints
 
 - Always use `w-full h-full` as the outermost container

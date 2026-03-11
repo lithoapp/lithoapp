@@ -85,7 +85,10 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
   async function runLayoutAnalysis(docId: string, pageId: string): Promise<string> {
     try {
       const buildResult = await buildPage(workspace, docId, pageId);
-      if (!buildResult.ok) return '';
+      if (!buildResult.ok) {
+        if (buildResult.error.stage === 'tailwind') return '';
+        return `\n\n[BUILD ERROR] ${buildResult.error.message}\n\nFix this error in the page source.`;
+      }
 
       const config = await readDocumentConfig(workspace, docId);
       const analysis = await analyzePage(
@@ -131,10 +134,10 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
       inputSchema: z.object({
         docId: z.string().describe('Document ID'),
         pageId: z.string().describe('Page ID'),
-        offset: z.number().optional().describe('1-indexed line number to start from (default: 1)'),
-        limit: z.number().optional().describe('Maximum number of lines to return (default: 2000)'),
+        // offset: z.number().optional().describe('1-indexed line number to start from (default: 1)'),
+        // limit: z.number().optional().describe('Maximum number of lines to return (default: 2000)'),
       }),
-      execute: async ({ docId, pageId, offset: rawOffset, limit: rawLimit }) => {
+      execute: async ({ docId, pageId }) => {
         const row = db()
           .prepare('SELECT source FROM pages WHERE id = ? AND document_id = ?')
           .get(pageId, docId) as { source: string } | undefined;
@@ -144,20 +147,11 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         }
 
         const lines = row.source.split('\n');
-        const offset = Math.max(1, rawOffset ?? 1);
-        const limit = rawLimit ?? 2000;
-        const sliced = lines.slice(offset - 1, offset - 1 + limit);
-
-        const numbered = sliced.map((line, i) => `${offset + i}: ${line}`).join('\n');
-
-        const total = lines.length;
-        const end = offset - 1 + sliced.length;
-        const suffix =
-          end < total ? `\n\n(${total - end} more lines — use offset=${end + 1} to continue)` : '';
+        const numbered = lines.map((line, i) => `${i + 1}: ${line}`).join('\n');
 
         const label = getPageLabel(docId, pageId);
         const layoutSummary = await runLayoutAnalysis(docId, pageId);
-        return `${label}\n\n${numbered}${suffix}${layoutSummary}`;
+        return `${label}\n\n${numbered}${layoutSummary}`;
       },
     }),
 

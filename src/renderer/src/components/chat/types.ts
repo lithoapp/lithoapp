@@ -5,6 +5,11 @@ export interface StreamingTextPart {
   text: string;
 }
 
+export interface StreamingReasoningPart {
+  type: 'reasoning';
+  text: string;
+}
+
 export interface StreamingToolCallPart {
   type: 'tool-call';
   toolCallId: string;
@@ -14,4 +19,4 @@ export interface StreamingToolCallPart {
   output?: unknown;
 }
 
-export type StreamingPart = StreamingTextPart | StreamingToolCallPart;
+export type StreamingPart = StreamingTextPart | StreamingReasoningPart | StreamingToolCallPart;

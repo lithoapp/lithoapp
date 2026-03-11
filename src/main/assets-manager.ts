@@ -12,6 +12,13 @@ import type { AssetEntry } from '../shared/types';
 
 const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
 
+/** Replace spaces and other problematic characters with hyphens. */
+function sanitizeFileName(name: string): string {
+  const ext = extname(name).toLowerCase();
+  const stem = name.slice(0, name.length - ext.length);
+  return stem.replace(/\s+/g, '-') + ext;
+}
+
 function assetsRoot(workspacePath: string): string {
   return join(workspacePath, 'assets');
 }
@@ -81,7 +88,7 @@ export function uploadAssets(
   mkdirSync(targetDir, { recursive: true });
 
   for (const file of files) {
-    const safeName = basename(file.name); // strip any path separators
+    const safeName = sanitizeFileName(basename(file.name));
     const dest = join(targetDir, safeName);
     writeFileSync(dest, file.data);
   }

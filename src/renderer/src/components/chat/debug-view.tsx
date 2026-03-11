@@ -186,6 +186,23 @@ export function PersistedDebugView({
               />
             );
           }
+          if (part.type === 'reasoning') {
+            const text = (part as { text: string }).text;
+            if (!text) return null;
+            return (
+              <div
+                key={`reasoning-${String(mi)}-${String(pi)}`}
+                className="rounded border border-amber-500/30 bg-amber-500/5 p-2"
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">
+                  Reasoning
+                </span>
+                <pre className="mt-1 text-[11px] leading-tight text-amber-950 whitespace-pre-wrap break-words">
+                  {text}
+                </pre>
+              </div>
+            );
+          }
           if (part.type === 'text') {
             const text = (part as { text: string }).text;
             if (!text) return null;
@@ -241,6 +258,21 @@ export function StreamingDebugView({
               output={tc.output}
               status={tc.status}
             />
+          );
+        }
+        if (part.type === 'reasoning') {
+          return (
+            <div
+              key={`reasoning-${String(i)}`}
+              className="rounded border border-amber-500/30 bg-amber-500/5 p-2"
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">
+                Reasoning
+              </span>
+              <pre className="mt-1 text-[11px] leading-tight text-amber-200/80 whitespace-pre-wrap break-words">
+                {part.text}
+              </pre>
+            </div>
           );
         }
         return (

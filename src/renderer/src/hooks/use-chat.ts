@@ -268,6 +268,14 @@ export function useChatV2({
         case 'reasoning-delta': {
           pendingReasoningRef.current += event.text ?? '';
           setStreamingReasoning(pendingReasoningRef.current);
+          const rParts = streamingPartsRef.current;
+          const rLast = rParts[rParts.length - 1];
+          if (rLast?.type === 'reasoning') {
+            rLast.text += event.text ?? '';
+          } else {
+            rParts.push({ type: 'reasoning', text: event.text ?? '' });
+          }
+          setStreamingParts([...rParts]);
           break;
         }
         case 'tool-call': {

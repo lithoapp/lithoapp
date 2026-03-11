@@ -30,29 +30,33 @@ function buildAnalysisScript(pageWidthPx: number, pageHeightPx: number): string 
       const PAGE_HEIGHT = ${pageHeightPx};
       const TOLERANCE = 1;
 
-      // Find the root container — CSR: #root > first child, SSR: body > first child
+      // Find the root container:
+      // - CSR: #root > first child (React mounts inside #root)
+      // - SSR: first <div> in body (SSR bodyHtml is a div wrapper; skip <link>/<script>/etc.)
       const root = document.getElementById('root');
-      const container = (root && root.firstElementChild) || (document.body && document.body.firstElementChild);
+      let container = root && root.firstElementChild;
+      if (!container) {
+        container = document.body.querySelector(':scope > div');
+      }
       if (!container) return { error: 'no-container' };
 
       // Root-level overflow
       const overflowX = Math.max(0, container.scrollWidth - container.clientWidth);
       const overflowY = Math.max(0, container.scrollHeight - container.clientHeight);
 
-      // Empty bottom: find the bottommost visible content by scanning all
-      // elements' bounding rects. Skip elements whose height covers >=95%
-      // of the page — these are layout wrappers (div.h-full etc.), not content.
+      // Empty bottom: find the bottommost visible content by scanning leaf
+      // elements (no child elements). Leaf elements are actual content — text,
+      // images, icons, <br>, <hr> — never layout wrappers like flex/grid containers.
       const allElements = container.querySelectorAll('*');
-      const heightThreshold = PAGE_HEIGHT * 0.95;
       let maxBottom = 0;
       for (const el of allElements) {
+        if (el.children.length > 0) continue;
         const rect = el.getBoundingClientRect();
-        if (rect.height <= 0 || rect.width <= 0) continue;
-        if (rect.height >= heightThreshold) continue;
+        if (rect.height <= 0 && rect.width <= 0) continue;
         maxBottom = Math.max(maxBottom, rect.bottom);
       }
-      // If nothing passed the filter, content truly fills the page
-      if (maxBottom === 0) maxBottom = PAGE_HEIGHT;
+      // Fallback: if no leaf elements found, use the container's scrollHeight
+      if (maxBottom === 0) maxBottom = container.scrollHeight;
 
       const emptyBottomPx = Math.max(0, PAGE_HEIGHT - maxBottom);
       const emptyBottomRatio = PAGE_HEIGHT > 0 ? emptyBottomPx / PAGE_HEIGHT : 0;

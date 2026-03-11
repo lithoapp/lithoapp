@@ -97,12 +97,14 @@ export function StreamingActivityLog({
   streamingParts: StreamingPart[];
   pages?: PageInfo[];
 }): React.JSX.Element {
-  if (streamingParts.length === 0) {
+  const visibleParts = streamingParts.filter((p) => p.type !== 'reasoning');
+
+  if (visibleParts.length === 0) {
     return <ThinkingIndicator />;
   }
 
-  const lastPart = streamingParts[streamingParts.length - 1];
-  const allToolsDone = streamingParts
+  const lastPart = visibleParts[visibleParts.length - 1];
+  const allToolsDone = visibleParts
     .filter((p): p is StreamingToolCallPart => p.type === 'tool-call')
     .every((tc) => tc.status === 'completed');
   // Show trailing indicator when all tool calls are done and no text is actively streaming
@@ -111,6 +113,7 @@ export function StreamingActivityLog({
   return (
     <div className="w-full">
       {streamingParts.map((part, i) => {
+        if (part.type === 'reasoning') return null;
         if (part.type === 'tool-call') {
           const label = resolveToolLabel(
             part.toolName,

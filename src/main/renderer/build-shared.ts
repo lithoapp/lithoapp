@@ -149,10 +149,13 @@ export function formatCssError(err: unknown, filePath: string): string {
 /**
  * Replace `@assets/...` references in the final HTML with base64 data URIs.
  * Handles both HTML attributes (e.g. `<img src="@assets/...">`) and CSS
- * `url(@assets/...)` patterns.
+ * `url(@assets/...)` patterns.  Supports filenames containing spaces when
+ * enclosed in quotes or `url(...)`.
  */
+const ASSET_REF_RE = /(?<=["'])@assets\/[^"']+(?=["'])|(?<=url\()@assets\/[^)]+(?=\))/g;
+
 export function inlineAssetRefs(html: string, wsPath: string): string {
-  return html.replace(/@assets\/[^\s"')]+/g, (match) => {
+  return html.replace(ASSET_REF_RE, (match) => {
     const relativePath = match.slice('@assets/'.length);
     const absPath = join(wsPath, 'assets', relativePath);
 

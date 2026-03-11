@@ -9,7 +9,7 @@ import {
   Pencil,
   Plus,
 } from 'lucide-react';
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { DocumentChat } from '@/components/chat/document-chat';
 import { PendingChangesPanel } from '@/components/edit-mode/pending-changes-panel';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEditMode } from '@/hooks/use-edit-mode';
-import {
-  addDiagnosticPrefix,
-  type PostTurnValidator,
-  usePostTurnDiagnostics,
-} from '@/hooks/use-post-turn-diagnostics';
+import { addDiagnosticPrefix } from '@/hooks/use-post-turn-diagnostics';
 import type { PageAudit } from '@/lib/page-audit-types';
 import { runPageAudits } from '@/lib/page-auditors/run-page-audits';
 import { cn } from '@/lib/utils';
@@ -111,31 +107,6 @@ export function DocumentPage({
     setPageHtmlMap,
     sendMessageRef,
   });
-
-  // TSX post-turn diagnostics: validate page builds after the agent finishes
-  const tsxValidator: PostTurnValidator = useMemo(
-    () => ({
-      tools: ['writePage', 'editPage'],
-      severity: 'error',
-      getDirtyKey: (_tool, args) => args.pageId as string,
-      validate: async (dirtyKeys) => {
-        const errors: string[] = [];
-        for (const pageId of dirtyKeys) {
-          const result = await window.litho.renderer.build(workspaceName, doc.id, pageId);
-          if (!result.ok && result.error.stage !== 'tailwind') {
-            const pageName = pages.find((p) => p.id === pageId)?.name ?? pageId;
-            errors.push(`Page "${pageName}": ${result.error.message}`);
-          }
-        }
-        return errors;
-      },
-      formatMessage: (errors) =>
-        `Page build found ${errors.length} error(s):\n${errors.map((e) => `- ${e}`).join('\n')}\n\nFix these errors in the page source.`,
-    }),
-    [workspaceName, doc.id, pages],
-  );
-
-  const tsxDiagnosticComplete = usePostTurnDiagnostics([tsxValidator], sendMessageRef, isAgentBusy);
 
   // Intrinsic page size in px
   const pageWidthPx = doc.size.width * (doc.size.unit === 'mm' ? 3.7795 : 1);
@@ -344,8 +315,6 @@ export function DocumentPage({
   rebuildAllOnToolsRef.current = rebuildAllOnTools;
   const handleToolComplete = useCallback(
     (tool: string, args: Record<string, unknown>) => {
-      tsxDiagnosticComplete(tool, args);
-
       // Handle revert — full rebuild of all pages + refresh page list
       if (tool === '__revert__') {
         setPageAudits(new Map());
@@ -384,7 +353,7 @@ export function DocumentPage({
           break;
       }
     },
-    [buildPage, buildPages, refetchDocOnPageChange, refetchDocConfig, tsxDiagnosticComplete],
+    [buildPage, buildPages, refetchDocOnPageChange, refetchDocConfig],
   );
 
   const handleIframeLoad = useCallback(
