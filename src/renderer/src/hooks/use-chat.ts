@@ -339,14 +339,27 @@ export function useChatV2({
               });
               return updated;
             });
-          } else if (event.usage) {
-            const newUsage = {
-              ...usageRef.current,
-              contextTokens: event.usage.inputTokens,
-              contextWindow: event.usage.contextWindow,
-            };
-            usageRef.current = newUsage;
-            setUsage(newUsage);
+          } else {
+            // No response messages (e.g. abort before any tool calls).
+            // Still save the conversation to persist the user message.
+            setMessages((prev) => {
+              const cost = computeCumulativeCost(prev);
+              void window.litho.conversation.save(workspaceName, documentId, prev, {
+                inputTokens: cost.inputTokens,
+                outputTokens: cost.outputTokens,
+              });
+              return prev;
+            });
+
+            if (event.usage) {
+              const newUsage = {
+                ...usageRef.current,
+                contextTokens: event.usage.inputTokens,
+                contextWindow: event.usage.contextWindow,
+              };
+              usageRef.current = newUsage;
+              setUsage(newUsage);
+            }
           }
 
           // Clear streaming state

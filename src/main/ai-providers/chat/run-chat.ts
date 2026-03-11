@@ -1,5 +1,10 @@
 import { type LanguageModel, type ModelMessage, streamText, type Tool } from 'ai';
-import type { StoredAssistantMessage } from '../../../shared/types';
+import type {
+  StoredAssistantMessage,
+  StoredMessage,
+  StoredToolCallPart,
+  StoredToolResultPart,
+} from '../../../shared/types';
 import { getActiveWorkspace } from '../../active-workspace-store';
 import { renderSystemPrompt, resolveAgentTools } from '../agents/config';
 import { parseError } from '../lib/parse-error';
@@ -92,6 +97,34 @@ export function abortChat(chatId: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Build StoredMessages from partial step content recovered during abort
+// ---------------------------------------------------------------------------
+
+function buildPartialStepMessages(
+  text: string,
+  reasoning: string,
+  toolCalls: StoredToolCallPart[],
+  toolResults: StoredToolResultPart[],
+): StoredMessage[] {
+  // Build assistant message content from whatever streamed before abort
+  const parts: StoredAssistantMessage['content'] = [];
+  if (reasoning) parts.push({ type: 'reasoning', text: reasoning });
+  if (text) parts.push({ type: 'text', text });
+  for (const tc of toolCalls) parts.push(tc);
+
+  if (parts.length === 0) return [];
+
+  const messages: StoredMessage[] = [{ role: 'assistant', content: parts }];
+
+  // Add tool results for completed tool calls
+  if (toolResults.length > 0) {
+    messages.push({ role: 'tool', content: toolResults });
+  }
+
+  return messages;
+}
+
+// ---------------------------------------------------------------------------
 // Step loop — continues even after text-only responses (like OpenCode)
 // ---------------------------------------------------------------------------
 
@@ -118,6 +151,13 @@ async function runStepLoop(
   };
   let streamErrorEmitted = false;
 
+  // Track current step's streamed content so we can recover it on abort.
+  // These are reset at the start of each step and used in the AbortError catch.
+  let stepText = '';
+  let stepReasoning = '';
+  let stepToolCalls: StoredToolCallPart[] = [];
+  let stepToolResults: StoredToolResultPart[] = [];
+
   // Get model's context window for progress tracking
   const modelInfo = getModelInfo(providerId, modelId);
   const contextWindow = modelInfo?.contextWindow;
@@ -127,6 +167,12 @@ async function runStepLoop(
       if (controller.signal.aborted) break;
 
       console.log(`  [step ${step + 1}/${MAX_STEPS}]`);
+
+      // Reset partial tracking for this step
+      stepText = '';
+      stepReasoning = '';
+      stepToolCalls = [];
+      stepToolResults = [];
 
       // Build messages array: system prompt as system-role message (like OpenCode),
       // followed by conversation messages.
@@ -181,10 +227,25 @@ async function runStepLoop(
 
         if (p.type === 'text-delta') {
           textLength += (p.text ?? '').length;
+          stepText += p.text ?? '';
+        } else if (p.type === 'reasoning-delta') {
+          stepReasoning += p.text ?? '';
         } else if (p.type === 'tool-call') {
           hasToolCalls = true;
+          stepToolCalls.push({
+            type: 'tool-call',
+            toolCallId: p.toolCallId,
+            toolName: p.toolName,
+            input: p.input,
+          });
           console.log(`    tool-call: ${p.toolName}`);
         } else if (p.type === 'tool-result') {
+          stepToolResults.push({
+            type: 'tool-result',
+            toolCallId: p.toolCallId,
+            toolName: p.toolName,
+            output: p.output,
+          });
           console.log(`    tool-result: ${p.toolName}`);
         } else if (p.type === 'finish') {
           stepFinishReason = p.finishReason ?? 'unknown';
@@ -216,6 +277,11 @@ async function runStepLoop(
       // already received the error event.
       if (hadStreamError) return;
 
+      // If aborted, the stream may end gracefully but `result.response` can
+      // hang or reject. Break out now — the partial step content is already
+      // tracked and will be included via buildPartialStepMessages below.
+      if (controller.signal.aborted) break;
+
       // Collect response messages from this step
       const response = await result.response;
       const stepMessages = response.messages as ResponseMessage[];
@@ -228,7 +294,20 @@ async function runStepLoop(
     }
 
     // Emit final finish with all accumulated response messages
+    const isAborted = controller.signal.aborted;
     const responseMessages = responseToStoredMessages(allResponseMessages);
+
+    // If aborted via the signal check (stream ended gracefully), include
+    // the current step's partial content that was tracked during streaming.
+    if (isAborted) {
+      const partialStepMessages = buildPartialStepMessages(
+        stepText,
+        stepReasoning,
+        stepToolCalls,
+        stepToolResults,
+      );
+      responseMessages.push(...partialStepMessages);
+    }
 
     // Attach per-turn usage to the last assistant message (for context tracking)
     for (let i = responseMessages.length - 1; i >= 0; i--) {
@@ -246,7 +325,7 @@ async function runStepLoop(
 
     emit('chat:delta', chatId, {
       type: 'finish',
-      finishReason: 'stop',
+      finishReason: isAborted ? 'abort' : 'stop',
       usage: {
         inputTokens: turnUsage.inputTokens,
         outputTokens: turnUsage.outputTokens,
@@ -260,19 +339,46 @@ async function runStepLoop(
     } satisfies ChatStreamEvent);
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
+      // Build stored messages from completed steps
+      const responseMessages = responseToStoredMessages(allResponseMessages);
+
+      // Recover current step's partial content (text, tool calls, tool results
+      // that streamed before the abort fired).
+      const partialStepMessages = buildPartialStepMessages(
+        stepText,
+        stepReasoning,
+        stepToolCalls,
+        stepToolResults,
+      );
+      responseMessages.push(...partialStepMessages);
+
+      // Attach per-turn usage to the last assistant message (same as normal finish)
+      for (let i = responseMessages.length - 1; i >= 0; i--) {
+        if (responseMessages[i].role === 'assistant') {
+          (responseMessages[i] as StoredAssistantMessage).usage = {
+            inputTokens: turnUsage.inputTokens,
+            outputTokens: turnUsage.outputTokens,
+            ...(turnUsage.reasoningTokens ? { reasoningTokens: turnUsage.reasoningTokens } : {}),
+            ...(turnUsage.cacheReadTokens ? { cacheReadTokens: turnUsage.cacheReadTokens } : {}),
+            ...(turnUsage.cacheWriteTokens ? { cacheWriteTokens: turnUsage.cacheWriteTokens } : {}),
+          };
+          break;
+        }
+      }
+
       emit('chat:delta', chatId, {
         type: 'finish',
         finishReason: 'abort',
         usage: {
-          inputTokens: 0,
-          outputTokens: 0,
-          reasoningTokens: 0,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
-          totalTokens: 0,
+          inputTokens: turnUsage.inputTokens,
+          outputTokens: turnUsage.outputTokens,
+          reasoningTokens: turnUsage.reasoningTokens,
+          cacheReadTokens: turnUsage.cacheReadTokens,
+          cacheWriteTokens: turnUsage.cacheWriteTokens,
+          totalTokens: turnUsage.inputTokens + turnUsage.outputTokens,
           contextWindow,
         },
-        responseMessages: responseToStoredMessages(allResponseMessages),
+        responseMessages,
       } satisfies ChatStreamEvent);
       return;
     }
