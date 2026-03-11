@@ -468,13 +468,15 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
     // ── listDocuments ─────────────────────────────────────────────────
     listDocuments: tool({
       description:
-        'List all documents in the workspace as a tree grouped by folder. Returns document IDs, titles, descriptions, and page sizes.',
+        'List all documents in the workspace as a tree grouped by folder. Returns document IDs, titles, descriptions, page sizes, and page counts.',
       inputSchema: z.object({}),
       execute: async () => {
         const rows = db()
           .prepare(
-            `SELECT id, title, description, folder, size_preset, size_width, size_height, size_unit
-             FROM documents WHERE type = 'normal' ORDER BY folder, created_at`,
+            `SELECT d.id, d.title, d.description, d.folder,
+                    d.size_preset, d.size_width, d.size_height, d.size_unit,
+                    (SELECT COUNT(*) FROM pages p WHERE p.document_id = d.id) AS page_count
+             FROM documents d WHERE d.type = 'normal' ORDER BY d.folder, d.created_at`,
           )
           .all() as Array<{
           id: string;
@@ -485,6 +487,7 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           size_width: number;
           size_height: number;
           size_unit: string;
+          page_count: number;
         }>;
 
         if (rows.length === 0) {
@@ -511,7 +514,8 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           }
           for (const d of docs) {
             const desc = d.description ? ` — ${d.description}` : '';
-            lines.push(`  ${d.title}${desc}\t(${d.id}, ${formatSize(d)})`);
+            const pages = d.page_count === 1 ? '1 page' : `${d.page_count} pages`;
+            lines.push(`  ${d.title}${desc}\t(${d.id}, ${formatSize(d)}, ${pages})`);
           }
         }
 
