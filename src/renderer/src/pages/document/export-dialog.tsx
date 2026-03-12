@@ -1,3 +1,4 @@
+import { FileText, Image, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -12,9 +13,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import type { DocumentInfo, ExportFormat, ExportProgress } from '../../../../shared/types';
 
 interface ExportDialogProps {
@@ -24,7 +24,35 @@ interface ExportDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const DPI_OPTIONS = [72, 150, 300] as const;
+const FORMAT_OPTIONS: {
+  value: ExportFormat;
+  label: string;
+  description: string;
+  icon: typeof FileText;
+}[] = [
+  { value: 'pdf', label: 'PDF', description: 'Multi-page document', icon: FileText },
+  { value: 'png', label: 'PNG', description: 'Lossless images', icon: Image },
+  { value: 'jpg', label: 'JPG', description: 'Compressed images', icon: Image },
+];
+
+const DPI_OPTIONS = [
+  { value: 72, label: '72', description: 'Screen' },
+  { value: 150, label: '150', description: 'Medium' },
+  { value: 300, label: '300', description: 'Print' },
+] as const;
+
+function getQualityLabel(quality: number): string {
+  if (quality >= 95) return 'Maximum';
+  if (quality >= 85) return 'High';
+  return 'Good';
+}
+
+function formatPageSize(size: DocumentInfo['size']): string {
+  if (size.unit === 'mm') {
+    return `${size.width} x ${size.height} mm`;
+  }
+  return `${size.width} x ${size.height} px`;
+}
 
 export function ExportDialog({
   doc,
@@ -49,7 +77,6 @@ export function ExportDialog({
   const isMmBased = doc.size.unit === 'mm';
   const isExporting = exportStatus === 'exporting';
 
-  // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       setFormat('pdf');
@@ -62,7 +89,6 @@ export function ExportDialog({
     }
   }, [open, doc.pages]);
 
-  // Subscribe to progress events
   useEffect(() => {
     if (!open) return;
     const unsubscribe = window.litho.export.onProgress((data: ExportProgress) => {
@@ -161,11 +187,16 @@ export function ExportDialog({
   const progressPercent =
     progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
+  const exportPageCount = isImage ? selectedPages.size : doc.pages.length;
+
+  const exportButtonLabel = `Export ${exportPageCount} ${exportPageCount === 1 ? 'page' : 'pages'} as ${format.toUpperCase()}`;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent showCloseButton={!isExporting}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isExporting}>
         {isExporting ? (
           <ExportingView
+            format={format}
             current={progress.current}
             total={progress.total}
             percent={progressPercent}
@@ -187,6 +218,7 @@ export function ExportDialog({
             onJpgQualityChange={setJpgQuality}
             canExport={canExport}
             onExport={handleExport}
+            exportButtonLabel={exportButtonLabel}
           />
         )}
       </DialogContent>
@@ -195,26 +227,32 @@ export function ExportDialog({
 }
 
 function ExportingView({
+  format,
   current,
   total,
   percent,
 }: {
+  format: ExportFormat;
   current: number;
   total: number;
   percent: number;
 }): React.JSX.Element {
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Exporting...</DialogTitle>
-      </DialogHeader>
-      <div className="flex flex-col gap-3 py-2">
-        <p className="text-sm text-muted-foreground">
-          Rendering page {Math.min(current + 1, total)} of {total}...
-        </p>
-        <Progress value={percent} />
+    <div className="flex flex-col items-center gap-5 py-4">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
-    </>
+      <div className="flex flex-col items-center gap-1">
+        <DialogTitle className="text-center">Exporting as {format.toUpperCase()}</DialogTitle>
+        <p className="text-sm text-muted-foreground">
+          Rendering page {Math.min(current + 1, total)} of {total}
+        </p>
+      </div>
+      <div className="flex w-full flex-col gap-2">
+        <Progress value={percent} />
+        <p className="text-center text-xs tabular-nums text-muted-foreground">{percent}%</p>
+      </div>
+    </div>
   );
 }
 
@@ -234,6 +272,7 @@ function ConfigurationView({
   onJpgQualityChange,
   canExport,
   onExport,
+  exportButtonLabel,
 }: {
   doc: DocumentInfo;
   format: ExportFormat;
@@ -250,39 +289,57 @@ function ConfigurationView({
   onJpgQualityChange: (q: number) => void;
   canExport: boolean;
   onExport: () => void;
+  exportButtonLabel: string;
 }): React.JSX.Element {
+  const isImage = format !== 'pdf';
+
   return (
     <>
       <DialogHeader>
         <DialogTitle>Export &ldquo;{doc.title}&rdquo;</DialogTitle>
-        <DialogDescription>Export as PDF or images.</DialogDescription>
+        <DialogDescription>
+          {doc.pages.length} {doc.pages.length === 1 ? 'page' : 'pages'} &middot;{' '}
+          {formatPageSize(doc.size)}
+        </DialogDescription>
       </DialogHeader>
 
-      <Tabs
-        value={format}
-        onValueChange={(v) => onFormatChange(v as ExportFormat)}
-        className="gap-4"
-      >
-        <TabsList className="w-full">
-          <TabsTrigger value="pdf" className="flex-1">
-            PDF
-          </TabsTrigger>
-          <TabsTrigger value="png" className="flex-1">
-            PNG
-          </TabsTrigger>
-          <TabsTrigger value="jpg" className="flex-1">
-            JPG
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex flex-col gap-5">
+        {/* Format selector cards */}
+        <div className="flex flex-col gap-2">
+          <Label className="text-sm">Format</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {FORMAT_OPTIONS.map((opt) => {
+              const isSelected = format === opt.value;
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onFormatChange(opt.value)}
+                  className={cn(
+                    'flex flex-col items-center gap-1.5 rounded-lg border px-3 py-3 transition-colors',
+                    isSelected
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                      : 'border-border hover:border-foreground/20 hover:bg-muted/50',
+                  )}
+                >
+                  <Icon
+                    className={cn('h-5 w-5', isSelected ? 'text-primary' : 'text-muted-foreground')}
+                  />
+                  <span className={cn('text-sm font-medium', isSelected && 'text-primary')}>
+                    {opt.label}
+                  </span>
+                  <span className="text-[11px] leading-tight text-muted-foreground">
+                    {opt.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        <TabsContent value="pdf">
-          <p className="text-sm text-muted-foreground">
-            All {doc.pages.length} page{doc.pages.length !== 1 ? 's' : ''} will be exported as a
-            single PDF.
-          </p>
-        </TabsContent>
-
-        <TabsContent value="png">
+        {/* Image-specific options */}
+        {isImage && (
           <ImageOptions
             doc={doc}
             selectedPages={selectedPages}
@@ -294,41 +351,34 @@ function ConfigurationView({
             dpi={dpi}
             onDpiChange={onDpiChange}
           />
-        </TabsContent>
+        )}
 
-        <TabsContent value="jpg">
-          <div className="flex flex-col gap-4">
-            <ImageOptions
-              doc={doc}
-              selectedPages={selectedPages}
-              allSelected={allSelected}
-              someSelected={someSelected}
-              onSelectAll={onSelectAll}
-              onTogglePage={onTogglePage}
-              isMmBased={isMmBased}
-              dpi={dpi}
-              onDpiChange={onDpiChange}
-            />
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">Quality</Label>
-                <span className="text-xs tabular-nums text-muted-foreground">{jpgQuality}%</span>
-              </div>
-              <Slider
-                min={80}
-                max={100}
-                step={1}
-                value={[jpgQuality]}
-                onValueChange={([v]) => onJpgQualityChange(v)}
-              />
+        {/* JPG quality */}
+        {format === 'jpg' && (
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Quality</Label>
+              <span className="text-xs text-muted-foreground">
+                <span className="tabular-nums">{jpgQuality}%</span>
+                <span className="ml-1.5 text-muted-foreground/60">
+                  {getQualityLabel(jpgQuality)}
+                </span>
+              </span>
             </div>
+            <Slider
+              min={80}
+              max={100}
+              step={1}
+              value={[jpgQuality]}
+              onValueChange={([v]) => onJpgQualityChange(v)}
+            />
           </div>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       <DialogFooter>
-        <Button className="h-11" onClick={onExport} disabled={!canExport}>
-          Export
+        <Button className="h-10 w-full" onClick={onExport} disabled={!canExport}>
+          {exportButtonLabel}
         </Button>
       </DialogFooter>
     </>
@@ -358,51 +408,73 @@ function ImageOptions({
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-4">
+      {/* Page selection */}
       <div className="flex flex-col gap-2">
-        <Label className="text-sm">Pages</Label>
-        <div className="flex max-h-36 flex-col gap-1.5 overflow-y-auto rounded-md border p-2">
-          <div className="flex items-center gap-2 py-0.5">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">Pages</Label>
+          <span className="text-xs text-muted-foreground">
+            {selectedPages.size} of {doc.pages.length} selected
+          </span>
+        </div>
+        <div className="flex max-h-44 flex-col overflow-y-auto rounded-lg border">
+          <label
+            htmlFor="select-all"
+            className="flex cursor-pointer items-center gap-2.5 border-b px-3 py-2 hover:bg-muted/50"
+          >
             <Checkbox
               id="select-all"
               checked={allSelected ? true : someSelected ? 'indeterminate' : false}
               onCheckedChange={onSelectAll}
             />
-            <Label htmlFor="select-all" className="text-sm font-medium">
-              Select all
-            </Label>
-          </div>
+            <span className="text-sm font-medium">All pages</span>
+          </label>
           {doc.pages.map((page, index) => (
-            <div key={page.id} className="flex items-center gap-2 py-0.5 pl-4">
+            <label
+              key={page.id}
+              htmlFor={`page-${page.id}`}
+              className="flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-muted/50"
+            >
               <Checkbox
                 id={`page-${page.id}`}
                 checked={selectedPages.has(page.id)}
                 onCheckedChange={(checked) => onTogglePage(page.id, checked)}
               />
-              <Label htmlFor={`page-${page.id}`} className="text-sm">
-                Page {index + 1}
-              </Label>
-            </div>
+              <span className="flex items-baseline gap-2 text-sm">
+                <span className="tabular-nums text-muted-foreground">{index + 1}.</span>
+                <span className="truncate">{page.name}</span>
+              </span>
+            </label>
           ))}
         </div>
       </div>
 
+      {/* DPI selector as pill buttons */}
       {isMmBased && (
         <div className="flex flex-col gap-2">
           <Label className="text-sm">Resolution</Label>
-          <RadioGroup
-            value={String(dpi)}
-            onValueChange={(v) => onDpiChange(Number(v))}
-            className="flex gap-4"
-          >
-            {DPI_OPTIONS.map((opt) => (
-              <div key={opt} className="flex items-center gap-1.5">
-                <RadioGroupItem value={String(opt)} id={`dpi-${opt}`} />
-                <Label htmlFor={`dpi-${opt}`} className="text-sm">
-                  {opt} DPI
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
+          <div className="grid grid-cols-3 gap-2">
+            {DPI_OPTIONS.map((opt) => {
+              const isSelected = dpi === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onDpiChange(opt.value)}
+                  className={cn(
+                    'flex flex-col items-center gap-0.5 rounded-lg border px-3 py-2 text-sm transition-colors',
+                    isSelected
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                      : 'border-border hover:border-foreground/20 hover:bg-muted/50',
+                  )}
+                >
+                  <span className={cn('font-medium tabular-nums', isSelected && 'text-primary')}>
+                    {opt.label} DPI
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">{opt.description}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
