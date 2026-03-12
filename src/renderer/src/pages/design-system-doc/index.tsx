@@ -11,7 +11,6 @@ const REBUILD_ALL_ON_TOOLS = ['writeMainCss', 'editMainCss'];
 interface DesignSystemDocPageProps {
   workspaceName: string;
   workspaceTitle?: string;
-  workspacePath: string | null;
   onBack: () => void;
   onAgentBusyChange?: (busy: boolean) => void;
 }
@@ -19,7 +18,6 @@ interface DesignSystemDocPageProps {
 export function DesignSystemDocPage({
   workspaceName,
   workspaceTitle,
-  workspacePath,
   onBack,
   onAgentBusyChange,
 }: DesignSystemDocPageProps): React.JSX.Element {
@@ -101,7 +99,7 @@ export function DesignSystemDocPage({
     );
   }
 
-  if (!dsDocId || !docConfig || !workspacePath) {
+  if (!dsDocId || !docConfig) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-sm text-muted-foreground">No design system document found</p>
@@ -122,14 +120,12 @@ export function DesignSystemDocPage({
       doc={doc}
       workspaceName={workspaceName}
       workspaceTitle={workspaceTitle}
-      workspacePath={workspacePath}
       onBack={onBack}
       rebuildAllOnTools={REBUILD_ALL_ON_TOOLS}
       refetchDocOnPageChange
       renderChat={({
         workspaceName: wsName,
         workspaceTitle: wsTitle,
-        workspacePath: wsPath,
         onToolComplete,
         sendMessageRef: parentSendRef,
         onBusyChange: parentBusyChange,
@@ -137,7 +133,6 @@ export function DesignSystemDocPage({
         <DesignSystemChat
           workspaceName={wsName}
           workspaceTitle={wsTitle}
-          workspacePath={wsPath}
           onToolComplete={(tool, args) => {
             onToolComplete(tool, args);
             diagnosticToolComplete(tool, args);

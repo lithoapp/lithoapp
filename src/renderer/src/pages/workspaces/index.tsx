@@ -2,7 +2,6 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { Check, Clock, FileText, FolderOpen, Loader2, Plus } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,12 +13,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { WorkspaceInfo, WorkspaceState } from '@/hooks/use-workspace';
+import type { WorkspaceInfo } from '@/hooks/use-workspace';
 import { cn } from '@/lib/utils';
-
-// ---------------------------------------------------------------------------
-// Template definitions
-// ---------------------------------------------------------------------------
 
 type TemplateId = 'minimal' | 'corporate' | 'brightside' | 'editorial';
 
@@ -35,21 +30,15 @@ const TEMPLATES: TemplateOption[] = [
   { id: 'editorial', label: 'Editorial' },
 ];
 
-// ---------------------------------------------------------------------------
-// Workspaces page
-// ---------------------------------------------------------------------------
-
 interface WorkspacesPageProps {
   workspaces: WorkspaceInfo[];
-  activeInfo: WorkspaceState;
-  onWorkspaceSelected: () => void;
+  onWorkspaceSelected: (slug: string) => void;
   refreshWorkspaces: () => Promise<void>;
   userName?: string;
 }
 
 export function WorkspacesPage({
   workspaces,
-  activeInfo,
   onWorkspaceSelected,
   refreshWorkspaces,
   userName,
@@ -66,12 +55,12 @@ export function WorkspacesPage({
     setIsCreating(true);
     setCreateError(null);
     try {
-      await window.litho.workspace.create(newName.trim(), selectedTemplate);
+      const slug = await window.litho.workspace.create(newName.trim(), selectedTemplate);
       await refreshWorkspaces();
       setCreateOpen(false);
       setNewName('');
       setSelectedTemplate('minimal');
-      onWorkspaceSelected();
+      onWorkspaceSelected(slug);
     } catch (err) {
       const message =
         err instanceof Error
@@ -88,7 +77,7 @@ export function WorkspacesPage({
     try {
       await window.litho.workspace.select(slug);
       await refreshWorkspaces();
-      onWorkspaceSelected();
+      onWorkspaceSelected(slug);
     } catch (err) {
       console.error('[workspaces] Select failed:', err);
       toast.error('Failed to open project');
@@ -144,42 +133,22 @@ export function WorkspacesPage({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {workspaces.map((ws) => {
-          const isActive = activeInfo.workspaceName === ws.slug;
           const isSelecting = selectingSlug === ws.slug;
 
           return (
             <button
               key={ws.slug}
               type="button"
-              onClick={() => {
-                if (isActive) {
-                  onWorkspaceSelected();
-                } else {
-                  void handleSelect(ws.slug);
-                }
-              }}
-              className={cn(
-                'group flex cursor-pointer flex-col rounded-lg border p-5 text-left transition-colors hover:bg-muted/50',
-                isActive ? 'border-forge/40 bg-forge/5' : 'border-border',
-              )}
+              onClick={() => void handleSelect(ws.slug)}
+              className="group flex cursor-pointer flex-col rounded-lg border border-border p-5 text-left transition-colors hover:bg-muted/50"
             >
               <div className="flex items-center gap-3">
                 {isSelecting ? (
                   <Loader2 className="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
                 ) : (
-                  <FolderOpen
-                    className={cn(
-                      'h-5 w-5 shrink-0',
-                      isActive ? 'text-forge' : 'text-muted-foreground',
-                    )}
-                  />
+                  <FolderOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
                 )}
                 <span className="min-w-0 truncate text-base font-semibold">{ws.title}</span>
-                {isActive && (
-                  <Badge className="bg-forge/15 text-forge border-forge/30 shrink-0 text-xs">
-                    Active
-                  </Badge>
-                )}
               </div>
 
               <div className="mt-3 flex flex-col gap-1.5 text-sm text-muted-foreground">
@@ -212,10 +181,6 @@ export function WorkspacesPage({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Template preview thumbnail
-// ---------------------------------------------------------------------------
 
 const PREVIEW_WIDTH = 640;
 const PREVIEW_HEIGHT = 360;
@@ -266,10 +231,6 @@ function TemplatePreview({ html }: { html: string | null }): React.JSX.Element {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Create dialog with template picker
-// ---------------------------------------------------------------------------
 
 function CreateDialog({
   open,

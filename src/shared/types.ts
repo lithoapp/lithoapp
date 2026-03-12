@@ -1,15 +1,5 @@
 // Cross-process types shared between main, preload, and renderer.
 
-// --- Workspace ---
-
-export type WorkspaceStatus = 'inactive' | 'active';
-
-export interface WorkspaceState {
-  status: WorkspaceStatus;
-  workspaceName: string | null;
-  workspacePath: string | null;
-}
-
 // --- Workspace Info ---
 
 export interface WorkspaceInfo {

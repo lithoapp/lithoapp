@@ -12,7 +12,6 @@ type SendMessageFn = ((text: string) => void) | null;
 interface DesignSystemChatProps {
   workspaceName: string;
   workspaceTitle?: string;
-  workspacePath: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   sendMessageRef?: React.RefObject<SendMessageFn>;
   parentSendMessageRef?: React.RefObject<SendMessageFn>;

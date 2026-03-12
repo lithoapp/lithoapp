@@ -33,14 +33,14 @@ import {
 
 app.setName('Litho');
 
-import type { PageSizeName, WorkspaceState } from '../shared/types';
-import {
-  clearActiveWorkspace,
-  getActiveWorkspace,
-  setActiveWorkspace,
-} from './active-workspace-store';
+import type { PageSizeName } from '../shared/types';
 import { registerAiProviderHandlers } from './ai-providers';
-import { clearAllCredentials } from './ai-providers/providers/credential-store';
+import {
+  clearAllCredentials,
+  getConnectedProviderIds,
+  setCredential,
+} from './ai-providers/providers/credential-store';
+import { autoConnectProviders } from './ai-providers/providers/models-cache';
 import {
   createAssetDirectory,
   deleteAsset,
@@ -110,21 +110,6 @@ initSentry();
 const documentExporter = new DocumentExporter();
 let mainWindow: BrowserWindow | null = null;
 
-function getWorkspaceState(): WorkspaceState {
-  const workspaceName = getActiveWorkspace();
-  return {
-    status: workspaceName ? 'active' : 'inactive',
-    workspaceName,
-    workspacePath: workspaceName ? resolveWorkspacePath(workspaceName) : null,
-  };
-}
-
-function emitWorkspaceChanged(): void {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('workspace:changed', getWorkspaceState());
-  }
-}
-
 const appIcon = nativeImage.createFromPath(join(__dirname, '../../resources/icon.png'));
 
 function createWindow(): void {
@@ -189,7 +174,7 @@ ipcMain.handle('preferences:setTheme', (_event, value: Theme) => setTheme(value)
 ipcMain.handle('preferences:reset', () => {
   resetPreferences();
   clearAllCredentials();
-  clearActiveWorkspace();
+  autoConnectProviders(setCredential, getConnectedProviderIds);
   if (is.dev) {
     mainWindow?.webContents.reloadIgnoringCache();
   } else {
@@ -242,11 +227,8 @@ ipcMain.handle('export:start', async (_event, request) => {
 
 ipcMain.handle('export:getProgress', () => documentExporter.getProgress());
 
-ipcMain.handle('advancedTools:exportSource', async () => {
+ipcMain.handle('advancedTools:exportSource', async (_event, workspaceName: string) => {
   if (!mainWindow) return { success: false, error: 'No window available' };
-
-  const workspaceName = getActiveWorkspace();
-  if (!workspaceName) return { success: false, error: 'No active workspace' };
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const defaultName = `${workspaceName}-${timestamp}.zip`;
@@ -273,27 +255,16 @@ ipcMain.handle('advancedTools:exportSource', async () => {
 // Workspace IPC handlers
 ipcMain.handle('workspace:list', () => listWorkspaces());
 
-ipcMain.handle('workspace:getActive', () => getWorkspaceState());
-
 ipcMain.handle('workspace:create', async (_event, title: string, templateId?: string) => {
   const slug = await createNewWorkspace(
     title,
     templateId as Parameters<typeof createNewWorkspace>[1],
   );
-  setActiveWorkspace(slug);
-  emitWorkspaceChanged();
   return slug;
 });
 
 ipcMain.handle('workspace:select', (_event, workspaceName: string) => {
-  setActiveWorkspace(workspaceName);
   updateWorkspaceLastOpened(workspaceName);
-  emitWorkspaceChanged();
-});
-
-ipcMain.handle('workspace:stop', () => {
-  setActiveWorkspace(null);
-  emitWorkspaceChanged();
 });
 
 ipcMain.handle('workspace:getDocumentCount', (_event, workspaceName: string) =>

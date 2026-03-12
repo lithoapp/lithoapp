@@ -5,7 +5,6 @@ import type {
   StoredToolCallPart,
   StoredToolResultPart,
 } from '../../../shared/types';
-import { getActiveWorkspace } from '../../active-workspace-store';
 import { renderSystemPrompt, resolveAgentTools } from '../agents/config';
 import { parseError } from '../lib/parse-error';
 import { createModel, OUTPUT_TOKEN_MAX } from '../providers/create-model';
@@ -52,24 +51,15 @@ export function startChat(params: ChatStartParams, emit: Emit): string {
   const cred = getCredential(params.providerId);
   const isOAuthCodex = params.providerId === 'openai' && cred?.type === 'oauth';
 
-  let tools: Record<string, Tool> | undefined;
-  let systemPrompt = params.system;
-
-  if (params.agentId) {
-    const workspace = getActiveWorkspace();
-    if (!workspace) throw new Error('No active workspace');
-    tools = resolveAgentTools(params.agentId, workspace);
-    if (params.agentContext) {
-      systemPrompt = renderSystemPrompt(params.agentId, params.agentContext, params.modelId);
-    }
-  }
+  const tools = resolveAgentTools(params.agentId, params.workspaceName);
+  const systemPrompt = renderSystemPrompt(params.agentId, params.agentContext, params.modelId);
 
   const modelMessages = storedToModelMessages(params.messages);
-  const toolNames = tools ? Object.keys(tools) : [];
+  const toolNames = Object.keys(tools);
 
   console.log(
     `[chat:start] ${chatId.slice(0, 8)} | ${params.providerId}/${params.modelId} | ` +
-      `agent=${params.agentId ?? 'none'} | tools=${toolNames.length} | msgs=${params.messages.length}`,
+      `agent=${params.agentId} | tools=${toolNames.length} | msgs=${params.messages.length}`,
   );
 
   void runStepLoop(
@@ -83,6 +73,7 @@ export function startChat(params: ChatStartParams, emit: Emit): string {
     params.modelId,
     controller,
     emit,
+    params.workspaceName,
   );
 
   return chatId;
@@ -131,14 +122,15 @@ function buildPartialStepMessages(
 async function runStepLoop(
   chatId: string,
   model: LanguageModel,
-  systemPrompt: string | undefined,
+  systemPrompt: string,
   initialMessages: ModelMessage[],
-  tools: Record<string, Tool> | undefined,
+  tools: Record<string, Tool>,
   isOAuthCodex: boolean,
   providerId: string,
   modelId: string,
   controller: AbortController,
   emit: Emit,
+  workspaceName: string,
 ): Promise<void> {
   let currentMessages = initialMessages;
   let allResponseMessages: ResponseMessage[] = [];
@@ -204,7 +196,7 @@ async function runStepLoop(
               }
             : isOpencodeProvider(providerId)
               ? {
-                  'x-opencode-project': getActiveWorkspace() ?? 'litho',
+                  'x-opencode-project': workspaceName ?? 'litho',
                   'x-opencode-session': chatId,
                   'x-opencode-request': crypto.randomUUID(),
                   'x-opencode-client': 'litho',

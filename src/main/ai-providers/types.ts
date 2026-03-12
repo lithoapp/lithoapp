@@ -128,6 +128,7 @@ export interface ChatStartParams {
   system?: string;
   messages: StoredMessage[];
   maxOutputTokens?: number;
-  agentId?: AgentId;
-  agentContext?: AgentContext;
+  agentId: AgentId;
+  agentContext: AgentContext;
+  workspaceName: string;
 }

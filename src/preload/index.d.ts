@@ -9,7 +9,7 @@ import type {
 } from '../shared/types';
 import type { PageBuildData, PageExportOptions, RendererResult } from '../shared/types';
 import type { UpdateState } from '../shared/types';
-import type { RevertResult, StoredMessage, WorkspaceInfo, WorkspaceState } from '../shared/types';
+import type { RevertResult, StoredMessage, WorkspaceInfo } from '../shared/types';
 
 interface LithoAPI {
   preferences: {
@@ -27,7 +27,9 @@ interface LithoAPI {
   advancedTools: {
     getEnabled: () => Promise<boolean>;
     setEnabled: (value: boolean) => Promise<void>;
-    exportSource: () => Promise<{ success: boolean; path?: string; error?: string }>;
+    exportSource: (
+      workspaceName: string,
+    ) => Promise<{ success: boolean; path?: string; error?: string }>;
   };
   app: {
     getVersion: () => Promise<string>;
@@ -54,14 +56,11 @@ interface LithoAPI {
   };
   workspace: {
     list: () => Promise<WorkspaceInfo[]>;
-    getActive: () => Promise<WorkspaceState>;
-    create: (name: string) => Promise<string>;
+    create: (name: string, templateId?: string) => Promise<string>;
     select: (name: string) => Promise<void>;
-    stop: () => Promise<void>;
     getDocumentCount: (name: string) => Promise<number>;
     getDesignSystemDocId: (name: string) => Promise<string | null>;
     getDesignSystemDocInfo: (name: string) => Promise<DocumentInfo | null>;
-    onChanged: (callback: (data: WorkspaceState) => void) => () => void;
   };
   document: {
     list: (workspaceName: string) => Promise<DocumentInfo[]>;
@@ -94,6 +93,9 @@ interface LithoAPI {
     ) => Promise<RendererResult<PageBuildData>>;
     export: (options: PageExportOptions) => Promise<RendererResult<void>>;
     validateCss: (workspace: string) => Promise<{ ok: true } | { ok: false; errors: string[] }>;
+  };
+  template: {
+    buildPreviews: () => Promise<Record<string, string>>;
   };
   aiProvider: {
     list: () => Promise<{
@@ -159,9 +161,9 @@ interface LithoAPI {
       system?: string;
       messages: StoredMessage[];
       maxOutputTokens?: number;
-      agentId?: 'document' | 'design-system';
-      agentContext?: {
-        docId: string;
+      agentId: 'document' | 'design-system' | 'workspace';
+      agentContext: {
+        docId?: string;
         title?: string;
         width?: number;
         height?: number;
@@ -170,7 +172,9 @@ interface LithoAPI {
         fontContext?: string;
         assetsSummary?: string;
         designSystemDocId?: string | null;
+        workspaceTitle?: string;
       };
+      workspaceName: string;
     }) => Promise<{ chatId: string }>;
     abort: (chatId: string) => Promise<void>;
     onDelta: (
@@ -241,6 +245,19 @@ interface LithoAPI {
     createDirectory: (workspaceName: string, dirPath: string) => Promise<void>;
     delete: (workspaceName: string, entryPath: string) => Promise<void>;
     rename: (workspaceName: string, oldPath: string, newPath: string) => Promise<void>;
+    listDocument: (workspaceName: string, docId: string) => Promise<AssetEntry[]>;
+    uploadDocument: (
+      workspaceName: string,
+      docId: string,
+      files: { name: string; data: Uint8Array }[],
+    ) => Promise<void>;
+    deleteDocument: (workspaceName: string, docId: string, fileName: string) => Promise<void>;
+    renameDocument: (
+      workspaceName: string,
+      docId: string,
+      oldName: string,
+      newName: string,
+    ) => Promise<void>;
   };
 }
 

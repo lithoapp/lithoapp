@@ -25,7 +25,6 @@ pnpm typecheck            # Type-check (main + renderer)
 - `exporter/` — Export capture & assembly: `export-page.ts` (hidden BrowserWindow → PDF/PNG/JPG buffer), `document-exporter.ts` (multi-page orchestrator), `batch-export.ts` (CLI batch entry point)
 - `workspace-data/` — SQLite-backed data layer: `db.ts` (connection pool, schema v5, migrations), `db-backend.ts` (CRUD operations), `registry-db.ts` (global workspace registry), `design-system-parser.ts` (CSS token extraction), `design-system-pages.ts` (template page definitions), `export-source.ts` (workspace ZIP export), `templates/` (Mustache templates for design system pages)
 - `workspace-paths.ts` — Resolves workspace name → `{userData}/workspaces/<name>`
-- `active-workspace-store.ts` — Tracks the currently active workspace (JSON in userData)
 - `assets-manager.ts` — Workspace asset CRUD with path traversal protection
 - `auto-updater.ts` — electron-updater for GitHub releases
 - `telemetry-store.ts` — User preferences (telemetry, profile, theme, advanced tools)
@@ -82,7 +81,7 @@ Each agent has: `system.md` (system prompt — runtime variables at top via Must
 
 ### Shared Types (`src/shared/types.ts`)
 
-Cross-process types used by main, preload, and renderer: `WorkspaceState`, `WorkspaceInfo`, `UpdateState`, `ExportRequest`/`ExportProgress`, `DocumentInfo`, `DocumentConfig`, `PageInfo`, `PageSize`, `DesignSystem`/`DesignSystemToken`, `PageBuildData`, `RendererError`, `AssetEntry`, `StoredMessage`/`StoredUserMessage`/`StoredAssistantMessage`/`StoredToolMessage`, `AgentId`, `AgentContext`
+Cross-process types used by main, preload, and renderer: `WorkspaceInfo`, `UpdateState`, `ExportRequest`/`ExportProgress`, `DocumentInfo`, `DocumentConfig`, `PageInfo`, `PageSize`, `DesignSystem`/`DesignSystemToken`, `PageBuildData`, `RendererError`, `AssetEntry`, `StoredMessage`/`StoredUserMessage`/`StoredAssistantMessage`/`StoredToolMessage`, `AgentId`, `AgentContext`
 
 ### Security
 
@@ -115,9 +114,9 @@ Connection pool caches open databases by workspace name. WAL mode, foreign keys 
 
 **Assets** — Files on disk at `{userData}/workspaces/<slug>/assets/`. Allowed types: images (.png, .jpg, .jpeg, .webp, .gif, .svg). Served to renderer via `litho-asset://<workspace>/<path>`. Document-specific assets stored in `assets/documents/<document-id>/*` (flat, no subdirectories). The `documents` folder is reserved and hidden from the workspace assets UI.
 
-**App state** — JSON files in `app.getPath('userData')`: `active-workspace.json`, `app-preferences.json`.
+**App state** — JSON files in `app.getPath('userData')`: `app-preferences.json`. Active workspace is tracked as local React state in the renderer (session-scoped, not persisted).
 
-**Reset Preferences** — Available in Settings → Advanced. Clears profile, AI credentials, active workspace, and app settings (theme, telemetry, advanced tools). Triggers app relaunch and shows onboarding. Workspaces and their contents are preserved. Implementation: `telemetry-store.ts` → `resetPreferences()`, `credential-store.ts` → `clearAllCredentials()`, `active-workspace-store.ts` → `clearActiveWorkspace()`.
+**Reset Preferences** — Available in Settings → Advanced. Clears profile, AI credentials, chat model preferences (localStorage), and app settings (theme, telemetry, advanced tools). Auto-reconnects free providers after clearing credentials. Triggers app relaunch and shows onboarding. Workspaces and their contents are preserved. Implementation: `telemetry-store.ts` → `resetPreferences()`, `credential-store.ts` → `clearAllCredentials()`, `models-cache.ts` → `autoConnectProviders()`.
 
 ## Code Style
 

@@ -6,7 +6,7 @@ import documentSystem from '../../../agents/document/system.md?raw';
 import workspaceKickoff from '../../../agents/workspace/kickoff.md?raw';
 import workspaceSystem from '../../../agents/workspace/system.md?raw';
 
-export function renderTemplate(template: string, vars: Record<string, unknown>): string {
+export function renderTemplate(template: string, vars: object): string {
   return Mustache.render(template, vars).trim();
 }
 

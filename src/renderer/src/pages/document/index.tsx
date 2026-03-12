@@ -38,7 +38,6 @@ interface DocumentPageProps {
   doc: DocumentInfo;
   workspaceName: string;
   workspaceTitle?: string;
-  workspacePath: string;
   onBack: () => void;
   onDocumentsChange?: () => void;
   userName?: string;
@@ -46,7 +45,6 @@ interface DocumentPageProps {
   renderChat?: (props: {
     workspaceName: string;
     workspaceTitle?: string;
-    workspacePath: string;
     onToolComplete: (tool: string, args: Record<string, unknown>) => void;
     sendMessageRef: React.RefObject<((text: string) => void) | null>;
     onBusyChange: (isBusy: boolean) => void;
@@ -63,7 +61,6 @@ export function DocumentPage({
   doc,
   workspaceName,
   workspaceTitle,
-  workspacePath,
   onBack,
   onDocumentsChange,
   userName,
@@ -529,7 +526,6 @@ export function DocumentPage({
     renderChat({
       workspaceName,
       workspaceTitle,
-      workspacePath,
       onToolComplete: handleToolComplete,
       sendMessageRef,
       onBusyChange: handleBusyChange,
@@ -539,7 +535,6 @@ export function DocumentPage({
       doc={doc}
       workspaceName={workspaceName}
       workspaceTitle={workspaceTitle}
-      workspacePath={workspacePath}
       userName={userName}
       onToolComplete={handleToolComplete}
       sendMessageRef={sendMessageRef}

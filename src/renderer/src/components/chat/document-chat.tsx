@@ -11,7 +11,6 @@ interface DocumentChatProps {
   doc: DocumentInfo;
   workspaceName: string;
   workspaceTitle?: string;
-  workspacePath: string;
   userName?: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   sendMessageRef?: React.RefObject<((text: string) => void) | null>;

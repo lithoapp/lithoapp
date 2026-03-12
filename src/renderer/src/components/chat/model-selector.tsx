@@ -61,7 +61,8 @@ export function ModelSelector({
         const data = await window.litho.aiProvider.list();
         setProviders(data.providers);
         setConnectedIds(data.connected);
-        if (!providerId) {
+        const isCurrentConnected = providerId && data.connected.includes(providerId);
+        if (!isCurrentConnected) {
           const first = data.providers.find((p) => data.connected.includes(p.id));
           if (first) onSelect(first.id, first.defaultModel);
         }
@@ -78,8 +79,8 @@ export function ModelSelector({
     [providers, connectedIds],
   );
 
-  const hasOnlyFreeModels = useMemo(
-    () => connectedProviders.length > 0 && connectedProviders.every((p) => p.id === 'free'),
+  const shouldShowAddProvider = useMemo(
+    () => connectedProviders.length === 0 || connectedProviders.every((p) => p.id === 'free'),
     [connectedProviders],
   );
 
@@ -156,7 +157,7 @@ export function ModelSelector({
                 })}
               </CommandGroup>
             ))}
-            {hasOnlyFreeModels && (
+            {shouldShowAddProvider && (
               <div className="my-1 flex justify-center p-1">
                 <button
                   type="button"

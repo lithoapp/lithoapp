@@ -27,8 +27,10 @@ contextBridge.exposeInMainWorld('litho', {
     getEnabled: (): Promise<boolean> => ipcRenderer.invoke('advancedTools:getEnabled'),
     setEnabled: (value: boolean): Promise<void> =>
       ipcRenderer.invoke('advancedTools:setEnabled', value),
-    exportSource: (): Promise<{ success: boolean; path?: string; error?: string }> =>
-      ipcRenderer.invoke('advancedTools:exportSource'),
+    exportSource: (
+      workspaceName: string,
+    ): Promise<{ success: boolean; path?: string; error?: string }> =>
+      ipcRenderer.invoke('advancedTools:exportSource', workspaceName),
   },
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
@@ -60,22 +62,15 @@ contextBridge.exposeInMainWorld('litho', {
   },
   workspace: {
     list: (): Promise<unknown> => ipcRenderer.invoke('workspace:list'),
-    getActive: (): Promise<unknown> => ipcRenderer.invoke('workspace:getActive'),
     create: (name: string, templateId?: string): Promise<string> =>
       ipcRenderer.invoke('workspace:create', name, templateId),
     select: (name: string): Promise<void> => ipcRenderer.invoke('workspace:select', name),
-    stop: (): Promise<void> => ipcRenderer.invoke('workspace:stop'),
     getDocumentCount: (name: string): Promise<number> =>
       ipcRenderer.invoke('workspace:getDocumentCount', name),
     getDesignSystemDocId: (name: string): Promise<string | null> =>
       ipcRenderer.invoke('workspace:getDesignSystemDocId', name),
     getDesignSystemDocInfo: (name: string): Promise<unknown> =>
       ipcRenderer.invoke('workspace:getDesignSystemDocInfo', name),
-    onChanged: (callback: (data: unknown) => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
-      ipcRenderer.on('workspace:changed', listener);
-      return () => ipcRenderer.removeListener('workspace:changed', listener);
-    },
   },
   document: {
     list: (workspaceName: string): Promise<unknown> =>

@@ -34,10 +34,9 @@ type Page =
   | 'design-system-doc'
   | 'assets'
   | 'settings'
-  | 'workspace-loading'
-  | 'workspace-closing';
+  | 'workspace-opening'
+  | 'workspace-leaving';
 
-/** Parse a hex color (#rgb or #rrggbb) to [r, g, b] in 0–255. */
 function parseHex(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
   if (h.length === 3) {
@@ -54,7 +53,6 @@ function parseHex(hex: string): [number, number, number] {
   ];
 }
 
-/** Relative luminance (WCAG). Returns 0 (black) to 1 (white). */
 function relativeLuminance(hex: string): number {
   const [r, g, b] = parseHex(hex).map((c) => {
     const s = c / 255;
@@ -79,10 +77,9 @@ function App(): React.JSX.Element {
     name: string | null;
     email: string | null;
   } | null>(null);
+  const [workspaceName, setWorkspaceName] = useState<string | null>(null);
 
-  const { info: workspaceInfo, workspaces, refreshWorkspaces } = useWorkspace();
-  const workspaceName = workspaceInfo.workspaceName;
-  const workspacePath = workspaceInfo.workspacePath;
+  const { workspaces, refreshWorkspaces } = useWorkspace();
   const workspaceTitle = workspaces.find((ws) => ws.slug === workspaceName)?.title;
 
   const { designSystem } = useDesignSystem(workspaceName);
@@ -103,7 +100,6 @@ function App(): React.JSX.Element {
     void window.litho.app.setTitleBarOverlay(titleBarTheme?.bg ?? '', titleBarTheme?.fg ?? '');
   }, [titleBarTheme]);
 
-  /** Navigate to a page, showing a confirmation if an agent is busy. */
   const navigateTo = useCallback(
     (target: Page, callback?: () => void) => {
       const isOnAgentPage = page === 'document' || page === 'design-system-doc';
@@ -162,15 +158,14 @@ function App(): React.JSX.Element {
     }
   }, [workspaceName]);
 
-  // Load documents when workspace becomes active
   useEffect(() => {
-    if (workspaceInfo.status === 'active') {
-      loadDocuments();
+    if (workspaceName) {
+      void loadDocuments();
     } else {
       setDocuments([]);
       setDesignSystemDoc(null);
     }
-  }, [workspaceInfo.status, loadDocuments]);
+  }, [workspaceName, loadDocuments]);
 
   useEffect(() => {
     void (async () => {
@@ -195,48 +190,35 @@ function App(): React.JSX.Element {
     async (name: string, email: string, telemetryEnabled: boolean) => {
       await window.litho.preferences.setUserProfile(name, email);
       await window.litho.telemetry.setEnabled(telemetryEnabled);
-      // Phase 1: fade out onboarding
       setOnboardingPhase('fading');
       await new Promise((resolve) => setTimeout(resolve, 300));
-      // Phase 2: show spinner transition
       setOnboardingPhase('transition');
       await new Promise((resolve) => setTimeout(resolve, 1200));
-      // Phase 3: reveal home screen
       setOnboardingPhase('done');
       setUserProfile({ name, email });
     },
     [],
   );
 
-  // Guard: redirect away from workspace pages if workspace is no longer active
-  useEffect(() => {
-    const onWorkspacePage = ['documents', 'document', 'design-system-doc', 'assets'].includes(page);
-    if (onWorkspacePage && workspaceInfo.status === 'inactive') {
-      setPage('workspaces');
-    }
-  }, [page, workspaceInfo.status]);
+  const handleOpenWorkspace = useCallback((slug: string) => {
+    setWorkspaceName(slug);
+    setPage('workspace-opening');
+  }, []);
 
-  const handleCloseWorkspace = useCallback(async () => {
-    setPage('workspace-closing');
-    try {
-      await window.litho.workspace.stop();
-      await refreshWorkspaces();
-    } catch (err) {
-      console.error('[app] Failed to stop workspace:', err);
-      toast.error('Failed to close workspace');
-    }
-  }, [refreshWorkspaces]);
+  const handleCloseWorkspace = useCallback(() => {
+    setPage('workspace-leaving');
+  }, []);
 
   const activeDoc = activeDocId ? (documents.find((d) => d.id === activeDocId) ?? null) : null;
 
-  // Still loading user profile — render minimal drag region to avoid flash
+  const inWorkspace = workspaceName !== null;
+
   if (userProfile === null) {
     return (
       <div className="h-10 w-full" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
     );
   }
 
-  // First launch — show onboarding or transition
   if (!userProfile.name) {
     if (onboardingPhase === 'transition') {
       return (
@@ -275,7 +257,6 @@ function App(): React.JSX.Element {
 
   return (
     <div className="flex h-screen flex-col">
-      {/* Title bar drag region */}
       <div
         className={cn(
           'flex h-10 shrink-0 items-center transition-colors duration-300',
@@ -290,14 +271,14 @@ function App(): React.JSX.Element {
         }
       >
         <span className="text-sm font-semibold">
-          {workspaceInfo.status === 'active' && workspaceTitle ? workspaceTitle : 'Home'}
+          {inWorkspace && workspaceTitle ? workspaceTitle : 'Home'}
         </span>
 
         <nav
           className="ml-auto flex items-center gap-1"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
-          {workspaceInfo.status === 'active'
+          {inWorkspace
             ? (
                 [
                   {
@@ -350,35 +331,32 @@ function App(): React.JSX.Element {
         </nav>
       </div>
 
-      {/* Main content */}
       <NavigationContext.Provider value={navigationActions}>
         <div
-          className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'documents' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
+          className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'documents' || page === 'workspace-opening' || page === 'workspace-leaving' || page === 'settings' || page === 'assets' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
         >
           {page === 'workspaces' && (
             <WorkspacesPage
               workspaces={workspaces}
-              activeInfo={workspaceInfo}
-              onWorkspaceSelected={() => setPage('workspace-loading')}
+              onWorkspaceSelected={handleOpenWorkspace}
               refreshWorkspaces={refreshWorkspaces}
               userName={userProfile.name ?? undefined}
             />
           )}
-          {page === 'workspace-loading' && (
+          {page === 'workspace-opening' && workspaceName && (
             <WorkspaceTransitionPage
               mode="loading"
-              workspaceName={workspaceInfo.workspaceName}
-              ready={workspaceInfo.status === 'active'}
-              onBack={() => setPage('workspaces')}
+              workspaceName={workspaceTitle ?? workspaceName}
               onComplete={() => setPage('documents')}
             />
           )}
-          {page === 'workspace-closing' && (
+          {page === 'workspace-leaving' && (
             <WorkspaceTransitionPage
               mode="closing"
-              workspaceName={workspaceInfo.workspaceName}
-              ready={workspaceInfo.status === 'inactive'}
-              onComplete={() => setPage('workspaces')}
+              onComplete={() => {
+                setWorkspaceName(null);
+                setPage('workspaces');
+              }}
             />
           )}
           {page === 'documents' && workspaceName && (
@@ -407,7 +385,6 @@ function App(): React.JSX.Element {
               doc={activeDoc}
               workspaceName={workspaceName}
               workspaceTitle={workspaceTitle ?? workspaceName}
-              workspacePath={workspacePath ?? ''}
               onBack={() => navigateTo('documents')}
               onDocumentsChange={loadDocuments}
               userName={userProfile.name ?? undefined}
@@ -418,7 +395,6 @@ function App(): React.JSX.Element {
             <DesignSystemDocPage
               workspaceName={workspaceName}
               workspaceTitle={workspaceTitle ?? workspaceName}
-              workspacePath={workspacePath}
               onBack={() => navigateTo('documents')}
               onAgentBusyChange={setAgentBusy}
             />
@@ -428,7 +404,7 @@ function App(): React.JSX.Element {
               initialCategory={settingsInitialCategory}
               onBack={() => {
                 setSettingsInitialCategory(undefined);
-                setPage(workspaceInfo.status === 'active' ? 'documents' : 'workspaces');
+                setPage(inWorkspace ? 'documents' : 'workspaces');
               }}
             />
           )}

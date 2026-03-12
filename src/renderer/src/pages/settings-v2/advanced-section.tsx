@@ -11,10 +11,10 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { CHAT_PREFS_KEY } from '@/lib/chat-prefs';
 
 export function AdvancedSection(): React.JSX.Element {
   const [enabled, setEnabled] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -29,24 +29,9 @@ export function AdvancedSection(): React.JSX.Element {
     setEnabled(value);
   }
 
-  async function handleExport(): Promise<void> {
-    setExporting(true);
-    try {
-      const result = await window.litho.advancedTools.exportSource();
-      if (result.success) {
-        toast.success(`Exported to ${result.path}`);
-      } else if (result.error !== 'Cancelled') {
-        toast.error(result.error ?? 'Export failed');
-      }
-    } catch (err) {
-      toast.error(String(err));
-    } finally {
-      setExporting(false);
-    }
-  }
-
   async function handleResetConfirm(): Promise<void> {
     setResetDialogOpen(false);
+    localStorage.removeItem(CHAT_PREFS_KEY);
     await window.litho.preferences.reset();
   }
 
@@ -68,20 +53,6 @@ export function AdvancedSection(): React.JSX.Element {
         </div>
         <Switch id="advanced-toggle" checked={enabled} onCheckedChange={handleToggle} />
       </div>
-
-      {enabled && (
-        <div className="flex items-center justify-between gap-4 rounded-lg border p-5">
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-medium">Export workspace source</Label>
-            <p className="text-sm text-muted-foreground">
-              Download all pages as TSX files with metadata for debugging.
-            </p>
-          </div>
-          <Button onClick={handleExport} disabled={exporting}>
-            {exporting ? 'Exporting...' : 'Export'}
-          </Button>
-        </div>
-      )}
 
       <div className="flex items-center justify-between gap-4 rounded-lg border border-destructive/50 p-5">
         <div className="flex flex-col gap-1">

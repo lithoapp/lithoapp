@@ -211,6 +211,7 @@ export function useChatV2({
           messages: msgs,
           agentId,
           agentContext: agentContextRef.current,
+          workspaceName,
         });
         chatIdRef.current = chatId;
       } catch (err) {
@@ -222,7 +223,7 @@ export function useChatV2({
         setIsStreaming(false);
       }
     },
-    [providerModelRef, agentId],
+    [providerModelRef, agentId, workspaceName],
   );
 
   // ---------------------------------------------------------------------------

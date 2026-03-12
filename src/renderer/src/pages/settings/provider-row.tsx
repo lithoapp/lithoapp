@@ -1,10 +1,10 @@
-import { Check, Loader2, Plug, Unplug, Zap } from 'lucide-react';
+import { Check, Loader2, Plug, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { AuthMethod, ProviderInfo } from '@/hooks/use-provider-list';
-import { disconnectProvider } from '@/lib/provider-actions';
+import { connectFree } from '@/lib/provider-actions';
 import { ConnectDialog } from './connect-dialog';
 import { PingDialog } from './ping-dialog';
 
@@ -21,18 +21,18 @@ export function ProviderRow({
 }): React.JSX.Element {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pingOpen, setPingOpen] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
-  const handleDisconnect = async (): Promise<void> => {
-    setDisconnecting(true);
+  const handleAutoConnect = async (): Promise<void> => {
+    setConnecting(true);
     try {
-      await disconnectProvider(provider.id);
+      await connectFree(provider.id);
       onRefresh();
     } catch (err) {
-      console.error('[settings] Failed to disconnect:', err);
-      toast.error('Failed to disconnect provider');
+      console.error('[settings] Failed to auto-connect:', err);
+      toast.error('Failed to connect provider');
     } finally {
-      setDisconnecting(false);
+      setConnecting(false);
     }
   };
 
@@ -65,29 +65,28 @@ export function ProviderRow({
         </div>
         <div>
           {isConnected ? (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="h-10 px-4 text-sm"
-                onClick={() => setPingOpen(true)}
-              >
-                <Zap className="mr-1.5 h-4 w-4" />
-                Ping
-              </Button>
-              <Button
-                variant="outline"
-                className="h-10 px-4 text-sm"
-                onClick={() => void handleDisconnect()}
-                disabled={disconnecting}
-              >
-                {disconnecting ? (
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                ) : (
-                  <Unplug className="mr-1.5 h-4 w-4" />
-                )}
-                Disconnect
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              className="h-10 px-4 text-sm"
+              onClick={() => setPingOpen(true)}
+            >
+              <Zap className="mr-1.5 h-4 w-4" />
+              Ping
+            </Button>
+          ) : provider.autoConnect ? (
+            <Button
+              variant="outline"
+              className="h-10 px-4 text-sm"
+              onClick={() => void handleAutoConnect()}
+              disabled={connecting}
+            >
+              {connecting ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Plug className="mr-1.5 h-4 w-4" />
+              )}
+              Connect
+            </Button>
           ) : (
             <Button
               variant="outline"
