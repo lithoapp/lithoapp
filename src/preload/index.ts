@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('litho', {
       ipcRenderer.invoke('preferences:getTheme'),
     setTheme: (value: 'dark' | 'light' | 'system'): Promise<void> =>
       ipcRenderer.invoke('preferences:setTheme', value),
+    reset: (): Promise<void> => ipcRenderer.invoke('preferences:reset'),
     onThemeChange: (callback: (value: 'dark' | 'light') => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, value: 'dark' | 'light'): void =>
         callback(value);

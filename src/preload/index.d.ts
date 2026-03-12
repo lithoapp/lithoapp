@@ -17,6 +17,7 @@ interface LithoAPI {
     setUserProfile: (name: string, email: string) => Promise<void>;
     getTheme: () => Promise<'dark' | 'light' | 'system'>;
     setTheme: (value: 'dark' | 'light' | 'system') => Promise<void>;
+    reset: () => Promise<void>;
     onThemeChange: (callback: (value: 'dark' | 'light') => void) => () => void;
   };
   telemetry: {

@@ -35,3 +35,7 @@ export function getActiveWorkspace(): string | null {
 export function setActiveWorkspace(name: string | null): void {
   write({ activeWorkspace: name });
 }
+
+export function clearActiveWorkspace(): void {
+  write({ activeWorkspace: null });
+}

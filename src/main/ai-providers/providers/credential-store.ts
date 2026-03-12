@@ -36,3 +36,7 @@ export function getConnectedProviderIds(): string[] {
   }[];
   return rows.map((r) => r.provider_id);
 }
+
+export function clearAllCredentials(): void {
+  getAiDb().exec('DELETE FROM ai_credentials');
+}

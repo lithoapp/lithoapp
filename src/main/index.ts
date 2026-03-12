@@ -34,8 +34,13 @@ import {
 app.setName('Litho');
 
 import type { PageSizeName, WorkspaceState } from '../shared/types';
-import { getActiveWorkspace, setActiveWorkspace } from './active-workspace-store';
+import {
+  clearActiveWorkspace,
+  getActiveWorkspace,
+  setActiveWorkspace,
+} from './active-workspace-store';
 import { registerAiProviderHandlers } from './ai-providers';
+import { clearAllCredentials } from './ai-providers/providers/credential-store';
 import {
   createAssetDirectory,
   deleteAsset,
@@ -64,6 +69,7 @@ import {
   getTelemetryEnabled,
   getTheme,
   getUserProfile,
+  resetPreferences,
   setAdvancedToolsEnabled,
   setTelemetryEnabled,
   setTheme,
@@ -180,6 +186,17 @@ ipcMain.handle('preferences:setUserProfile', (_event, name: string, email: strin
 );
 ipcMain.handle('preferences:getTheme', () => getTheme());
 ipcMain.handle('preferences:setTheme', (_event, value: Theme) => setTheme(value));
+ipcMain.handle('preferences:reset', () => {
+  resetPreferences();
+  clearAllCredentials();
+  clearActiveWorkspace();
+  if (is.dev) {
+    mainWindow?.webContents.reloadIgnoringCache();
+  } else {
+    app.relaunch();
+    app.quit();
+  }
+});
 ipcMain.handle('app:getVersion', () => app.getVersion());
 ipcMain.handle('app:getPlatform', () => process.platform);
 ipcMain.handle('app:setTitleBarOverlay', (_event, color: string, symbolColor: string) => {

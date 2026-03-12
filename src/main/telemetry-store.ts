@@ -70,3 +70,7 @@ export function getAdvancedToolsEnabled(): boolean {
 export function setAdvancedToolsEnabled(value: boolean): void {
   write({ ...read(), advancedToolsEnabled: value });
 }
+
+export function resetPreferences(): void {
+  write({ ...DEFAULTS });
+}

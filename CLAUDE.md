@@ -117,6 +117,8 @@ Connection pool caches open databases by workspace name. WAL mode, foreign keys 
 
 **App state** — JSON files in `app.getPath('userData')`: `active-workspace.json`, `app-preferences.json`.
 
+**Reset Preferences** — Available in Settings → Advanced. Clears profile, AI credentials, active workspace, and app settings (theme, telemetry, advanced tools). Triggers app relaunch and shows onboarding. Workspaces and their contents are preserved. Implementation: `telemetry-store.ts` → `resetPreferences()`, `credential-store.ts` → `clearAllCredentials()`, `active-workspace-store.ts` → `clearActiveWorkspace()`.
+
 ## Code Style
 
 - **Biome** for linting and formatting: single quotes, 2-space indent, 100-char line width. `components/ui/` (shadcn) is excluded from linting.
