@@ -1,9 +1,12 @@
-import { AlertCircle, Check, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { AlertCircle, Check, Loader2, Plug, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { type ProviderInfo, useProviderList } from '@/hooks/use-provider-list';
+import { connectFree } from '@/lib/provider-actions';
 import { cn } from '@/lib/utils';
 import { ConnectDialog } from '../settings/connect-dialog';
+import { AiProviderIcon } from '../settings/provider-icon';
 
 const ZEN_ID = 'free';
 const FEATURED_IDS = ['anthropic', 'openai', 'google', 'github-copilot'];
@@ -15,24 +18,54 @@ function ZenCard({
   provider: ProviderInfo;
   isConnected: boolean;
 }): React.JSX.Element {
+  const [connecting, setConnecting] = useState(false);
+
+  const handleConnect = async (): Promise<void> => {
+    setConnecting(true);
+    try {
+      await connectFree(provider.id);
+    } catch {
+      toast.error('Failed to connect');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   return (
     <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+          <AiProviderIcon providerId={provider.id} size={28} />
+        </div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4.5 w-4.5 text-primary" />
             <span className="text-lg font-semibold">{provider.name}</span>
+            <span className="text-xs text-muted-foreground/60">Provided by opencode.ai</span>
           </div>
-          <p className="text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {provider.modelCount} model{provider.modelCount !== 1 ? 's' : ''} ready to use — no
             setup needed
           </p>
         </div>
-        {isConnected && (
-          <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
-            <Check className="h-3.5 w-3.5" />
+        {isConnected ? (
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-500">
+            <Check className="h-3 w-3" />
             Ready
           </span>
+        ) : (
+          <Button
+            variant="default"
+            className="h-9 shrink-0 px-4 text-sm"
+            onClick={() => void handleConnect()}
+            disabled={connecting}
+          >
+            {connecting ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Plug className="mr-1.5 h-4 w-4" />
+            )}
+            Connect
+          </Button>
         )}
       </div>
     </div>
@@ -48,9 +81,8 @@ function FeaturedCard({
   isConnected: boolean;
   onConnect: () => void;
 }): React.JSX.Element {
-  const modelCount = provider.modelCount;
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: interactive only when not connected (role is set conditionally)
+    // biome-ignore lint/a11y/noStaticElementInteractions: interactive only when not connected
     <div
       role={isConnected ? undefined : 'button'}
       tabIndex={isConnected ? undefined : 0}
@@ -63,23 +95,28 @@ function FeaturedCard({
             }
       }
       className={cn(
-        'flex flex-col gap-1.5 rounded-lg border p-4 transition-colors',
+        'flex items-center gap-3 rounded-xl border p-4 transition-colors',
         isConnected
           ? 'border-primary/40 bg-primary/5'
           : 'cursor-pointer border-border hover:border-primary/50',
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-base font-medium leading-tight">{provider.name}</span>
-        {isConnected && <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />}
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/50">
+        <AiProviderIcon providerId={provider.id} size={22} />
       </div>
-      <p className="text-sm text-muted-foreground">
-        {modelCount} model{modelCount !== 1 ? 's' : ''}
-      </p>
+      <div className="min-w-0 flex-1">
+        <span className="text-base font-medium">{provider.name}</span>
+        <p className="text-sm text-muted-foreground">
+          {provider.modelCount} model{provider.modelCount !== 1 ? 's' : ''}
+        </p>
+      </div>
       {isConnected ? (
-        <p className="text-sm font-medium text-primary">Connected</p>
+        <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-500">
+          <Check className="h-3 w-3" />
+          Connected
+        </span>
       ) : (
-        <p className="text-sm text-muted-foreground">Connect →</p>
+        <span className="text-sm text-muted-foreground">Connect &rarr;</span>
       )}
     </div>
   );

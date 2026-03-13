@@ -1,9 +1,10 @@
 import { AlertCircle, Loader2, RefreshCw, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProviderList } from '@/hooks/use-provider-list';
-import { ProviderRow } from './provider-row';
+import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
+import { ProviderCard } from './provider-card';
 
 export function ProviderList(): React.JSX.Element {
   const {
@@ -16,6 +17,26 @@ export function ProviderList(): React.JSX.Element {
     refetch,
   } = useProviderList();
   const [search, setSearch] = useState('');
+  const [defaultProviderId, setDefaultProviderId] = useState('');
+  const [defaultModelId, setDefaultModelId] = useState('');
+
+  useEffect(() => {
+    const prefs = loadChatPrefs();
+    setDefaultProviderId(prefs.providerId);
+    setDefaultModelId(prefs.modelId);
+  }, []);
+
+  const handleSetDefault = useCallback((providerId: string, modelId: string) => {
+    saveChatPrefs({ providerId, modelId });
+    setDefaultProviderId(providerId);
+    setDefaultModelId(modelId);
+  }, []);
+
+  const handleClearDefault = useCallback(() => {
+    saveChatPrefs({ providerId: '', modelId: '' });
+    setDefaultProviderId('');
+    setDefaultModelId('');
+  }, []);
 
   const filteredAvailable = useMemo(() => {
     if (!search.trim()) return availableProviders;
@@ -27,26 +48,20 @@ export function ProviderList(): React.JSX.Element {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-3 rounded-lg border p-5">
-        <p className="text-sm font-medium">Providers</p>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading providers...
-        </div>
+      <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading providers...
       </div>
     );
   }
 
   if (error || providers.length === 0) {
     return (
-      <div className="flex flex-col gap-3 rounded-lg border p-5">
-        <p className="text-sm font-medium">Providers</p>
-        <div className="flex items-center gap-2 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          {error || 'Failed to load providers'}
-        </div>
-        <Button variant="outline" className="h-10 w-fit px-4 text-sm" onClick={refetch}>
-          <RefreshCw className="mr-1.5 h-4 w-4" />
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-8">
+        <AlertCircle className="h-5 w-5 text-destructive" />
+        <p className="text-sm text-destructive">{error || 'Failed to load providers'}</p>
+        <Button variant="outline" size="sm" onClick={refetch}>
+          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
           Retry
         </Button>
       </div>
@@ -54,65 +69,72 @@ export function ProviderList(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
+      {/* Connected providers */}
       {connectedProviders.length > 0 && (
-        <div className="flex flex-col rounded-lg border">
-          <div className="px-5 pt-4 pb-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Connected
-            </p>
-          </div>
-          {connectedProviders.map((provider, i) => (
-            <div key={provider.id} className={i > 0 ? 'border-t' : ''}>
-              <ProviderRow
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Connected
+          </p>
+          <div className="flex flex-col gap-3">
+            {connectedProviders.map((provider) => (
+              <ProviderCard
+                key={provider.id}
                 provider={provider}
                 isConnected
                 authMethods={authMethods[provider.id] ?? []}
                 onRefresh={refetch}
+                defaultProviderId={defaultProviderId}
+                defaultModelId={defaultModelId}
+                onSetDefault={handleSetDefault}
+                onClearDefault={handleClearDefault}
               />
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
+      {/* Available providers */}
       {availableProviders.length > 0 && (
-        <div className="flex flex-col rounded-lg border">
-          <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Available
-            </p>
-          </div>
-          <div className="px-5 pb-3">
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Available
+          </p>
+
+          {availableProviders.length > 3 && (
             <div className="relative">
-              <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search providers..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 pl-10 text-sm"
+                className="h-10 pl-10 text-sm"
               />
             </div>
-          </div>
-          {filteredAvailable.map((provider, i) => (
-            <div key={provider.id} className={i > 0 ? 'border-t' : ''}>
-              <ProviderRow
+          )}
+
+          <div className="flex flex-col gap-3">
+            {filteredAvailable.map((provider) => (
+              <ProviderCard
+                key={provider.id}
                 provider={provider}
                 isConnected={false}
                 authMethods={authMethods[provider.id] ?? []}
                 onRefresh={refetch}
+                defaultProviderId={defaultProviderId}
+                defaultModelId={defaultModelId}
+                onSetDefault={handleSetDefault}
+                onClearDefault={handleClearDefault}
               />
-            </div>
-          ))}
+            ))}
+          </div>
+
           {filteredAvailable.length === 0 && search.trim() && (
-            <p className="px-5 py-4 text-center text-sm text-muted-foreground">
+            <p className="py-4 text-center text-sm text-muted-foreground">
               No providers matching &ldquo;{search}&rdquo;
             </p>
           )}
         </div>
-      )}
-
-      {providers.length === 0 && (
-        <p className="text-sm text-muted-foreground">No providers available.</p>
       )}
     </div>
   );

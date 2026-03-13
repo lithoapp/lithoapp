@@ -44,6 +44,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@hookform/resolvers": "^5.2.2",
     "@jridgewell/resolve-uri": "^3.1.2",
+    "@lobehub/icons": "^5.0.1",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-use-rect": "^1.1.1",
     "@radix-ui/rect": "^1.1.1",
