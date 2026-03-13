@@ -397,7 +397,7 @@ export function Chat({
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-card">
       {/* Header */}
       <div className="flex items-center gap-2 border-b px-3 py-2">
         <div className="flex h-7 items-center rounded-md bg-muted p-0.5 text-[11px]">

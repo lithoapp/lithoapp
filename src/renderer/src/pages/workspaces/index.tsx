@@ -140,7 +140,7 @@ export function WorkspacesPage({
               key={ws.slug}
               type="button"
               onClick={() => void handleSelect(ws.slug)}
-              className="group flex cursor-pointer flex-col rounded-lg border border-border p-5 text-left transition-colors hover:bg-muted/50"
+              className="group flex cursor-pointer flex-col rounded-lg border border-border bg-card p-5 text-left transition-colors hover:bg-muted/50"
             >
               <div className="flex items-center gap-3">
                 {isSelecting ? (

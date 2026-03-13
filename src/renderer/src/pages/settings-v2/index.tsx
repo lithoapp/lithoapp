@@ -30,7 +30,7 @@ export function SettingsV2Page({
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-52 shrink-0 flex-col gap-1 border-r px-3 py-6">
+      <aside className="flex w-52 shrink-0 flex-col gap-1 border-r bg-card px-3 py-6">
         <div className="mb-4 flex items-center gap-1 px-1">
           <button
             type="button"

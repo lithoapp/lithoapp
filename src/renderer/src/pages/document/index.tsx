@@ -497,7 +497,10 @@ export function DocumentPage({
                 <div ref={viewerRef} className="relative min-w-0 flex-1">
                   <div
                     ref={scrollRef}
-                    className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
+                    className={cn(
+                      'absolute inset-0 bg-neutral-200 dark:bg-neutral-900',
+                      fitToWidth ? 'overflow-y-auto overflow-x-hidden' : 'overflow-auto',
+                    )}
                   >
                     {pageContent}
                   </div>
@@ -577,7 +580,10 @@ export function DocumentPage({
                 <div ref={viewerRef} className="relative min-w-0 flex-1">
                   <div
                     ref={scrollRef}
-                    className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
+                    className={cn(
+                      'absolute inset-0 bg-neutral-200 dark:bg-neutral-900',
+                      fitToWidth ? 'overflow-y-auto overflow-x-hidden' : 'overflow-auto',
+                    )}
                   >
                     {pageContent}
                   </div>
@@ -638,7 +644,7 @@ function DocumentToolbar({
   onExport: () => void;
 }): React.JSX.Element {
   return (
-    <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
+    <div className="flex shrink-0 items-center gap-2 border-b bg-card px-3 py-2">
       <Button variant="ghost" size="icon-sm" onClick={onBack}>
         <ArrowLeft className="h-4 w-4" />
       </Button>
@@ -764,7 +770,7 @@ function PageSidebar({
   onPageClick: (index: number) => void;
 }) {
   return (
-    <div className="flex w-48 min-h-0 shrink-0 flex-col border-r">
+    <div className="flex w-48 min-h-0 shrink-0 flex-col border-r bg-card">
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-0.5 p-3">
           {pages.length > 0 ? (
