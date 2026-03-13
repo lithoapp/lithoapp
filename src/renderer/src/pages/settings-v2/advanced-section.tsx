@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,24 +9,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { CHAT_PREFS_KEY } from '@/lib/chat-prefs';
 
 export function AdvancedSection(): React.JSX.Element {
-  const [enabled, setEnabled] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-
-  useEffect(() => {
-    window.litho.advancedTools
-      .getEnabled()
-      .then(setEnabled)
-      .catch(() => toast.error('Failed to load settings'));
-  }, []);
-
-  async function handleToggle(value: boolean): Promise<void> {
-    await window.litho.advancedTools.setEnabled(value);
-    setEnabled(value);
-  }
 
   async function handleResetConfirm(): Promise<void> {
     setResetDialogOpen(false);
@@ -39,19 +24,7 @@ export function AdvancedSection(): React.JSX.Element {
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="text-lg font-semibold">Advanced</h2>
-        <p className="text-sm text-muted-foreground">Developer and debugging tools.</p>
-      </div>
-
-      <div className="flex items-center justify-between gap-4 rounded-lg border p-5">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="advanced-toggle" className="text-sm font-medium">
-            Advanced tools
-          </Label>
-          <p className="text-sm text-muted-foreground">
-            Enable debug features for troubleshooting.
-          </p>
-        </div>
-        <Switch id="advanced-toggle" checked={enabled} onCheckedChange={handleToggle} />
+        <p className="text-sm text-muted-foreground">Advanced settings and actions.</p>
       </div>
 
       <div className="flex items-center justify-between gap-4 rounded-lg border border-destructive/50 p-5">

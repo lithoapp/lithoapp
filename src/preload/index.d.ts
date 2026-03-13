@@ -24,13 +24,6 @@ interface LithoAPI {
     getEnabled: () => Promise<boolean>;
     setEnabled: (value: boolean) => Promise<void>;
   };
-  advancedTools: {
-    getEnabled: () => Promise<boolean>;
-    setEnabled: (value: boolean) => Promise<void>;
-    exportSource: (
-      workspaceName: string,
-    ) => Promise<{ success: boolean; path?: string; error?: string }>;
-  };
   app: {
     getVersion: () => Promise<string>;
     getPlatform: () => Promise<string>;

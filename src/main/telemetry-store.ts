@@ -9,13 +9,11 @@ interface AppPreferences {
   name?: string;
   email?: string;
   theme: Theme;
-  advancedToolsEnabled: boolean;
 }
 
 const DEFAULTS: AppPreferences = {
   telemetryEnabled: true,
   theme: 'system',
-  advancedToolsEnabled: false,
 };
 
 function getStorePath(): string {
@@ -61,14 +59,6 @@ export function getTheme(): Theme {
 
 export function setTheme(value: Theme): void {
   write({ ...read(), theme: value });
-}
-
-export function getAdvancedToolsEnabled(): boolean {
-  return read().advancedToolsEnabled;
-}
-
-export function setAdvancedToolsEnabled(value: boolean): void {
-  write({ ...read(), advancedToolsEnabled: value });
 }
 
 export function resetPreferences(): void {

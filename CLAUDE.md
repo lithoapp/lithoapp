@@ -27,7 +27,7 @@ pnpm typecheck            # Type-check (main + renderer)
 - `workspace-paths.ts` — Resolves workspace name → `{userData}/workspaces/<name>`
 - `assets-manager.ts` — Workspace asset CRUD with path traversal protection
 - `auto-updater.ts` — electron-updater for GitHub releases
-- `telemetry-store.ts` — User preferences (telemetry, profile, theme, advanced tools)
+- `telemetry-store.ts` — User preferences (telemetry, profile, theme)
 - `sentry.ts` — Error reporting initialization
 
 ### AI Architecture (`src/main/ai-providers/`)
@@ -65,7 +65,7 @@ Each agent has: `system.md` (system prompt — runtime variables at top via Must
 
 ### Preload (`src/preload/`)
 
-`contextBridge` exposes `window.litho` API with namespaces: `preferences`, `telemetry`, `advancedTools`, `app`, `update`, `export`, `workspace`, `document`, `designSystem`, `renderer`, `aiProvider`, `chat`, `conversation`, `assets`
+`contextBridge` exposes `window.litho` API with namespaces: `preferences`, `telemetry`, `app`, `update`, `export`, `workspace`, `document`, `designSystem`, `renderer`, `aiProvider`, `chat`, `conversation`, `assets`
 
 ### Renderer (`src/renderer/`)
 
@@ -116,7 +116,7 @@ Connection pool caches open databases by workspace name. WAL mode, foreign keys 
 
 **App state** — JSON files in `app.getPath('userData')`: `app-preferences.json`. Active workspace is tracked as local React state in the renderer (session-scoped, not persisted).
 
-**Reset Preferences** — Available in Settings → Advanced. Clears profile, AI credentials, chat model preferences (localStorage), and app settings (theme, telemetry, advanced tools). Auto-reconnects free providers after clearing credentials. Triggers app relaunch and shows onboarding. Workspaces and their contents are preserved. Implementation: `telemetry-store.ts` → `resetPreferences()`, `credential-store.ts` → `clearAllCredentials()`, `models-cache.ts` → `autoConnectProviders()`.
+**Reset Preferences** — Available in Settings → Advanced. Clears profile, AI credentials, chat model preferences (localStorage), and app settings (theme, telemetry). Auto-reconnects free providers after clearing credentials. Triggers app relaunch and shows onboarding. Workspaces and their contents are preserved. Implementation: `telemetry-store.ts` → `resetPreferences()`, `credential-store.ts` → `clearAllCredentials()`, `models-cache.ts` → `autoConnectProviders()`.
 
 ## Code Style
 

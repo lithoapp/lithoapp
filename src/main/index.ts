@@ -65,12 +65,10 @@ import { buildAllTemplatePreviews, buildPage } from './renderer';
 import { compileTailwind, formatCssError } from './renderer/build-shared';
 import { initSentry } from './sentry';
 import {
-  getAdvancedToolsEnabled,
   getTelemetryEnabled,
   getTheme,
   getUserProfile,
   resetPreferences,
-  setAdvancedToolsEnabled,
   setTelemetryEnabled,
   setTheme,
   setUserProfile,
@@ -84,7 +82,6 @@ import {
   createSnapshot,
   deleteDocument,
   duplicateDocument,
-  exportWorkspaceSource,
   getDesignSystemDocId,
   getDesignSystemDocInfo,
   getDocumentCount,
@@ -161,10 +158,6 @@ function createWindow(): void {
 // IPC handlers
 ipcMain.handle('telemetry:getEnabled', () => getTelemetryEnabled());
 ipcMain.handle('telemetry:setEnabled', (_event, value: boolean) => setTelemetryEnabled(value));
-ipcMain.handle('advancedTools:getEnabled', () => getAdvancedToolsEnabled());
-ipcMain.handle('advancedTools:setEnabled', (_event, value: boolean) =>
-  setAdvancedToolsEnabled(value),
-);
 ipcMain.handle('preferences:getUserProfile', () => getUserProfile());
 ipcMain.handle('preferences:setUserProfile', (_event, name: string, email: string) =>
   setUserProfile(name, email),
@@ -226,31 +219,6 @@ ipcMain.handle('export:start', async (_event, request) => {
 });
 
 ipcMain.handle('export:getProgress', () => documentExporter.getProgress());
-
-ipcMain.handle('advancedTools:exportSource', async (_event, workspaceName: string) => {
-  if (!mainWindow) return { success: false, error: 'No window available' };
-
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const defaultName = `${workspaceName}-${timestamp}.zip`;
-
-  const result = await dialog.showSaveDialog(mainWindow, {
-    defaultPath: defaultName,
-    filters: [{ name: 'ZIP', extensions: ['zip'] }],
-  });
-
-  if (result.canceled || !result.filePath) {
-    return { success: false, error: 'Cancelled' };
-  }
-
-  try {
-    const zipBuffer = await exportWorkspaceSource(workspaceName);
-    const { writeFile } = await import('node:fs/promises');
-    await writeFile(result.filePath, zipBuffer);
-    return { success: true, path: result.filePath };
-  } catch (err) {
-    return { success: false, error: String(err) };
-  }
-});
 
 // Workspace IPC handlers
 ipcMain.handle('workspace:list', () => listWorkspaces());
