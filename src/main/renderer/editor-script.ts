@@ -16,9 +16,9 @@ export const EDITOR_SCRIPT = `
   // -- Styles -----------------------------------------------------------------
   const style = document.createElement('style');
   style.textContent = \`
-    [data-litho-loc] { cursor: pointer; }
-    .litho-hover { outline: 1.5px dashed rgba(232,101,43,0.4); outline-offset: -1.5px; }
-    .litho-selected { outline: 1.5px solid rgba(232,101,43,0.8); outline-offset: -1.5px; }
+    [data-litho-loc] { cursor: pointer; transition: background-color 0.15s ease; }
+    .litho-hover { outline: 1.5px dashed rgba(232,101,43,0.4); outline-offset: -1.5px; background-color: rgba(232,101,43,0.06); }
+    .litho-selected { outline: 2px solid rgba(232,101,43,0.8); outline-offset: -2px; background-color: rgba(232,101,43,0.08); }
     .litho-floating-input {
       position: absolute;
       z-index: 99999;

@@ -60,16 +60,23 @@ export function VisualEditContent({ text }: { text: string }) {
         <div key={group.page} className="flex flex-col gap-1">
           {group.page && <p className="text-xs font-medium text-muted-foreground">{group.page}</p>}
           {group.changes.map((change) => (
-            <div key={change.text} className="rounded bg-primary/5 px-2.5 py-1.5 text-xs">
-              {change.isTextChange ? (
-                <span>
-                  <span className="line-through text-muted-foreground">{change.oldText}</span>{' '}
-                  <ArrowRight className="inline h-3 w-3 text-muted-foreground" />{' '}
-                  <span className="font-medium">{change.newText}</span>
-                </span>
-              ) : (
-                <span>{change.text}</span>
-              )}
+            <div
+              key={change.text}
+              className={`flex items-center gap-2 rounded-md border border-border/60 bg-card py-1.5 pr-2.5 pl-0 text-xs shadow-xs ${
+                change.isTextChange ? 'border-l-2 border-l-primary' : 'border-l-2 border-l-blue-500'
+              }`}
+            >
+              <div className="pl-2.5">
+                {change.isTextChange ? (
+                  <span>
+                    <span className="rounded bg-red-500/10 px-0.5 text-red-400 line-through">{change.oldText}</span>{' '}
+                    <ArrowRight className="mx-0.5 inline h-3 w-3 text-muted-foreground" />{' '}
+                    <span className="rounded bg-green-500/10 px-0.5 font-medium text-green-400">{change.newText}</span>
+                  </span>
+                ) : (
+                  <span>{change.text}</span>
+                )}
+              </div>
             </div>
           ))}
         </div>

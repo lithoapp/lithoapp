@@ -29,6 +29,7 @@ import { ChatCover } from './chat-cover';
 import { MessageList } from './message-list';
 import { ModelSelector } from './model-selector';
 import type { DisplayMode } from './types';
+import { isVisualEditMessage } from '@/components/edit-mode/visual-edit-message';
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -302,7 +303,7 @@ export function Chat({
   const handleRevert = useCallback(
     async (userMessageId: string) => {
       const userPrompt = await chat.revertToMessage(userMessageId);
-      if (userPrompt) {
+      if (userPrompt && !isVisualEditMessage(userPrompt)) {
         setInput(userPrompt);
       }
     },
