@@ -16,20 +16,30 @@ export function getAppNodeModulesPath(): string {
     : join(getAppRootPath(), 'node_modules');
 }
 
+export function getAppModuleResolvePaths(): string[] {
+  if (!app.isPackaged) {
+    return [join(getAppRootPath(), 'node_modules')];
+  }
+
+  return [join(getAppRootPath(), 'node_modules'), getAppNodeModulesPath()];
+}
+
 export function createAppRequire(): NodeJS.Require {
   const baseRequire = createRequire(getAppPackageJsonPath());
-  const appNodeModulesPath = getAppNodeModulesPath();
+  const appModuleResolvePaths = getAppModuleResolvePaths();
   const resolve: NodeJS.RequireResolve = Object.assign(
     (specifier: string, options?: NodeJS.RequireResolveOptions) =>
       baseRequire.resolve(specifier, {
         ...options,
-        paths: [...(options?.paths ?? []), appNodeModulesPath],
+        paths: [...(options?.paths ?? []), ...appModuleResolvePaths],
       }),
     { paths: baseRequire.resolve.paths.bind(baseRequire.resolve) },
   );
 
   const appRequire = ((specifier: string) =>
-    baseRequire(baseRequire.resolve(specifier, { paths: [appNodeModulesPath] }))) as NodeJS.Require;
+    baseRequire(
+      baseRequire.resolve(specifier, { paths: appModuleResolvePaths }),
+    )) as NodeJS.Require;
   appRequire.resolve = resolve;
 
   return appRequire;

@@ -9,7 +9,7 @@ import {
   extractCandidatesFromSource,
   formatCssError,
   formatEsbuildError,
-  getRendererBuildNodeModulesPath,
+  getRendererBuildNodeModulesPaths,
   toCssUnit,
 } from './build-shared';
 import { EDITOR_SCRIPT } from './editor-script';
@@ -35,7 +35,7 @@ export async function buildPageCsr(
   size: PageSize,
   options?: { editMode?: boolean; pageId?: string },
 ): Promise<{ html: string; timings: CsrPipelineTimings }> {
-  const appNodeModulesPath = getRendererBuildNodeModulesPath();
+  const appNodeModulesPaths = getRendererBuildNodeModulesPaths();
   const cssUnit = toCssUnit(size.unit);
 
   const bootstrap = [
@@ -86,7 +86,7 @@ export async function buildPageCsr(
       format: 'esm',
       platform: 'browser',
       jsx: 'automatic',
-      nodePaths: [appNodeModulesPath],
+      nodePaths: appNodeModulesPaths,
       plugins: [pageEntryPlugin, createAssetResolverPlugin(wsPath), stripStyleImportsPlugin],
       loader: assetLoaders,
       define: { 'process.env.NODE_ENV': '"production"' },

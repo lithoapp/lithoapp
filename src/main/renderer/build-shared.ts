@@ -2,14 +2,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { compile } from '@tailwindcss/node';
 import type { Loader, Plugin } from 'esbuild';
-import { createAppRequire, getAppNodeModulesPath } from '../lib/paths';
+import { createAppRequire, getAppModuleResolvePaths } from '../lib/paths';
 
 export function getRendererBuildRequire(): NodeJS.Require {
   return createAppRequire();
 }
 
-export function getRendererBuildNodeModulesPath(): string {
-  return getAppNodeModulesPath();
+export function getRendererBuildNodeModulesPaths(): string[] {
+  return getAppModuleResolvePaths();
 }
 
 /** Map file extension to MIME type for data URI inlining. */

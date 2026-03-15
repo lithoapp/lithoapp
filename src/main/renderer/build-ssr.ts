@@ -1,6 +1,5 @@
 import { build } from 'esbuild';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import type { ComponentType, ReactNode } from 'react';
 import type { PageSize } from '../../shared/types';
 import {
   assembleHtml,
@@ -11,7 +10,7 @@ import {
   extractCandidatesFromSource,
   formatCssError,
   formatEsbuildError,
-  getRendererBuildNodeModulesPath,
+  getRendererBuildNodeModulesPaths,
   getRendererBuildRequire,
   toCssUnit,
 } from './build-shared';
@@ -21,6 +20,15 @@ export interface SsrPipelineTimings {
   esbuild: number;
   tailwind: number;
   ssrRender: number;
+}
+
+interface SsrReactRuntime {
+  createElement: (
+    type: unknown,
+    props?: Record<string, unknown> | null,
+    ...children: ReactNode[]
+  ) => ReactNode;
+  renderToStaticMarkup: (element: ReactNode) => string;
 }
 
 /**
@@ -38,8 +46,9 @@ export async function buildPageSsr(
   css: string,
   size: PageSize,
 ): Promise<{ html: string; timings: SsrPipelineTimings }> {
-  const appNodeModulesPath = getRendererBuildNodeModulesPath();
+  const appNodeModulesPaths = getRendererBuildNodeModulesPaths();
   const appRequire = getRendererBuildRequire();
+  const reactRuntime = loadSsrReactRuntime(appRequire);
   const workspaceSources: string[] = [pageSource];
   const stripStyleImportsPlugin = createStripStyleImportsPlugin(wsPath, workspaceSources);
 
@@ -59,7 +68,7 @@ export async function buildPageSsr(
       format: 'cjs',
       platform: 'node',
       jsx: 'automatic',
-      nodePaths: [appNodeModulesPath],
+      nodePaths: appNodeModulesPaths,
       plugins: [createAssetResolverPlugin(wsPath), stripStyleImportsPlugin],
       loader: assetLoaders,
       external: ['react', 'react-dom', 'react/jsx-runtime'],
@@ -75,7 +84,7 @@ export async function buildPageSsr(
   const esbuildMs = Math.round(performance.now() - esbuildStart);
 
   // Evaluate the CJS bundle, providing a require that resolves from the app's node_modules
-  let PageComponent: React.ComponentType;
+  let PageComponent: ComponentType;
   try {
     const mod = { exports: {} as Record<string, unknown> };
     const fn = new Function('require', 'module', 'exports', cjsBundle);
@@ -84,7 +93,7 @@ export async function buildPageSsr(
     if (typeof exported !== 'function') {
       throw new Error(`Expected default export to be a component function, got ${typeof exported}`);
     }
-    PageComponent = exported as React.ComponentType;
+    PageComponent = exported as ComponentType;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(`SSR eval failed: ${message}`);
@@ -95,8 +104,8 @@ export async function buildPageSsr(
   const ssrStart = performance.now();
   let bodyHtml: string;
   try {
-    bodyHtml = renderToStaticMarkup(
-      createElement(
+    bodyHtml = reactRuntime.renderToStaticMarkup(
+      reactRuntime.createElement(
         'div',
         {
           style: {
@@ -106,7 +115,7 @@ export async function buildPageSsr(
             boxSizing: 'border-box',
           },
         },
-        createElement(PageComponent),
+        reactRuntime.createElement(PageComponent),
       ),
     );
   } catch (err: unknown) {
@@ -128,4 +137,24 @@ export async function buildPageSsr(
 
   const html = assembleHtml({ css: finalCss, bodyHtml });
   return { html, timings: { esbuild: esbuildMs, tailwind: tailwindMs, ssrRender: ssrRenderMs } };
+}
+
+function loadSsrReactRuntime(appRequire: NodeJS.Require): SsrReactRuntime {
+  const reactModule = appRequire('react') as { createElement?: SsrReactRuntime['createElement'] };
+  const reactDomServerModule = appRequire('react-dom/server') as {
+    renderToStaticMarkup?: SsrReactRuntime['renderToStaticMarkup'];
+  };
+
+  if (typeof reactModule.createElement !== 'function') {
+    throw new Error('SSR runtime failed to load React createElement');
+  }
+
+  if (typeof reactDomServerModule.renderToStaticMarkup !== 'function') {
+    throw new Error('SSR runtime failed to load react-dom/server renderToStaticMarkup');
+  }
+
+  return {
+    createElement: reactModule.createElement,
+    renderToStaticMarkup: reactDomServerModule.renderToStaticMarkup,
+  };
 }
