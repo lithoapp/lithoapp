@@ -46,7 +46,7 @@ The app-specific password is generated at [account.apple.com](https://account.ap
 pnpm dist:mac
 ```
 
-Produces signed + notarized `.dmg` and `.zip` in `dist/`.
+Produces signed `.dmg` and `.zip` in `dist/${version}/`.
 
 ### Publish to GitHub Releases
 
@@ -56,17 +56,29 @@ GH_TOKEN=<github-token> pnpm release:mac
 
 Requires a GitHub personal access token with `repo` scope.
 
+### Local installation (for testing)
+
+```bash
+pnpm install:mac
+```
+
+Installs the built app to `/Applications/Litho.app` and launches it.
+
 ## Artifacts
 
 | File | Purpose |
 |------|---------|
-| `Litho-<version>.dmg` | Installer for manual distribution |
-| `Litho-<version>-mac.zip` | Used by `electron-updater` for auto-updates |
+| `litho-<version>.dmg` | Installer for manual distribution |
+| `Litho-<version>-arm64-mac.zip` | Used by `electron-updater` for auto-updates |
 | `latest-mac.yml` | Version manifest for auto-update feed |
+
+Artifacts are organized by version in `dist/<version>/`.
 
 ## Notarization
 
-Notarization is enabled in `electron-builder.yml` (`notarize: true`). Apple scans the app server-side — this adds 5-20 minutes to the build.
+Notarization is currently disabled in `electron-builder.yml` (`notarize: false`). When enabled, Apple scans the app server-side — this adds 5-20 minutes to the build.
+
+**To enable notarization**, set `notarize: true` in `electron-builder.yml` and ensure environment variables are configured.
 
 **Check notarization status:**
 

@@ -1,13 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { extname, join } from 'node:path';
 import { compile } from '@tailwindcss/node';
 import type { Loader, Plugin } from 'esbuild';
+import { createAppRequire, getAppNodeModulesPath } from '../lib/paths';
 
-// __dirname is replaced at build time by electron-vite and always resolves to out/main/,
-// regardless of source file location. Keep paths relative to that.
-export const appRequire = createRequire(join(__dirname, '..', 'package.json'));
-export const appNodeModules = join(__dirname, '..', '..', 'node_modules');
+export function getRendererBuildRequire(): NodeJS.Require {
+  return createAppRequire();
+}
+
+export function getRendererBuildNodeModulesPath(): string {
+  return getAppNodeModulesPath();
+}
 
 /** Map file extension to MIME type for data URI inlining. */
 const MIME_TYPES: Record<string, string> = {
@@ -41,6 +44,7 @@ export async function compileTailwind(
   wsPath: string,
   candidates: string[],
 ): Promise<string> {
+  const appRequire = getRendererBuildRequire();
   const compiled = await compile(css, {
     base: wsPath,
     onDependency: () => {},

@@ -1,8 +1,6 @@
-import { join } from 'node:path';
 import { build } from 'esbuild';
 import type { PageSize } from '../../shared/types';
 import {
-  appNodeModules,
   assembleHtml,
   assetLoaders,
   compileTailwind,
@@ -11,6 +9,7 @@ import {
   extractCandidatesFromSource,
   formatCssError,
   formatEsbuildError,
+  getRendererBuildNodeModulesPath,
   toCssUnit,
 } from './build-shared';
 import { EDITOR_SCRIPT } from './editor-script';
@@ -36,6 +35,7 @@ export async function buildPageCsr(
   size: PageSize,
   options?: { editMode?: boolean; pageId?: string },
 ): Promise<{ html: string; timings: CsrPipelineTimings }> {
+  const appNodeModulesPath = getRendererBuildNodeModulesPath();
   const cssUnit = toCssUnit(size.unit);
 
   const bootstrap = [
@@ -79,14 +79,14 @@ export async function buildPageCsr(
       stdin: {
         contents: bootstrap,
         loader: 'tsx',
-        resolveDir: join(__dirname, '..', '..'),
+        resolveDir: wsPath,
       },
       bundle: true,
       write: false,
       format: 'esm',
       platform: 'browser',
       jsx: 'automatic',
-      nodePaths: [appNodeModules],
+      nodePaths: [appNodeModulesPath],
       plugins: [pageEntryPlugin, createAssetResolverPlugin(wsPath), stripStyleImportsPlugin],
       loader: assetLoaders,
       define: { 'process.env.NODE_ENV': '"production"' },

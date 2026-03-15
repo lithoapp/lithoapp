@@ -3,8 +3,6 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { PageSize } from '../../shared/types';
 import {
-  appNodeModules,
-  appRequire,
   assembleHtml,
   assetLoaders,
   compileTailwind,
@@ -13,6 +11,8 @@ import {
   extractCandidatesFromSource,
   formatCssError,
   formatEsbuildError,
+  getRendererBuildNodeModulesPath,
+  getRendererBuildRequire,
   toCssUnit,
 } from './build-shared';
 
@@ -38,6 +38,8 @@ export async function buildPageSsr(
   css: string,
   size: PageSize,
 ): Promise<{ html: string; timings: SsrPipelineTimings }> {
+  const appNodeModulesPath = getRendererBuildNodeModulesPath();
+  const appRequire = getRendererBuildRequire();
   const workspaceSources: string[] = [pageSource];
   const stripStyleImportsPlugin = createStripStyleImportsPlugin(wsPath, workspaceSources);
 
@@ -57,7 +59,7 @@ export async function buildPageSsr(
       format: 'cjs',
       platform: 'node',
       jsx: 'automatic',
-      nodePaths: [appNodeModules],
+      nodePaths: [appNodeModulesPath],
       plugins: [createAssetResolverPlugin(wsPath), stripStyleImportsPlugin],
       loader: assetLoaders,
       external: ['react', 'react-dom', 'react/jsx-runtime'],

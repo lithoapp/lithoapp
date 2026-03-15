@@ -1,17 +1,10 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
+import { getAppNodeModulesPath } from './lib/paths';
 
-// In the packaged app, esbuild's binary is unpacked outside the asar.
-// __dirname is inside app.asar/out/main — the unpacked dir is a sibling of app.asar.
 const esbuildPlatform = `${process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux'}-${process.arch}`;
-const resourcesDir = join(__dirname, '..', '..');
-const unpackedBase = join(
-  resourcesDir.replace('app.asar', 'app.asar.unpacked'),
-  'node_modules',
-  '@esbuild',
-  esbuildPlatform,
-);
+const unpackedBase = join(getAppNodeModulesPath(), '@esbuild', esbuildPlatform);
 const unpackedEsbuild =
   process.platform === 'win32'
     ? join(unpackedBase, 'esbuild.exe')
