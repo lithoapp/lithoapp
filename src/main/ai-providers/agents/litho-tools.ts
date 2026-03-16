@@ -63,6 +63,18 @@ function detectBadAssetPath(source: string): string | null {
   );
 }
 
+function formatAssetMetadata(entry: {
+  ext: string;
+  size: number;
+  width?: number;
+  height?: number;
+}): string {
+  const dimensions =
+    entry.width && entry.height ? `${entry.width}x${entry.height}` : 'unknown-dimensions';
+
+  return `${entry.ext}\t${entry.size}\t${dimensions}`;
+}
+
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
@@ -712,25 +724,21 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
     listWorkspaceAssets: tool({
       description:
         'List workspace-level assets (images) shared across all documents. ' +
-        'Excludes per-document asset folders. ' +
-        'Reference these in pages as @assets/filename (the paths returned already include the @assets/ prefix).',
+        'Includes nested asset directories but excludes per-document asset folders. ' +
+        'Reference these in pages as @assets/path/to/file (the paths returned already include the @assets/ prefix).',
       inputSchema: z.object({}),
       execute: async () => {
         const workspacePath = resolveWorkspacePath(workspace);
-        const allEntries = listAssets(workspacePath, '', false);
+        const allEntries = listAssets(workspacePath, '', true);
 
-        // Hide the reserved "documents" folder (per-document assets)
-        const filtered = allEntries.filter(
-          (e) => !(e.type === 'directory' && e.name === 'documents'),
-        );
+        const filtered = [...allEntries]
+          .filter((e) => e.type === 'file')
+          .filter((e) => e.path !== 'documents' && !e.path.startsWith('documents/'))
+          .sort((a, b) => a.path.localeCompare(b.path));
 
         if (filtered.length === 0) return '(no workspace assets)';
         return filtered
-          .map((e) =>
-            e.type === 'file'
-              ? `@assets/${e.path}\t${e.type}\t${e.ext}\t${e.size}`
-              : `${e.path}/\t${e.type}\t\t`,
-          )
+          .map((entry) => `@assets/${entry.path}\t${formatAssetMetadata(entry)}`)
           .join('\n');
       },
     }),
@@ -745,13 +753,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
       }),
       execute: async ({ docId }) => {
         const workspacePath = resolveWorkspacePath(workspace);
-        const entries = listAssets(workspacePath, `documents/${docId}`, false).filter(
-          (e) => e.type === 'file',
-        );
+        const entries = [...listAssets(workspacePath, `documents/${docId}`, false)]
+          .filter((e) => e.type === 'file')
+          .sort((a, b) => a.name.localeCompare(b.name));
 
         if (entries.length === 0) return '(no document assets)';
         return entries
-          .map((e) => `@assets/documents/${docId}/${e.name}\t${e.ext}\t${e.size}`)
+          .map((entry) => `@assets/documents/${docId}/${entry.name}\t${formatAssetMetadata(entry)}`)
           .join('\n');
       },
     }),

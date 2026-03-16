@@ -67,6 +67,8 @@ export interface AssetEntry {
   type: 'file' | 'directory';
   size: number; // bytes; 0 for directories
   ext: string; // lowercase with dot e.g. ".png"; "" for directories
+  width?: number;
+  height?: number;
 }
 
 // --- Workspace Data ---

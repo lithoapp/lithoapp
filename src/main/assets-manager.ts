@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  readFileSync,
   renameSync,
   rmSync,
   statSync,
@@ -12,6 +13,11 @@ import type { AssetEntry } from '../shared/types';
 
 const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
 
+interface ImageDimensions {
+  width: number;
+  height: number;
+}
+
 /** Replace spaces and other problematic characters with hyphens. */
 function sanitizeFileName(name: string): string {
   const ext = extname(name).toLowerCase();
@@ -21,6 +27,143 @@ function sanitizeFileName(name: string): string {
 
 function assetsRoot(workspacePath: string): string {
   return join(workspacePath, 'assets');
+}
+
+function isPositiveDimension(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
+function toImageDimensions(width: number, height: number): ImageDimensions | undefined {
+  if (!isPositiveDimension(width) || !isPositiveDimension(height)) {
+    return undefined;
+  }
+
+  return {
+    width: Math.round(width),
+    height: Math.round(height),
+  };
+}
+
+function readPngDimensions(buffer: Buffer): ImageDimensions | undefined {
+  if (buffer.length < 24) return undefined;
+  const pngSignature = '89504e470d0a1a0a';
+  if (buffer.subarray(0, 8).toString('hex') !== pngSignature) return undefined;
+
+  return toImageDimensions(buffer.readUInt32BE(16), buffer.readUInt32BE(20));
+}
+
+function readGifDimensions(buffer: Buffer): ImageDimensions | undefined {
+  if (buffer.length < 10) return undefined;
+  const header = buffer.subarray(0, 6).toString('ascii');
+  if (header !== 'GIF87a' && header !== 'GIF89a') return undefined;
+
+  return toImageDimensions(buffer.readUInt16LE(6), buffer.readUInt16LE(8));
+}
+
+function readJpegDimensions(buffer: Buffer): ImageDimensions | undefined {
+  if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) return undefined;
+
+  let offset = 2;
+  while (offset + 3 < buffer.length) {
+    while (offset < buffer.length && buffer[offset] !== 0xff) {
+      offset += 1;
+    }
+
+    while (offset < buffer.length && buffer[offset] === 0xff) {
+      offset += 1;
+    }
+
+    if (offset >= buffer.length) return undefined;
+
+    const marker = buffer[offset];
+    offset += 1;
+
+    if (marker === 0xd9 || marker === 0xda) return undefined;
+    if (offset + 1 >= buffer.length) return undefined;
+
+    const segmentLength = buffer.readUInt16BE(offset);
+    if (segmentLength < 2 || offset + segmentLength > buffer.length) return undefined;
+
+    const isStartOfFrame =
+      marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+
+    if (isStartOfFrame) {
+      if (segmentLength < 7) return undefined;
+      return toImageDimensions(buffer.readUInt16BE(offset + 5), buffer.readUInt16BE(offset + 3));
+    }
+
+    offset += segmentLength;
+  }
+
+  return undefined;
+}
+
+function readWebpDimensions(buffer: Buffer): ImageDimensions | undefined {
+  if (buffer.length < 30) return undefined;
+  if (buffer.subarray(0, 4).toString('ascii') !== 'RIFF') return undefined;
+  if (buffer.subarray(8, 12).toString('ascii') !== 'WEBP') return undefined;
+
+  const chunkType = buffer.subarray(12, 16).toString('ascii');
+
+  if (chunkType === 'VP8X') {
+    const width = 1 + buffer.readUIntLE(24, 3);
+    const height = 1 + buffer.readUIntLE(27, 3);
+    return toImageDimensions(width, height);
+  }
+
+  if (chunkType === 'VP8L') {
+    if (buffer[20] !== 0x2f || buffer.length < 25) return undefined;
+    const byte1 = buffer[21];
+    const byte2 = buffer[22];
+    const byte3 = buffer[23];
+    const byte4 = buffer[24];
+    const width = 1 + (byte1 | ((byte2 & 0x3f) << 8));
+    const height = 1 + (((byte2 & 0xc0) >> 6) | (byte3 << 2) | ((byte4 & 0x0f) << 10));
+    return toImageDimensions(width, height);
+  }
+
+  if (chunkType === 'VP8 ') {
+    if (buffer.length < 34) return undefined;
+    if (buffer[23] !== 0x9d || buffer[24] !== 0x01 || buffer[25] !== 0x2a) return undefined;
+    const width = buffer.readUInt16LE(26) & 0x3fff;
+    const height = buffer.readUInt16LE(28) & 0x3fff;
+    return toImageDimensions(width, height);
+  }
+
+  return undefined;
+}
+
+function readSvgDimensions(buffer: Buffer): ImageDimensions | undefined {
+  const source = buffer.toString('utf8');
+  const widthMatch = source.match(/\bwidth\s*=\s*['"]([0-9]+(?:\.[0-9]+)?)(px)?['"]/i);
+  const heightMatch = source.match(/\bheight\s*=\s*['"]([0-9]+(?:\.[0-9]+)?)(px)?['"]/i);
+
+  if (widthMatch && heightMatch) {
+    return toImageDimensions(Number(widthMatch[1]), Number(heightMatch[1]));
+  }
+
+  const viewBoxMatch = source.match(
+    /\bviewBox\s*=\s*['"](?:[0-9.+-]+[\s,]+){2}([0-9.+-]+)[\s,]+([0-9.+-]+)['"]/i,
+  );
+
+  if (!viewBoxMatch) return undefined;
+  return toImageDimensions(Number(viewBoxMatch[1]), Number(viewBoxMatch[2]));
+}
+
+function readImageDimensions(absPath: string, ext: string): ImageDimensions | undefined {
+  try {
+    const buffer = readFileSync(absPath);
+
+    if (ext === '.png') return readPngDimensions(buffer);
+    if (ext === '.gif') return readGifDimensions(buffer);
+    if (ext === '.jpg' || ext === '.jpeg') return readJpegDimensions(buffer);
+    if (ext === '.webp') return readWebpDimensions(buffer);
+    if (ext === '.svg') return readSvgDimensions(buffer);
+
+    return undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function resolveAssetPath(workspacePath: string, relPath: string): string {
@@ -57,6 +200,7 @@ export function listAssets(
       type: isDir ? 'directory' : 'file',
       size: isDir ? 0 : stat.size,
       ext,
+      ...(!isDir ? readImageDimensions(absEntry, ext) : undefined),
     });
 
     if (recursive && isDir) {
