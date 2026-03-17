@@ -121,7 +121,12 @@ Design system pages are TSX components, same as document pages. Available librar
 - `recharts` for data visualization in design system pages (e.g. showing color distribution, type scale charts). Import components directly from `recharts` (e.g. `import { BarChart, Bar, XAxis, YAxis } from 'recharts'`).
 - `@phosphor-icons/react` for icons. 9,000+ icons in 6 styles: thin, light, regular, bold, fill, and duotone. Import icons directly (e.g. `import { Horse, Heart, Cube } from '@phosphor-icons/react'`). Set size and weight via props: `<Heart size={32} weight="duotone" />`. Available weights: `"thin"`, `"light"`, `"regular"`, `"bold"`, `"fill"`, `"duotone"`.
 
-Don't stretch elements with `flex-1` or `justify-between` to mechanically fill vertical space. Let content blocks have natural heights and use whitespace for balance.
+Default to normal page flow with `flex`, `grid`, `gap`, padding, and alignment. Let content blocks have natural heights and use whitespace for balance instead of stretching sections to fill space.
+
+- Avoid `flex-1` and `justify-between` as space-filling tactics
+- Avoid fixed heights on text-heavy sections, specimen blocks, and token lists unless the content is intentionally bounded
+- Use explicit widths/heights only when they are part of the design itself: charts, color swatches, logos, dividers, preview tiles, or other intentionally bounded elements
+- Use absolute positioning only for decorative or anchored elements, not as the default layout strategy for main content
 
 ### Tailwind CSS v4 @theme syntax
 
