@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils';
 
 type TemplateId = 'minimal' | 'corporate' | 'brightside' | 'editorial';
 
+const DEFAULT_TEMPLATE_ID: TemplateId = 'minimal';
+
 interface TemplateOption {
   id: TemplateId;
   label: string;
@@ -45,10 +47,23 @@ export function WorkspacesPage({
 }: WorkspacesPageProps): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('minimal');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE_ID);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [selectingSlug, setSelectingSlug] = useState<string | null>(null);
+
+  function resetCreateState(): void {
+    setNewName('');
+    setSelectedTemplate(DEFAULT_TEMPLATE_ID);
+    setCreateError(null);
+  }
+
+  function handleCreateDialogOpenChange(open: boolean): void {
+    setCreateOpen(open);
+    if (!open && !isCreating) {
+      resetCreateState();
+    }
+  }
 
   async function handleCreate(): Promise<void> {
     if (!newName.trim()) return;
@@ -58,8 +73,7 @@ export function WorkspacesPage({
       const slug = await window.litho.workspace.create(newName.trim(), selectedTemplate);
       await refreshWorkspaces();
       setCreateOpen(false);
-      setNewName('');
-      setSelectedTemplate('minimal');
+      resetCreateState();
       onWorkspaceSelected(slug);
     } catch (err) {
       const message =
@@ -105,7 +119,7 @@ export function WorkspacesPage({
         </Button>
         <CreateDialog
           open={createOpen}
-          onOpenChange={setCreateOpen}
+          onOpenChange={handleCreateDialogOpenChange}
           name={newName}
           onNameChange={setNewName}
           selectedTemplate={selectedTemplate}
@@ -154,7 +168,9 @@ export function WorkspacesPage({
               <div className="mt-3 flex flex-col gap-1.5 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <FileText className="h-3.5 w-3.5" />
-                  {ws.documentCount} {ws.documentCount === 1 ? 'document' : 'documents'}
+                  {ws.documentCount === 0
+                    ? 'No documents yet'
+                    : `${ws.documentCount} ${ws.documentCount === 1 ? 'document' : 'documents'}`}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" />
@@ -168,7 +184,7 @@ export function WorkspacesPage({
 
       <CreateDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={handleCreateDialogOpenChange}
         name={newName}
         onNameChange={setNewName}
         selectedTemplate={selectedTemplate}
