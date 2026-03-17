@@ -107,8 +107,8 @@ Each page has a fixed size. Content doesn't scroll — if it doesn't fit, it get
 - **Breathing room**: Leave generous margins and whitespace. Crowded pages feel cheap; spacious pages feel premium. When in doubt, remove something rather than shrink everything.
 - **Typography hierarchy**: Use size, weight, and color to create clear levels — headline, subhead, body, caption. The reader should understand the structure at a glance without reading a word.
 - **Adapt to the medium**: A printed proposal needs generous margins (at least 0.5" safe zone) and readable body text (no smaller than 9pt). An Instagram post needs bold type, high contrast, and visual punch for small screens. Always consider where the final piece will live.
-- **Natural height over forced fill**: Let content blocks have their natural height. Don't stretch cards, grids, or sections to fill the page — whitespace at the bottom is better than artificially stretched boxes. Avoid `flex-1` and `justify-between` as space-filling tactics.
-- **Icons for visual interest**: Use Phosphor icons to reinforce meaning and add polish — section headers, feature lists, contact details, callouts, stats. Prefer icons over emoji or text symbols.
+- **Natural height over forced fill**: Let content blocks have their natural height. Default to normal document flow with `flex`, `grid`, `gap`, padding, and alignment. Don't stretch cards, grids, or sections to fill the page, and don't assign fixed heights to content sections unless the content is intentionally bounded.
+- **Use absolute positioning sparingly**: Reach for absolute positioning only for decorative flourishes or anchored elements like corner logos, page numbers, badges, and background accents. Main content areas should usually stay in normal flow so they expand naturally with their content.
 
 ---
 
@@ -165,7 +165,10 @@ This keeps page source simple, predictable, and easy to edit by string replaceme
 - Always use `w-full h-full` as the outermost container
 - Never use `overflow-auto`, `overflow-scroll`, or `min-h-screen`
 - No responsive prefixes (`sm:`, `md:`, `lg:`) — they have no effect
-- Use absolute positioning and explicit heights/widths for precise placement
+- Prefer `flex`, `grid`, `gap`, padding, and alignment for page structure
+- Avoid fixed heights on text-heavy sections, cards, lists, and tables unless the content is known to fit comfortably
+- Use explicit widths/heights only when they are semantically part of the design: hero media, charts, dividers, logos, or other intentionally bounded elements
+- Use absolute positioning only for decorative or anchored elements, not as the default way to place main content blocks
 - For print: avoid very low contrast, semi-transparent overlays on complex backgrounds, or colors that look wrong in grayscale
 - For digital/social: vibrant colors, high contrast, and bold type are encouraged — design for small screens and fast scrolling
-- Content that overflows the page boundary is silently clipped — invisible to the user
+- Content that overflows the page boundary is silently clipped — invisible to the user, so avoid layouts that depend on clipping and split dense content across pages instead
