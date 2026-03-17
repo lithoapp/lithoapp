@@ -19,21 +19,47 @@ const FEATURES = [
   'One click to PDF, PNG, or JPG',
 ];
 
+function validateName(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Name is required';
+  if (trimmed.length < 2) return 'Enter at least 2 characters';
+  if (!/[\p{L}\p{N}]/u.test(trimmed)) return 'Enter a valid name';
+  return undefined;
+}
+
+function validateEmail(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(trimmed)) return 'Enter a valid email address';
+  return undefined;
+}
+
+function getStep1Errors(name: string, email: string): { name?: string; email?: string } {
+  return {
+    name: validateName(name),
+    email: validateEmail(email),
+  };
+}
+
 export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.Element {
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [telemetryEnabled, setTelemetryEnabled] = useState(true);
-  const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
+  const [touched, setTouched] = useState<{ name: boolean; email: boolean }>({
+    name: false,
+    email: false,
+  });
+  const [didAttemptContinue, setDidAttemptContinue] = useState(false);
   const [totalModels, setTotalModels] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
+  const errors = getStep1Errors(name, email);
+  const canContinue = !errors.name && !errors.email;
 
   function validateStep1(): boolean {
-    const next: { name?: string; email?: string } = {};
-    if (!name.trim()) next.name = 'Name is required';
-    if (email && !/.+@.+\..+/.test(email)) next.email = 'Enter a valid email address';
-    setErrors(next);
-    return Object.keys(next).length === 0;
+    setDidAttemptContinue(true);
+    setTouched({ name: true, email: true });
+    return canContinue;
   }
 
   function handleContinue(): void {
@@ -137,11 +163,15 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
                   placeholder="Ada Lovelace"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setTouched((current) => ({ ...current, name: true }))}
                   onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
                   className="h-12 px-4 text-base"
+                  aria-invalid={(touched.name || didAttemptContinue) && !!errors.name}
                   autoFocus
                 />
-                {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+                {(touched.name || didAttemptContinue) && errors.name && (
+                  <p className="text-sm text-destructive">{errors.name}</p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
@@ -154,10 +184,14 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
                   placeholder="ada@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setTouched((current) => ({ ...current, email: true }))}
                   onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
                   className="h-12 px-4 text-base"
+                  aria-invalid={(touched.email || didAttemptContinue) && !!errors.email}
                 />
-                {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                {(touched.email || didAttemptContinue) && errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
               </div>
 
               <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
@@ -175,7 +209,11 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
               </div>
             </div>
 
-            <Button onClick={handleContinue} className="h-12 w-full text-base">
+            <Button
+              onClick={handleContinue}
+              disabled={!canContinue}
+              className="h-12 w-full text-base"
+            >
               Continue
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>

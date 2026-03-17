@@ -1,5 +1,5 @@
-import { AlertCircle, ExternalLink, Key, Loader2 } from 'lucide-react';
-import { useCallback } from 'react';
+import { AlertCircle, ExternalLink, Eye, EyeOff, Key, Loader2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -25,6 +25,8 @@ export function ConnectDialog({
   onOpenChange: (open: boolean) => void;
   onConnected: () => void;
 }): React.JSX.Element {
+  const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
+
   const handleConnected = useCallback(() => {
     onConnected();
     onOpenChange(false);
@@ -34,7 +36,10 @@ export function ConnectDialog({
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
-      if (!isOpen) flow.reset();
+      if (!isOpen) {
+        flow.reset();
+        setIsApiKeyVisible(false);
+      }
       onOpenChange(isOpen);
     },
     [flow, onOpenChange],
@@ -86,16 +91,29 @@ export function ConnectDialog({
         )}
 
         {flow.step === 'api-key' && (
-          <Input
-            className="h-11 text-base"
-            type="password"
-            placeholder="Enter your API key"
-            value={flow.apiKey}
-            onChange={(e) => flow.setApiKey(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void flow.submitApiKey();
-            }}
-          />
+          <div className="relative">
+            <Input
+              className="h-11 pr-12 text-base"
+              type={isApiKeyVisible ? 'text' : 'password'}
+              placeholder="Enter your API key"
+              value={flow.apiKey}
+              onChange={(e) => flow.setApiKey(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void flow.submitApiKey();
+              }}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute right-1 top-1 h-9 w-9 text-muted-foreground"
+              onClick={() => setIsApiKeyVisible((current) => !current)}
+              aria-label={isApiKeyVisible ? 'Hide API key' : 'Show API key'}
+              title={isApiKeyVisible ? 'Hide API key' : 'Show API key'}
+            >
+              {isApiKeyVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
         )}
 
         {flow.step === 'oauth-waiting' && (
