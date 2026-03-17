@@ -11,6 +11,7 @@ import {
 import type { AssetEntry } from '../../../../shared/types';
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
+
 export { IMAGE_EXTS };
 
 export function AssetGridItem({

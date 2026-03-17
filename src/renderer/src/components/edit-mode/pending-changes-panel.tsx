@@ -1,4 +1,12 @@
-import { ArrowRight, FileText, MessageSquare, MousePointerClick, Pencil, Type, X } from 'lucide-react';
+import {
+  ArrowRight,
+  FileText,
+  MessageSquare,
+  MousePointerClick,
+  Pencil,
+  Type,
+  X,
+} from 'lucide-react';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import type { PendingChange } from './types';
@@ -48,9 +56,7 @@ export function PendingChangesPanel({
               <MousePointerClick className="h-5 w-5 text-primary" />
             </div>
             <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-foreground">
-                Click elements to edit
-              </p>
+              <p className="text-sm font-medium text-foreground">Click elements to edit</p>
               <p className="text-xs text-muted-foreground">
                 Click text to edit inline, or click any element and describe a change
               </p>
@@ -62,9 +68,7 @@ export function PendingChangesPanel({
               <div key={pageId} className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-1.5 px-1">
                   <FileText className="h-3 w-3 text-muted-foreground" />
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {pageName}
-                  </p>
+                  <p className="text-xs font-medium text-muted-foreground">{pageName}</p>
                 </div>
                 {items.map((change) => (
                   <ChangeItem key={change.id} change={change} onRemove={onRemove} />
@@ -100,9 +104,7 @@ function ChangeItem({
 
   return (
     <div className="group flex items-start gap-0 overflow-hidden rounded-lg border border-border/60 bg-card text-sm shadow-xs">
-      <div
-        className={`w-0.5 shrink-0 self-stretch ${isText ? 'bg-primary' : 'bg-blue-500'}`}
-      />
+      <div className={`w-0.5 shrink-0 self-stretch ${isText ? 'bg-primary' : 'bg-blue-500'}`} />
       <div className="flex min-w-0 flex-1 items-start gap-2 px-2.5 py-2">
         <div className="mt-0.5 shrink-0">
           {isText ? (
@@ -114,9 +116,13 @@ function ChangeItem({
         <div className="min-w-0 flex-1">
           {isText ? (
             <p className="text-xs leading-relaxed">
-              <span className="rounded bg-red-500/10 px-0.5 text-red-400 line-through">{truncate(change.oldText, 60)}</span>
+              <span className="rounded bg-red-500/10 px-0.5 text-red-400 line-through">
+                {truncate(change.oldText, 60)}
+              </span>
               <ArrowRight className="mx-1 inline h-3 w-3 text-muted-foreground" />
-              <span className="rounded bg-green-500/10 px-0.5 font-medium text-green-400">{truncate(change.newText, 60)}</span>
+              <span className="rounded bg-green-500/10 px-0.5 font-medium text-green-400">
+                {truncate(change.newText, 60)}
+              </span>
             </p>
           ) : (
             <p className="text-xs">{truncate(change.description, 80)}</p>
@@ -136,5 +142,5 @@ function ChangeItem({
 
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '…';
+  return `${text.slice(0, maxLength)}…`;
 }

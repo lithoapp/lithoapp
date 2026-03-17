@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface ProviderInfo {
   id: string;
@@ -33,12 +33,22 @@ export function useProviderList(): ProviderListState {
   const [authMethods, setAuthMethods] = useState<Record<string, AuthMethod[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const latestFetchIdRef = useRef(0);
 
   const fetchData = useCallback(async () => {
+    const fetchId = latestFetchIdRef.current + 1;
+    latestFetchIdRef.current = fetchId;
+
     setLoading(true);
     setError('');
+
     try {
       const listResult = await window.litho.aiProvider.list();
+
+      if (fetchId !== latestFetchIdRef.current) {
+        return;
+      }
+
       setProviders(listResult.providers);
       setConnected(listResult.connected);
 
@@ -58,11 +68,22 @@ export function useProviderList(): ProviderListState {
           }
         }),
       );
+
+      if (fetchId !== latestFetchIdRef.current) {
+        return;
+      }
+
       setAuthMethods(methods);
     } catch (err) {
+      if (fetchId !== latestFetchIdRef.current) {
+        return;
+      }
+
       setError(err instanceof Error ? err.message : 'Failed to load providers');
     } finally {
-      setLoading(false);
+      if (fetchId === latestFetchIdRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
