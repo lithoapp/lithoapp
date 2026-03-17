@@ -1,6 +1,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app } from 'electron';
+import { validateName, validateOptionalEmail } from '../shared/user-profile-validation';
 
 export type Theme = 'dark' | 'light' | 'system';
 
@@ -50,6 +51,10 @@ export function getUserProfile(): { name: string | null; email: string | null } 
 }
 
 export function setUserProfile(name: string, email: string): void {
+  const nameError = validateName(name);
+  if (nameError) throw new Error(nameError);
+  const emailError = validateOptionalEmail(email);
+  if (emailError) throw new Error(emailError);
   write({ ...read(), name, email });
 }
 

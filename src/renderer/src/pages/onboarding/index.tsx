@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { validateName, validateOptionalEmail } from '../../../../shared/user-profile-validation';
 import { ProviderPicker } from './provider-picker';
 
 interface OnboardingPageProps {
@@ -19,25 +20,10 @@ const FEATURES = [
   'One click to PDF, PNG, or JPG',
 ];
 
-function validateName(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return 'Name is required';
-  if (trimmed.length < 2) return 'Enter at least 2 characters';
-  if (!/[\p{L}\p{N}]/u.test(trimmed)) return 'Enter a valid name';
-  return undefined;
-}
-
-function validateEmail(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(trimmed)) return 'Enter a valid email address';
-  return undefined;
-}
-
 function getStep1Errors(name: string, email: string): { name?: string; email?: string } {
   return {
     name: validateName(name),
-    email: validateEmail(email),
+    email: validateOptionalEmail(email),
   };
 }
 

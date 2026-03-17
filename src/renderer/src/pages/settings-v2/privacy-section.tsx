@@ -5,6 +5,8 @@ import { Switch } from '@/components/ui/switch';
 
 export function PrivacySection(): React.JSX.Element {
   const [telemetryEnabled, setTelemetryEnabled] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [restartTarget, setRestartTarget] = useState<boolean | null>(null);
 
   useEffect(() => {
     window.litho.telemetry
@@ -14,8 +16,16 @@ export function PrivacySection(): React.JSX.Element {
   }, []);
 
   async function handleToggle(value: boolean): Promise<void> {
-    await window.litho.telemetry.setEnabled(value);
-    setTelemetryEnabled(value);
+    setIsSaving(true);
+    try {
+      await window.litho.telemetry.setEnabled(value);
+      setTelemetryEnabled(value);
+      setRestartTarget(value);
+    } catch {
+      toast.error('Failed to update privacy settings');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -31,11 +41,23 @@ export function PrivacySection(): React.JSX.Element {
             Send crash reports
           </Label>
           <p className="text-sm text-muted-foreground">
-            Helps identify and fix issues. No personal data or file contents are collected. Restart
-            required to take effect.
+            Helps identify and fix issues. No personal data or file contents are collected.
           </p>
+          {restartTarget !== null && (
+            <p
+              className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-foreground"
+              role="status"
+            >
+              Restart Litho to {restartTarget ? 'start' : 'stop'} sending crash reports.
+            </p>
+          )}
         </div>
-        <Switch id="telemetry-toggle" checked={telemetryEnabled} onCheckedChange={handleToggle} />
+        <Switch
+          id="telemetry-toggle"
+          checked={telemetryEnabled}
+          onCheckedChange={handleToggle}
+          disabled={isSaving}
+        />
       </div>
     </div>
   );

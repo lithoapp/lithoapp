@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { validateName, validateOptionalEmail } from '../../../../shared/user-profile-validation';
 
 export function ProfileSection(): React.JSX.Element {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [original, setOriginal] = useState({ name: '', email: '' });
   const [isSaving, setIsSaving] = useState(false);
+  const [isNameTouched, setIsNameTouched] = useState(false);
+  const [isEmailTouched, setIsEmailTouched] = useState(false);
 
   useEffect(() => {
     window.litho.preferences
@@ -22,10 +25,16 @@ export function ProfileSection(): React.JSX.Element {
       .catch(() => toast.error('Failed to load profile'));
   }, []);
 
+  const nameError = validateName(name);
+  const emailError = validateOptionalEmail(email);
   const hasChanged = name !== original.name || email !== original.email;
-  const canSave = name.trim().length > 0 && hasChanged;
+  const canSave = !nameError && !emailError && hasChanged;
 
   async function handleSave(): Promise<void> {
+    setIsNameTouched(true);
+    setIsEmailTouched(true);
+    if (nameError || emailError) return;
+
     setIsSaving(true);
     try {
       await window.litho.preferences.setUserProfile(name.trim(), email.trim());
@@ -50,8 +59,13 @@ export function ProfileSection(): React.JSX.Element {
           className="h-11 text-base"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onBlur={() => setIsNameTouched(true)}
           placeholder="Your name"
+          aria-invalid={isNameTouched && !!nameError}
         />
+        {isNameTouched && nameError && (
+          <p className="-mt-2 text-sm text-destructive">{nameError}</p>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <Input
@@ -59,8 +73,11 @@ export function ProfileSection(): React.JSX.Element {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => setIsEmailTouched(true)}
             placeholder="you@example.com"
+            aria-invalid={isEmailTouched && !!emailError}
           />
+          {isEmailTouched && emailError && <p className="text-sm text-destructive">{emailError}</p>}
           <p className="text-sm text-muted-foreground">Used for crash reports and feedback only.</p>
         </div>
 
