@@ -54,9 +54,10 @@ import {
 } from './auto-updater';
 import { DocumentExporter, exportPage } from './exporter';
 import { buildExportFileName } from './exporter/export-filename';
+import { captureFeedbackScreenshot } from './feedback';
 import { buildAllTemplatePreviews, buildPage } from './renderer';
 import { compileTailwind, formatCssError } from './renderer/build-shared';
-import { initSentry } from './sentry';
+import { initSentry, syncSentryUserProfile } from './sentry';
 import {
   getTelemetryEnabled,
   getTheme,
@@ -152,13 +153,15 @@ function createWindow(): void {
 ipcMain.handle('telemetry:getEnabled', () => getTelemetryEnabled());
 ipcMain.handle('telemetry:setEnabled', (_event, value: boolean) => setTelemetryEnabled(value));
 ipcMain.handle('preferences:getUserProfile', () => getUserProfile());
-ipcMain.handle('preferences:setUserProfile', (_event, name: string, email: string) =>
-  setUserProfile(name, email),
-);
+ipcMain.handle('preferences:setUserProfile', (_event, name: string, email: string) => {
+  setUserProfile(name, email);
+  syncSentryUserProfile();
+});
 ipcMain.handle('preferences:getTheme', () => getTheme());
 ipcMain.handle('preferences:setTheme', (_event, value: Theme) => setTheme(value));
 ipcMain.handle('preferences:reset', () => {
   resetPreferences();
+  syncSentryUserProfile();
   clearAllCredentials();
   autoConnectProviders(setCredential, getConnectedProviderIds);
   if (is.dev) {
@@ -176,6 +179,7 @@ ipcMain.handle('app:setTitleBarOverlay', (_event, color: string, symbolColor: st
     mainWindow.setTitleBarOverlay({ color, symbolColor, height: 40 });
   }
 });
+ipcMain.handle('feedback:captureScreenshot', () => captureFeedbackScreenshot(mainWindow));
 ipcMain.handle('update:check', () => checkForUpdates());
 ipcMain.handle('update:download', () => downloadUpdate());
 ipcMain.handle('update:install', () => installUpdate());

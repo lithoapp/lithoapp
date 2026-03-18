@@ -228,6 +228,9 @@ interface LithoAPI {
   shell: {
     showItemInFolder: (filePath: string) => Promise<void>;
   };
+  feedback: {
+    captureScreenshot: () => Promise<Uint8Array | null>;
+  };
   assets: {
     list: (workspaceName: string, dirPath: string, recursive?: boolean) => Promise<AssetEntry[]>;
     upload: (

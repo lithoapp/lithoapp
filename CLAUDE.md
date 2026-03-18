@@ -27,8 +27,9 @@ pnpm typecheck            # Type-check (main + renderer)
 - `workspace-paths.ts` — Resolves workspace name → `{userData}/workspaces/<name>`
 - `assets-manager.ts` — Workspace asset CRUD with path traversal protection
 - `auto-updater.ts` — electron-updater for GitHub releases
+- `feedback.ts` — App-window screenshot capture for in-app feedback attachments
 - `telemetry-store.ts` — User preferences (telemetry, profile, theme)
-- `sentry.ts` — Error reporting initialization
+- `sentry.ts` — Error reporting initialization and shared Sentry user sync
 
 ### AI Architecture (`src/main/ai-providers/`)
 
@@ -65,17 +66,18 @@ Each agent has: `system.md` (system prompt — runtime variables at top via Must
 
 ### Preload (`src/preload/`)
 
-`contextBridge` exposes `window.litho` API with namespaces: `preferences`, `telemetry`, `app`, `update`, `export`, `workspace`, `document`, `designSystem`, `renderer`, `aiProvider`, `chat`, `conversation`, `assets`
+`contextBridge` exposes `window.litho` API with namespaces: `preferences`, `telemetry`, `app`, `update`, `export`, `workspace`, `document`, `designSystem`, `renderer`, `aiProvider`, `chat`, `conversation`, `feedback`, `assets`
 
 ### Renderer (`src/renderer/`)
 
 - React 19 + Tailwind CSS v4 + shadcn/ui components (Radix UI)
 - **Router**: Centralized state machine in `App.tsx` — no file-based routing. `Page` union type drives navigation.
-- **Pages**: Onboarding (profile setup + provider picker), Workspaces, Documents (grid with thumbnails), Document viewer (with chat panel + page audit bar), Design System Doc (token editor + chat), Assets browser, Settings v2 (sidebar + tabs: profile, AI providers, privacy, about, advanced), Renderer POC (build/export testing)
+- **Pages**: Onboarding (profile setup + provider picker), Workspaces, Documents (grid with thumbnails), Document viewer (with chat panel + page audit bar), Design System Doc (token editor + chat), Assets browser, Settings v2 (sidebar + tabs: profile, AI providers, feedback, privacy, about, advanced), Renderer POC (build/export testing)
 - **Hooks**: `useChat()` (streaming via IPC `chat:delta` events, messages, cost/tokens), `useProviderList()` (AI provider discovery + auth), `usePostTurnDiagnostics()` (post-agent validation on dirty pages), `useEditMode()` (visual edit mode state, pending changes, postMessage listener, confirm/discard), `useWorkspace()`, `useDesignSystem()`, `usePageBuild()`, `usePageExport()`, `useDocumentConfig()`, `useConnectFlow()`, `useMobile()`
 - **Chat** (`components/chat/`): Streams from main process via IPC events. Handles model selection, cost tracking. Renders hex colors as inline swatches.
+- **Feedback** (`components/feedback/feedback-dialog.tsx`): Custom in-app Sentry feedback modal with category selection, optional email, optional app-window screenshot, and opt-out technical details. Feedback events are sent from the renderer via `Sentry.sendFeedback()`, while screenshots are captured in the main process and passed back through preload.
 - **Edit Mode** (`components/edit-mode/`): Visual inline editing — users click elements in page preview iframes, make text edits inline or describe changes via floating input. Changes accumulate as pending, then compile into a structured prompt sent to the AI agent. Files: `types.ts` (PendingChange union), `pending-changes-panel.tsx` (UI panel), `compile-prompt.ts` (changes → agent prompt), `visual-edit-message.tsx` (renders visual edit messages in chat).
-- **Lib** (`src/renderer/src/lib/`): SSE message handlers, cost/token extraction, prompt templates (Mustache), chat preferences (localStorage), page auditors (overflow detection), provider actions (OAuth, API key, ping)
+- **Lib** (`src/renderer/src/lib/`): SSE message handlers, cost/token extraction, prompt templates (Mustache), chat preferences (localStorage), page auditors (overflow detection), provider actions (OAuth, API key, ping), `sentry.ts` (renderer Sentry init, consent gating, feedback integration, user sync)
 - **Fonts**: Fraunces (display), Inter (sans), JetBrains Mono (mono)
 - **Design**: Dark mode, primary color #e8652b (orange)
 

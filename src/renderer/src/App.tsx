@@ -1,6 +1,7 @@
-import { Files, Home, Images, Loader2, Palette, Settings2 } from 'lucide-react';
+import { Files, Home, Images, Loader2, MessageSquareText, Palette, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { FeedbackDialog } from '@/components/feedback/feedback-dialog';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import {
   AlertDialog,
@@ -16,8 +17,9 @@ import { Button } from '@/components/ui/button';
 import { useDesignSystem } from '@/hooks/use-design-system';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { NavigationContext } from '@/lib/navigation-context';
+import { setRendererSentryTelemetryEnabled, syncRendererSentryUser } from '@/lib/sentry';
 import { cn } from '@/lib/utils';
-import type { DocumentInfo } from '../../shared/types';
+import type { DocumentInfo, FeedbackCategory } from '../../shared/types';
 import { AssetsPage } from './pages/assets';
 import { DesignSystemDocPage } from './pages/design-system-doc';
 import { DocumentPage } from './pages/document';
@@ -78,6 +80,9 @@ function App(): React.JSX.Element {
     email: string | null;
   } | null>(null);
   const [workspaceName, setWorkspaceName] = useState<string | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackInitialCategory, setFeedbackInitialCategory] =
+    useState<FeedbackCategory>('general-feedback');
 
   const { workspaces, refreshWorkspaces } = useWorkspace();
   const workspaceTitle = workspaces.find((ws) => ws.slug === workspaceName)?.title;
@@ -168,6 +173,12 @@ function App(): React.JSX.Element {
   }, [workspaceName, loadDocuments]);
 
   useEffect(() => {
+    if (userProfile) {
+      syncRendererSentryUser(userProfile);
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
     void (async () => {
       try {
         setUserProfile(await window.litho.preferences.getUserProfile());
@@ -190,6 +201,7 @@ function App(): React.JSX.Element {
     async (name: string, email: string, telemetryEnabled: boolean) => {
       await window.litho.preferences.setUserProfile(name, email);
       await window.litho.telemetry.setEnabled(telemetryEnabled);
+      setRendererSentryTelemetryEnabled(telemetryEnabled);
       setOnboardingPhase('fading');
       await new Promise((resolve) => setTimeout(resolve, 300));
       setOnboardingPhase('transition');
@@ -209,9 +221,44 @@ function App(): React.JSX.Element {
     setPage('workspace-leaving');
   }, []);
 
+  const openFeedback = useCallback((category: FeedbackCategory = 'general-feedback') => {
+    setFeedbackInitialCategory(category);
+    setFeedbackOpen(true);
+  }, []);
+
   const activeDoc = activeDocId ? (documents.find((d) => d.id === activeDocId) ?? null) : null;
 
   const inWorkspace = workspaceName !== null;
+
+  const feedbackContext = useMemo(() => {
+    const currentDocument =
+      page === 'document' ? activeDoc : page === 'design-system-doc' ? designSystemDoc : null;
+
+    const appArea =
+      page === 'documents'
+        ? 'Documents'
+        : page === 'document'
+          ? 'Document editor'
+          : page === 'design-system-doc'
+            ? 'Design system document'
+            : page === 'assets'
+              ? 'Assets'
+              : page === 'settings'
+                ? 'Settings'
+                : page === 'workspace-opening'
+                  ? 'Workspace opening'
+                  : page === 'workspace-leaving'
+                    ? 'Workspace closing'
+                    : 'Workspaces';
+
+    return {
+      appArea,
+      workspaceName,
+      workspaceTitle,
+      documentId: currentDocument?.id ?? null,
+      documentTitle: currentDocument?.title ?? null,
+    };
+  }, [activeDoc, designSystemDoc, page, workspaceName, workspaceTitle]);
 
   if (userProfile === null) {
     return (
@@ -402,6 +449,7 @@ function App(): React.JSX.Element {
           {page === 'settings' && (
             <SettingsV2Page
               initialCategory={settingsInitialCategory}
+              onOpenFeedback={openFeedback}
               onBack={() => {
                 setSettingsInitialCategory(undefined);
                 setPage(inWorkspace ? 'documents' : 'workspaces');
@@ -410,6 +458,28 @@ function App(): React.JSX.Element {
           )}
         </div>
       </NavigationContext.Provider>
+
+      <Button
+        type="button"
+        variant="outline"
+        className="fixed bottom-5 left-5 z-40 h-10 rounded-full border-border/70 bg-background/90 px-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/75"
+        onClick={() => openFeedback('general-feedback')}
+      >
+        <MessageSquareText className="h-4 w-4" />
+        Feedback
+      </Button>
+
+      <FeedbackDialog
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        initialCategory={feedbackInitialCategory}
+        defaultEmail={userProfile.email}
+        appArea={feedbackContext.appArea}
+        workspaceName={feedbackContext.workspaceName}
+        workspaceTitle={feedbackContext.workspaceTitle}
+        documentId={feedbackContext.documentId}
+        documentTitle={feedbackContext.documentTitle}
+      />
 
       <AlertDialog open={pendingNav !== null} onOpenChange={(open) => !open && setPendingNav(null)}>
         <AlertDialogContent>

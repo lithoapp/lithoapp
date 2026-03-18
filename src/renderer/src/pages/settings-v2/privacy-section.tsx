@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { setRendererSentryTelemetryEnabled } from '@/lib/sentry';
 
 export function PrivacySection(): React.JSX.Element {
   const [telemetryEnabled, setTelemetryEnabled] = useState(true);
@@ -19,6 +20,7 @@ export function PrivacySection(): React.JSX.Element {
     setIsSaving(true);
     try {
       await window.litho.telemetry.setEnabled(value);
+      setRendererSentryTelemetryEnabled(value);
       setTelemetryEnabled(value);
       setRestartTarget(value);
     } catch {
@@ -32,23 +34,26 @@ export function PrivacySection(): React.JSX.Element {
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="text-lg font-semibold">Privacy</h2>
-        <p className="text-sm text-muted-foreground">Control how your data is used.</p>
+        <p className="text-sm text-muted-foreground">
+          Control automatic reports and manual feedback.
+        </p>
       </div>
 
       <div className="flex items-center justify-between gap-4 rounded-lg border p-5">
         <div className="flex flex-col gap-1">
           <Label htmlFor="telemetry-toggle" className="text-sm font-medium">
-            Send crash reports
+            Send automatic crash reports
           </Label>
           <p className="text-sm text-muted-foreground">
-            Helps identify and fix issues. No personal data or file contents are collected.
+            Helps identify and fix issues. Manual feedback is still available when this is off, and
+            no document contents or API keys are collected automatically.
           </p>
           {restartTarget !== null && (
             <p
               className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-foreground"
               role="status"
             >
-              Restart Litho to {restartTarget ? 'start' : 'stop'} sending crash reports.
+              Restart Litho to {restartTarget ? 'start' : 'stop'} sending automatic crash reports.
             </p>
           )}
         </div>

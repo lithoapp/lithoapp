@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { syncRendererSentryUser } from '@/lib/sentry';
 import { validateName, validateOptionalEmail } from '../../../../shared/user-profile-validation';
 
 export function ProfileSection(): React.JSX.Element {
@@ -39,6 +40,7 @@ export function ProfileSection(): React.JSX.Element {
     try {
       await window.litho.preferences.setUserProfile(name.trim(), email.trim());
       setOriginal({ name: name.trim(), email: email.trim() });
+      syncRendererSentryUser({ name: name.trim(), email: email.trim() || null });
       toast.success('Profile saved');
     } catch {
       toast.error('Failed to save profile');

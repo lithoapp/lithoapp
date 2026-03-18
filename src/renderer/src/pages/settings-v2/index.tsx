@@ -1,17 +1,26 @@
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import type { FeedbackCategory } from '../../../../shared/types';
 import { AboutSection } from './about-section';
 import { AdvancedSection } from './advanced-section';
 import { AiProvidersSection } from './ai-providers-section';
+import { FeedbackSection } from './feedback-section';
 import { PrivacySection } from './privacy-section';
 import { ProfileSection } from './profile-section';
 
-export type SettingsCategory = 'profile' | 'ai-providers' | 'privacy' | 'about' | 'advanced';
+export type SettingsCategory =
+  | 'profile'
+  | 'ai-providers'
+  | 'feedback'
+  | 'privacy'
+  | 'about'
+  | 'advanced';
 
 const categories: { id: SettingsCategory; label: string }[] = [
   { id: 'profile', label: 'Profile' },
   { id: 'ai-providers', label: 'AI Providers' },
+  { id: 'feedback', label: 'Feedback' },
   { id: 'privacy', label: 'Privacy' },
   { id: 'about', label: 'About' },
   { id: 'advanced', label: 'Advanced' },
@@ -20,11 +29,13 @@ const categories: { id: SettingsCategory; label: string }[] = [
 interface SettingsV2PageProps {
   onBack: () => void;
   initialCategory?: SettingsCategory;
+  onOpenFeedback: (category?: FeedbackCategory) => void;
 }
 
 export function SettingsV2Page({
   onBack,
   initialCategory,
+  onOpenFeedback,
 }: SettingsV2PageProps): React.JSX.Element {
   const [active, setActive] = useState<SettingsCategory>(initialCategory ?? 'profile');
 
@@ -62,6 +73,7 @@ export function SettingsV2Page({
       <main className="flex-1 overflow-auto p-8">
         {active === 'profile' && <ProfileSection />}
         {active === 'ai-providers' && <AiProvidersSection />}
+        {active === 'feedback' && <FeedbackSection onOpenFeedback={onOpenFeedback} />}
         {active === 'privacy' && <PrivacySection />}
         {active === 'about' && <AboutSection />}
         {active === 'advanced' && <AdvancedSection />}

@@ -185,7 +185,9 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
                   <Label htmlFor="onb-telemetry" className="text-base font-medium">
                     Help improve Litho
                   </Label>
-                  <p className="text-sm text-muted-foreground">Send anonymous crash reports.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Send automatic crash reports. You can still send manual feedback later.
+                  </p>
                 </div>
                 <Switch
                   id="onb-telemetry"

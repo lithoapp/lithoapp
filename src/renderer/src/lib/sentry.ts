@@ -1,0 +1,62 @@
+import * as Sentry from '@sentry/electron/renderer';
+
+const DSN =
+  'https://467d4eeb3212e6ac332ddd04e4924ecb@o4508006800097280.ingest.us.sentry.io/4510926183071744';
+
+declare const __APP_VERSION__: string | undefined;
+
+let isAutomaticTelemetryEnabled = true;
+
+export async function initRendererSentry(): Promise<void> {
+  isAutomaticTelemetryEnabled = await window.litho.telemetry.getEnabled().catch(() => true);
+
+  Sentry.init({
+    dsn: DSN,
+    release: typeof __APP_VERSION__ !== 'undefined' ? `lithoapp@${__APP_VERSION__}` : undefined,
+    sendDefaultPii: false,
+    integrations: [
+      Sentry.breadcrumbsIntegration({ console: false }),
+      Sentry.feedbackIntegration({
+        autoInject: false,
+        showBranding: false,
+        enableScreenshot: false,
+        colorScheme: 'system',
+      }),
+    ],
+    beforeBreadcrumb(breadcrumb) {
+      if (breadcrumb.category === 'http' && breadcrumb.data?.url) {
+        breadcrumb.data.url = breadcrumb.data.url.split('?')[0];
+      }
+      return breadcrumb;
+    },
+    beforeSend(event) {
+      return isAutomaticTelemetryEnabled || event.type === 'feedback' ? event : null;
+    },
+  });
+
+  const profile = await window.litho.preferences.getUserProfile().catch(() => ({
+    name: null,
+    email: null,
+  }));
+  syncRendererSentryUser(profile);
+}
+
+export function setRendererSentryTelemetryEnabled(value: boolean): void {
+  isAutomaticTelemetryEnabled = value;
+}
+
+export function syncRendererSentryUser(profile: {
+  name: string | null;
+  email: string | null;
+}): void {
+  if (!profile.name && !profile.email) {
+    Sentry.setUser(null);
+    return;
+  }
+
+  Sentry.setUser({
+    name: profile.name ?? undefined,
+    username: profile.name ?? undefined,
+    email: profile.email ?? undefined,
+  });
+}

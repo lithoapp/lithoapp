@@ -59,6 +59,8 @@ export interface TelemetryPreferences {
   enabled: boolean;
 }
 
+export type FeedbackCategory = 'bug-report' | 'feature-idea' | 'general-feedback';
+
 // --- Assets ---
 
 export interface AssetEntry {
