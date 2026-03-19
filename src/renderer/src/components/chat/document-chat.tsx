@@ -15,6 +15,7 @@ interface DocumentChatProps {
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   sendMessageRef?: React.RefObject<((text: string) => void) | null>;
   onBusyChange?: (isBusy: boolean) => void;
+  onLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -29,6 +30,7 @@ export function DocumentChat({
   onToolComplete,
   sendMessageRef,
   onBusyChange,
+  onLeaveRequestChange,
 }: DocumentChatProps): React.JSX.Element {
   const [designSystemDocId, setDesignSystemDocId] = useState<string | null>(null);
 
@@ -57,7 +59,10 @@ export function DocumentChat({
 
   // Kickoff message
   const { kickoff } = promptTemplates.document;
-  const kickoffMessage = useMemo(() => renderTemplate(kickoff, { userName }), [userName, kickoff]);
+  const kickoffMessage = useMemo(
+    () => renderTemplate(kickoff, agentContext),
+    [kickoff, agentContext],
+  );
 
   return (
     <Chat
@@ -69,6 +74,7 @@ export function DocumentChat({
       onToolComplete={onToolComplete}
       sendMessageRef={sendMessageRef}
       onBusyChange={onBusyChange}
+      onLeaveRequestChange={onLeaveRequestChange}
       pages={doc.pages}
     />
   );

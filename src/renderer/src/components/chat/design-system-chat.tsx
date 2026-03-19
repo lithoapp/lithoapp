@@ -16,6 +16,7 @@ interface DesignSystemChatProps {
   sendMessageRef?: React.RefObject<SendMessageFn>;
   parentSendMessageRef?: React.RefObject<SendMessageFn>;
   onBusyChange?: (isBusy: boolean) => void;
+  onLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -29,6 +30,7 @@ export function DesignSystemChat({
   sendMessageRef,
   parentSendMessageRef,
   onBusyChange,
+  onLeaveRequestChange,
 }: DesignSystemChatProps): React.JSX.Element {
   // Merged ref so both parent (CSS diagnostics) and child (TSX diagnostics) can inject messages
   const mergedSendRef = useMemo(() => {
@@ -128,6 +130,7 @@ export function DesignSystemChat({
       onToolComplete={handleToolComplete}
       sendMessageRef={mergedSendRef}
       onBusyChange={onBusyChange}
+      onLeaveRequestChange={onLeaveRequestChange}
       pages={docConfig?.pages}
     />
   );

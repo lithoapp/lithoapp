@@ -1,5 +1,5 @@
 import { ChevronLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { FeedbackCategory } from '../../../../shared/types';
 import { AboutSection } from './about-section';
@@ -38,6 +38,12 @@ export function SettingsV2Page({
   onOpenFeedback,
 }: SettingsV2PageProps): React.JSX.Element {
   const [active, setActive] = useState<SettingsCategory>(initialCategory ?? 'profile');
+
+  useEffect(() => {
+    if (initialCategory) {
+      setActive(initialCategory);
+    }
+  }, [initialCategory]);
 
   return (
     <div className="flex h-full">

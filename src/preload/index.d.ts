@@ -224,6 +224,7 @@ interface LithoAPI {
       usage: { inputTokens: number; outputTokens: number },
     ) => Promise<void>;
     revert: (workspace: string, documentId: string, userMessageId: string) => Promise<RevertResult>;
+    listMessageIds: (workspace: string, documentId: string) => Promise<string[]>;
   };
   shell: {
     showItemInFolder: (filePath: string) => Promise<void>;

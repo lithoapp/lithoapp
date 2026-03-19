@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { assertValidFolderName } from '../../../shared/document-validation';
 import { type AgentId, PAGE_SIZE_NAMES, PAGE_SIZES } from '../../../shared/types';
 import { listAssets } from '../../assets-manager';
 import { analyzePage, formatAnalysisSummary } from '../../renderer/analyze-page';
@@ -11,6 +12,7 @@ import {
   duplicateDocument as duplicateDocumentFn,
   readDocumentConfig,
 } from '../../workspace-data/db-backend';
+import { validateThemeHexColors } from '../../workspace-data/design-system-parser';
 import { resolveWorkspacePath } from '../../workspace-paths';
 import { replace } from '../lib/replace';
 
@@ -682,6 +684,7 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         content: z.string().describe('Full CSS source for styles.css'),
       }),
       execute: async ({ content }) => {
+        validateThemeHexColors(content);
         db()
           .prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1")
           .run(content);
@@ -711,6 +714,7 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         }
 
         const updated = replace(row.css, oldString, newString, replaceAllFlag);
+        validateThemeHexColors(updated);
 
         db()
           .prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1")
@@ -899,15 +903,17 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
 
         if (!doc) throw new Error(`Document "${docId}" not found`);
 
+        const normalizedFolder = folder ? assertValidFolderName(folder) : '';
+
         d.prepare("UPDATE documents SET folder = ?, updated_at = datetime('now') WHERE id = ?").run(
-          folder || null,
+          normalizedFolder || null,
           docId,
         );
 
-        if (!folder) {
+        if (!normalizedFolder) {
           return `Moved "${doc.title}" out of "${doc.folder}" to ungrouped.`;
         }
-        return `Moved "${doc.title}" → "${folder}"`;
+        return `Moved "${doc.title}" → "${normalizedFolder}"`;
       },
     }),
 

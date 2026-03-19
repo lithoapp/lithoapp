@@ -19,6 +19,7 @@ export {
   listDocuments,
   listDocumentsFull,
   listPages,
+  listSnapshotMessageIds,
   listWorkspaces,
   loadConversation,
   readAssetFile,

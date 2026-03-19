@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
+import { isValidHexColor } from '../../shared/color-utils';
+import { assertValidFolderName, assertValidPageSize } from '../../shared/document-validation';
 import type {
   DesignSystem,
   DocumentConfig,
@@ -172,8 +174,10 @@ export async function createDocument(
     resolvedSize = preset;
     sizePreset = size;
   } else {
-    resolvedSize = size;
+    resolvedSize = assertValidPageSize(size);
   }
+
+  const normalizedFolder = folder ? assertValidFolderName(folder) : null;
 
   const docId = generateId();
 
@@ -183,7 +187,7 @@ export async function createDocument(
   ).run(
     docId,
     title,
-    folder || null,
+    normalizedFolder,
     sizePreset,
     resolvedSize.width,
     resolvedSize.height,
@@ -217,8 +221,9 @@ export async function updateDocumentFolder(
   folder: string,
 ): Promise<void> {
   const db = getWorkspaceDb(workspace);
+  const normalizedFolder = folder ? assertValidFolderName(folder) : null;
   db.prepare("UPDATE documents SET folder = ?, updated_at = datetime('now') WHERE id = ?").run(
-    folder || null,
+    normalizedFolder,
     document,
   );
 }
@@ -520,7 +525,25 @@ export async function updateDesignTokens(
   }
 
   const parsed = parseThemeBlock(row.css);
-  const updatedTokens = applyUpdates(parsed.rawTokens, updates);
+  const tokensByVariable = new Map(parsed.rawTokens.map((token) => [token.variable, token]));
+
+  const normalizedUpdates = updates.map((update) => ({
+    variable: update.variable,
+    value: update.value.trim(),
+  }));
+
+  for (const update of normalizedUpdates) {
+    const rawToken = tokensByVariable.get(update.variable);
+    if (!rawToken) {
+      throw new Error(`Unknown design token: "${update.variable}"`);
+    }
+
+    if (rawToken.variable.startsWith('--color-') && !isValidHexColor(update.value)) {
+      throw new Error(`Invalid HEX color for ${update.variable}: "${update.value}"`);
+    }
+  }
+
+  const updatedTokens = applyUpdates(parsed.rawTokens, normalizedUpdates);
   const newCss = serializeFullCss(parsed, updatedTokens);
 
   db.prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1").run(newCss);
@@ -730,14 +753,29 @@ export function createSnapshot(
   if (count > MAX_SNAPSHOTS_PER_DOCUMENT) {
     db.prepare(
       `DELETE FROM document_snapshots
-       WHERE id IN (
-         SELECT id FROM document_snapshots
-         WHERE document_id = ?
-         ORDER BY created_at ASC
-         LIMIT ?
-       )`,
+        WHERE id IN (
+          SELECT id FROM document_snapshots
+          WHERE document_id = ?
+          ORDER BY rowid ASC
+          LIMIT ?
+        )`,
     ).run(documentId, count - MAX_SNAPSHOTS_PER_DOCUMENT);
   }
+}
+
+export function listSnapshotMessageIds(workspace: string, documentId: string): string[] {
+  if (documentId === WORKSPACE_CONVERSATION_ID) {
+    return [];
+  }
+
+  const db = getWorkspaceDb(workspace);
+  const rows = db
+    .prepare(
+      'SELECT user_message_id FROM document_snapshots WHERE document_id = ? ORDER BY rowid ASC',
+    )
+    .all(documentId) as Array<{ user_message_id: string }>;
+
+  return rows.map((row) => row.user_message_id);
 }
 
 export function revertToSnapshot(
@@ -754,11 +792,12 @@ export function revertToSnapshot(
 
   const snapshot = db
     .prepare(
-      'SELECT id, pages_json, styles_css, messages_json, usage_input_tokens, usage_output_tokens FROM document_snapshots WHERE document_id = ? AND user_message_id = ?',
+      'SELECT id, rowid, pages_json, styles_css, messages_json, usage_input_tokens, usage_output_tokens FROM document_snapshots WHERE document_id = ? AND user_message_id = ?',
     )
     .get(documentId, userMessageId) as
     | {
         id: string;
+        rowid: number;
         pages_json: string;
         styles_css: string;
         messages_json: string;
@@ -818,10 +857,8 @@ export function revertToSnapshot(
     // Delete this snapshot and all newer ones (invalidated timeline)
     db.prepare(
       `DELETE FROM document_snapshots
-       WHERE document_id = ? AND created_at >= (
-         SELECT created_at FROM document_snapshots WHERE id = ?
-       )`,
-    ).run(documentId, snapshot.id);
+       WHERE document_id = ? AND rowid >= ?`,
+    ).run(documentId, snapshot.rowid);
   });
 
   restoreTransaction();

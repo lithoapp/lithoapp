@@ -8,7 +8,8 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, extname, join, normalize, relative, resolve } from 'node:path';
+import { basename, dirname, extname, join, normalize, relative, resolve, sep } from 'node:path';
+import { assertValidAssetName } from '../shared/asset-validation';
 import type { AssetEntry } from '../shared/types';
 
 const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
@@ -27,6 +28,15 @@ function sanitizeFileName(name: string): string {
 
 function assetsRoot(workspacePath: string): string {
   return join(workspacePath, 'assets');
+}
+
+function normalizeAssetRelativePath(path: string): string {
+  return path.replaceAll('\\', '/');
+}
+
+function getPathBaseName(path: string): string {
+  const parts = normalizeAssetRelativePath(path).split('/').filter(Boolean);
+  return parts[parts.length - 1] ?? '';
 }
 
 function isPositiveDimension(value: number): boolean {
@@ -168,8 +178,13 @@ function readImageDimensions(absPath: string, ext: string): ImageDimensions | un
 
 function resolveAssetPath(workspacePath: string, relPath: string): string {
   const root = assetsRoot(workspacePath);
-  const abs = resolve(root, relPath);
-  if (!normalize(abs).startsWith(`${normalize(root)}/`) && normalize(abs) !== normalize(root)) {
+  const normalizedRelPath = normalizeAssetRelativePath(relPath);
+  const abs = resolve(root, normalizedRelPath);
+  const rel = relative(root, abs);
+  if (rel === '' || rel === '.') {
+    return abs;
+  }
+  if (rel === '..' || rel.startsWith(`..${sep}`)) {
     throw new Error(`Path traversal rejected: "${relPath}" escapes assets root`);
   }
   return abs;
@@ -192,7 +207,7 @@ export function listAssets(
     const stat = statSync(absEntry);
     const isDir = stat.isDirectory();
     const ext = isDir ? '' : extname(name).toLowerCase();
-    const entryRelPath = relative(root, absEntry);
+    const entryRelPath = normalizeAssetRelativePath(relative(root, absEntry));
 
     entries.push({
       name,
@@ -231,8 +246,27 @@ export function uploadAssets(
   const targetDir = dirPath ? resolveAssetPath(workspacePath, dirPath) : root;
   mkdirSync(targetDir, { recursive: true });
 
-  for (const file of files) {
-    const safeName = sanitizeFileName(basename(file.name));
+  const seenNames = new Set<string>();
+  const safeNames = files.map((file) => {
+    const safeName = sanitizeFileName(assertValidAssetName(basename(file.name)));
+    if (seenNames.has(safeName)) {
+      throw new Error(`Duplicate upload name in selection: "${safeName}"`);
+    }
+    seenNames.add(safeName);
+    return safeName;
+  });
+
+  const conflictingNames = safeNames.filter((safeName) => existsSync(join(targetDir, safeName)));
+  if (conflictingNames.length > 0) {
+    throw new Error(
+      conflictingNames.length === 1
+        ? `Asset already exists: "${conflictingNames[0]}"`
+        : `Assets already exist: ${conflictingNames.map((name) => `"${name}"`).join(', ')}`,
+    );
+  }
+
+  for (const [index, file] of files.entries()) {
+    const safeName = safeNames[index];
     const dest = join(targetDir, safeName);
     writeFileSync(dest, file.data);
   }
@@ -242,21 +276,25 @@ export function uploadAssets(
 const DOCUMENTS_FOLDER = 'documents';
 
 export function createAssetDirectory(workspacePath: string, dirPath: string): void {
-  const topLevel = dirPath.split('/')[0];
+  const folderName = assertValidAssetName(getPathBaseName(dirPath));
+  const parentPath = normalizeAssetRelativePath(dirname(dirPath)).replace(/^\.$/, '');
+  const normalizedPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+  const topLevel = normalizedPath.split('/')[0];
   if (topLevel === DOCUMENTS_FOLDER) {
     throw new Error(`"${DOCUMENTS_FOLDER}" is a reserved folder name`);
   }
-  const abs = resolveAssetPath(workspacePath, dirPath);
+  const abs = resolveAssetPath(workspacePath, normalizedPath);
   if (existsSync(abs)) {
-    throw new Error(`Directory already exists: "${dirPath}"`);
+    throw new Error(`Directory already exists: "${normalizedPath}"`);
   }
   mkdirSync(abs, { recursive: true });
 }
 
 export function deleteAsset(workspacePath: string, entryPath: string): void {
-  const abs = resolveAssetPath(workspacePath, entryPath);
+  const normalizedEntryPath = normalizeAssetRelativePath(entryPath);
+  const abs = resolveAssetPath(workspacePath, normalizedEntryPath);
   if (!existsSync(abs)) {
-    throw new Error(`Asset not found: "${entryPath}"`);
+    throw new Error(`Asset not found: "${normalizedEntryPath}"`);
   }
   rmSync(abs, { recursive: true, force: false });
 }
@@ -305,14 +343,25 @@ export function renameDocumentAsset(
 }
 
 export function renameAsset(workspacePath: string, oldPath: string, newPath: string): void {
-  const absOld = resolveAssetPath(workspacePath, oldPath);
-  const absNew = resolveAssetPath(workspacePath, newPath);
+  const normalizedOldPath = normalizeAssetRelativePath(oldPath);
+  const normalizedRequestedPath = normalizeAssetRelativePath(newPath);
+  const targetName = assertValidAssetName(getPathBaseName(normalizedRequestedPath));
+  const targetParent = normalizeAssetRelativePath(dirname(normalizedRequestedPath)).replace(
+    /^\.$/,
+    '',
+  );
+  const normalizedNewPath = targetParent ? `${targetParent}/${targetName}` : targetName;
+  const absOld = resolveAssetPath(workspacePath, normalizedOldPath);
+  const absNew = resolveAssetPath(workspacePath, normalizedNewPath);
 
   if (!existsSync(absOld)) {
-    throw new Error(`Asset not found: "${oldPath}"`);
+    throw new Error(`Asset not found: "${normalizedOldPath}"`);
+  }
+  if (normalize(absOld) === normalize(absNew)) {
+    return;
   }
   if (existsSync(absNew)) {
-    throw new Error(`Asset already exists at destination: "${newPath}"`);
+    throw new Error(`Asset already exists at destination: "${normalizedNewPath}"`);
   }
 
   renameSync(absOld, absNew);

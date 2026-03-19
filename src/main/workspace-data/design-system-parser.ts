@@ -2,6 +2,7 @@
  * Design system CSS parser & serializer.
  */
 
+import { isValidHexColor } from '../../shared/color-utils';
 import type {
   ColorPalette,
   DesignSystem,
@@ -276,6 +277,21 @@ export function applyUpdates(
     }
     return token;
   });
+}
+
+export function validateThemeHexColors(css: string): void {
+  const parsed = parseThemeBlock(css);
+
+  for (const token of parsed.rawTokens) {
+    const value = token.value.trim();
+    if (!token.variable.startsWith('--color-') || !value.startsWith('#')) {
+      continue;
+    }
+
+    if (!isValidHexColor(value)) {
+      throw new Error(`Invalid HEX color for ${token.variable}: "${token.value}"`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

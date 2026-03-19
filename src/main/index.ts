@@ -80,6 +80,7 @@ import {
   getDesignSystemDocInfo,
   getDocumentCount,
   listDocumentsFull,
+  listSnapshotMessageIds,
   listWorkspaces,
   loadConversation,
   readAssetFile,
@@ -308,6 +309,9 @@ ipcMain.handle(
 );
 ipcMain.handle('snapshot:revert', (_event, ws: string, docId: string, userMessageId: string) =>
   revertToSnapshot(ws, docId, userMessageId),
+);
+ipcMain.handle('snapshot:listMessageIds', (_event, ws: string, docId: string) =>
+  listSnapshotMessageIds(ws, docId),
 );
 
 ipcMain.handle(

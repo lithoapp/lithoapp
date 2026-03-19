@@ -1,5 +1,4 @@
 import { Bug, Lightbulb, MessageSquareText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import type { FeedbackCategory } from '../../../../shared/types';
 
 const CATEGORY_CARDS: Array<{
@@ -38,7 +37,7 @@ export function FeedbackSection({ onOpenFeedback }: FeedbackSectionProps): React
       <div>
         <h2 className="text-lg font-semibold">Feedback</h2>
         <p className="text-sm text-muted-foreground">
-          Send notes directly from Litho. Messages go to the team through Sentry.
+          Send notes directly from Litho so the team can review them.
         </p>
       </div>
 
@@ -59,17 +58,6 @@ export function FeedbackSection({ onOpenFeedback }: FeedbackSectionProps): React
             </div>
           </button>
         ))}
-      </div>
-
-      <div className="flex items-center justify-between gap-4 rounded-xl border bg-card p-5">
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium">Need to send something else?</p>
-          <p className="text-sm text-muted-foreground">
-            Open the full form for general feedback, optional contact details, technical details,
-            and screenshots.
-          </p>
-        </div>
-        <Button onClick={() => onOpenFeedback()}>Open feedback form</Button>
       </div>
     </div>
   );

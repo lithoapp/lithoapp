@@ -29,6 +29,7 @@ export interface UseChatV2Input {
 
 export interface UseChatV2Return {
   messages: StoredMessage[];
+  revertibleMessageIds: Set<string>;
   streamingParts: StreamingPart[];
   streamingReasoning: string;
   isStreaming: boolean;
@@ -109,6 +110,7 @@ export function useChatV2({
 }: UseChatV2Input): UseChatV2Return {
   // Persisted messages (source of truth)
   const [messages, setMessages] = useState<StoredMessage[]>([]);
+  const [revertibleMessageIds, setRevertibleMessageIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
 
   // Streaming state (transient, reset each turn)
@@ -138,10 +140,39 @@ export function useChatV2({
   messagesRef.current = messages;
   const onToolCompleteRef = useRef(onToolComplete);
   onToolCompleteRef.current = onToolComplete;
+  const activeStreamDoneRef = useRef<Promise<void> | null>(null);
+  const resolveActiveStreamDoneRef = useRef<(() => void) | null>(null);
 
   // Stable refs for context (avoid re-subscribing on every render)
   const agentContextRef = useRef(agentContext);
   agentContextRef.current = agentContext;
+
+  const resetActiveStreamTracking = useCallback(() => {
+    resolveActiveStreamDoneRef.current?.();
+    resolveActiveStreamDoneRef.current = null;
+    activeStreamDoneRef.current = null;
+  }, []);
+
+  const beginActiveStreamTracking = useCallback(() => {
+    resetActiveStreamTracking();
+    activeStreamDoneRef.current = new Promise<void>((resolve) => {
+      resolveActiveStreamDoneRef.current = resolve;
+    });
+  }, [resetActiveStreamTracking]);
+
+  const refreshRevertibleMessageIds = useCallback(async () => {
+    if (!workspaceName || !documentId) {
+      setRevertibleMessageIds(new Set());
+      return;
+    }
+
+    try {
+      const ids = await window.litho.snapshot.listMessageIds(workspaceName, documentId);
+      setRevertibleMessageIds(new Set(ids));
+    } catch {
+      setRevertibleMessageIds(new Set());
+    }
+  }, [workspaceName, documentId]);
 
   // ---------------------------------------------------------------------------
   // Load conversation from DB
@@ -150,6 +181,7 @@ export function useChatV2({
   useEffect(() => {
     if (!workspaceName || !documentId) {
       setMessages([]);
+      setRevertibleMessageIds(new Set());
       setIsLoading(false);
       return;
     }
@@ -159,6 +191,7 @@ export function useChatV2({
       try {
         const loaded = await window.litho.conversation.load(workspaceName, documentId);
         setMessages(loaded.messages);
+        await refreshRevertibleMessageIds();
 
         // Recompute cost from per-message usage if available, otherwise fall back to DB values
         const perMessageCost = computeCumulativeCost(loaded.messages);
@@ -179,6 +212,7 @@ export function useChatV2({
         });
       } catch {
         setMessages([]);
+        setRevertibleMessageIds(new Set());
       } finally {
         setIsLoading(false);
       }
@@ -191,7 +225,7 @@ export function useChatV2({
         chatIdRef.current = null;
       }
     };
-  }, [workspaceName, documentId]);
+  }, [workspaceName, documentId, refreshRevertibleMessageIds]);
 
   // ---------------------------------------------------------------------------
   // Start chat request
@@ -200,6 +234,7 @@ export function useChatV2({
   const startChat = useCallback(
     async (msgs: StoredMessage[]) => {
       try {
+        beginActiveStreamTracking();
         const providerModel = providerModelRef.current;
         if (!providerModel) {
           throw new Error('Provider/model not selected');
@@ -221,9 +256,16 @@ export function useChatV2({
           message: err instanceof Error ? err.message : String(err),
         });
         setIsStreaming(false);
+        resetActiveStreamTracking();
       }
     },
-    [providerModelRef, agentId, workspaceName],
+    [
+      providerModelRef,
+      agentId,
+      workspaceName,
+      beginActiveStreamTracking,
+      resetActiveStreamTracking,
+    ],
   );
 
   // ---------------------------------------------------------------------------
@@ -314,6 +356,7 @@ export function useChatV2({
         case 'finish': {
           setIsStreaming(false);
           chatIdRef.current = null;
+          let persistConversation: Promise<void> | null = null;
 
           // Append response messages (which carry per-message usage) and recompute
           const responseMessages = event.responseMessages ?? [];
@@ -334,10 +377,15 @@ export function useChatV2({
               usageRef.current = newUsage;
               setUsage(newUsage);
 
-              void window.litho.conversation.save(workspaceName, documentId, updated, {
-                inputTokens: cost.inputTokens,
-                outputTokens: cost.outputTokens,
-              });
+              persistConversation = window.litho.conversation.save(
+                workspaceName,
+                documentId,
+                updated,
+                {
+                  inputTokens: cost.inputTokens,
+                  outputTokens: cost.outputTokens,
+                },
+              );
               return updated;
             });
           } else {
@@ -345,10 +393,15 @@ export function useChatV2({
             // Still save the conversation to persist the user message.
             setMessages((prev) => {
               const cost = computeCumulativeCost(prev);
-              void window.litho.conversation.save(workspaceName, documentId, prev, {
-                inputTokens: cost.inputTokens,
-                outputTokens: cost.outputTokens,
-              });
+              persistConversation = window.litho.conversation.save(
+                workspaceName,
+                documentId,
+                prev,
+                {
+                  inputTokens: cost.inputTokens,
+                  outputTokens: cost.outputTokens,
+                },
+              );
               return prev;
             });
 
@@ -368,6 +421,9 @@ export function useChatV2({
           pendingReasoningRef.current = '';
           setStreamingParts([]);
           setStreamingReasoning('');
+          void (persistConversation ?? Promise.resolve()).finally(() => {
+            resetActiveStreamTracking();
+          });
           break;
         }
         case 'error': {
@@ -383,13 +439,14 @@ export function useChatV2({
             message: event.message ?? 'Unknown error',
             retryAfter: event.retryAfter,
           });
+          resetActiveStreamTracking();
           break;
         }
       }
     });
 
     return cleanup;
-  }, [workspaceName, documentId]);
+  }, [workspaceName, documentId, resetActiveStreamTracking]);
 
   // ---------------------------------------------------------------------------
   // Send message
@@ -409,6 +466,7 @@ export function useChatV2({
           inputTokens: usage.costInputTokens,
           outputTokens: usage.costOutputTokens,
         });
+        await refreshRevertibleMessageIds();
       }
 
       const updatedMessages = [...messages, userMsg];
@@ -427,7 +485,15 @@ export function useChatV2({
 
       await startChat(updatedMessages);
     },
-    [isStreaming, messages, usage, startChat, workspaceName, documentId],
+    [
+      isStreaming,
+      messages,
+      usage,
+      startChat,
+      workspaceName,
+      documentId,
+      refreshRevertibleMessageIds,
+    ],
   );
 
   // ---------------------------------------------------------------------------
@@ -467,12 +533,13 @@ export function useChatV2({
       setStreamingParts([]);
       setStreamingReasoning('');
       lastUserMessageRef.current = null;
+      await refreshRevertibleMessageIds();
 
       onToolCompleteRef.current?.('__revert__', {});
 
       return userPrompt;
     },
-    [isStreaming, workspaceName, documentId],
+    [isStreaming, workspaceName, documentId, refreshRevertibleMessageIds],
   );
 
   // ---------------------------------------------------------------------------
@@ -538,11 +605,12 @@ export function useChatV2({
     });
     setError(null);
     lastUserMessageRef.current = null;
+    await refreshRevertibleMessageIds();
 
     onToolCompleteRef.current?.('__revert__', {});
 
     return userPrompt;
-  }, [workspaceName, documentId]);
+  }, [workspaceName, documentId, refreshRevertibleMessageIds]);
 
   // ---------------------------------------------------------------------------
   // Abort
@@ -552,6 +620,7 @@ export function useChatV2({
     if (!chatIdRef.current) return;
     try {
       await window.litho.chat.abort(chatIdRef.current);
+      await activeStreamDoneRef.current;
     } catch {
       // ignore
     }
@@ -586,10 +655,12 @@ export function useChatV2({
     if (workspaceName && documentId) {
       await window.litho.conversation.clear(workspaceName, documentId);
     }
+    setRevertibleMessageIds(new Set());
   }, [workspaceName, documentId]);
 
   return {
     messages,
+    revertibleMessageIds,
     streamingParts,
     streamingReasoning,
     isStreaming,

@@ -19,6 +19,7 @@ import { useWorkspace } from '@/hooks/use-workspace';
 import { NavigationContext } from '@/lib/navigation-context';
 import { setRendererSentryTelemetryEnabled, syncRendererSentryUser } from '@/lib/sentry';
 import { cn } from '@/lib/utils';
+import { isValidHexColor, parseHexColorRgb } from '../../shared/color-utils';
 import type { DocumentInfo, FeedbackCategory } from '../../shared/types';
 import { AssetsPage } from './pages/assets';
 import { DesignSystemDocPage } from './pages/design-system-doc';
@@ -39,24 +40,8 @@ type Page =
   | 'workspace-opening'
   | 'workspace-leaving';
 
-function parseHex(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  if (h.length === 3) {
-    return [
-      Number.parseInt(h[0] + h[0], 16),
-      Number.parseInt(h[1] + h[1], 16),
-      Number.parseInt(h[2] + h[2], 16),
-    ];
-  }
-  return [
-    Number.parseInt(h.slice(0, 2), 16),
-    Number.parseInt(h.slice(2, 4), 16),
-    Number.parseInt(h.slice(4, 6), 16),
-  ];
-}
-
 function relativeLuminance(hex: string): number {
-  const [r, g, b] = parseHex(hex).map((c) => {
+  const [r, g, b] = parseHexColorRgb(hex).map((c) => {
     const s = c / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   });
@@ -69,10 +54,12 @@ function App(): React.JSX.Element {
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [agentBusy, setAgentBusy] = useState(false);
   const [pendingNav, setPendingNav] = useState<Page | null>(null);
+  const [settingsReturnPage, setSettingsReturnPage] = useState<Page>('workspaces');
   const [settingsInitialCategory, setSettingsInitialCategory] = useState<
     SettingsCategory | undefined
   >();
   const pendingNavCallbackRef = useRef<(() => void) | null>(null);
+  const agentLeaveHandlerRef = useRef<(() => Promise<void>) | null>(null);
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<{
@@ -87,7 +74,7 @@ function App(): React.JSX.Element {
   const { workspaces, refreshWorkspaces } = useWorkspace();
   const workspaceTitle = workspaces.find((ws) => ws.slug === workspaceName)?.title;
 
-  const { designSystem } = useDesignSystem(workspaceName);
+  const { designSystem, refetch: refetchDesignSystem } = useDesignSystem(workspaceName);
 
   const titleBarTheme = useMemo(() => {
     const primaryPalette = designSystem?.colors.palettes.find(
@@ -96,7 +83,7 @@ function App(): React.JSX.Element {
     const shade =
       primaryPalette?.shades.find((s) => s.variable.endsWith('-600')) ??
       primaryPalette?.shades.find((s) => s.variable.endsWith('-500'));
-    if (!shade?.value.startsWith('#')) return null;
+    if (!shade || !isValidHexColor(shade.value)) return null;
     const isLight = relativeLuminance(shade.value) > 0.4;
     return { bg: shade.value, fg: isLight ? '#000000' : '#ffffff' };
   }, [designSystem]);
@@ -107,7 +94,11 @@ function App(): React.JSX.Element {
 
   const navigateTo = useCallback(
     (target: Page, callback?: () => void) => {
-      const isOnAgentPage = page === 'document' || page === 'design-system-doc';
+      if (target === 'settings') {
+        setSettingsReturnPage(page);
+      }
+      const isOnAgentPage =
+        page === 'documents' || page === 'document' || page === 'design-system-doc';
       if (isOnAgentPage && agentBusy) {
         setPendingNav(target);
         pendingNavCallbackRef.current = callback ?? null;
@@ -119,13 +110,22 @@ function App(): React.JSX.Element {
     [page, agentBusy],
   );
 
-  function confirmPendingNav(): void {
+  const registerAgentLeaveRequest = useCallback((handler: (() => Promise<void>) | null) => {
+    agentLeaveHandlerRef.current = handler;
+  }, []);
+
+  async function confirmPendingNav(): Promise<void> {
     if (pendingNav) {
-      pendingNavCallbackRef.current?.();
-      pendingNavCallbackRef.current = null;
-      setAgentBusy(false);
-      setPage(pendingNav);
-      setPendingNav(null);
+      try {
+        await agentLeaveHandlerRef.current?.();
+        pendingNavCallbackRef.current?.();
+        pendingNavCallbackRef.current = null;
+        setAgentBusy(false);
+        setPage(pendingNav);
+        setPendingNav(null);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to leave current page');
+      }
     }
   }
 
@@ -218,8 +218,8 @@ function App(): React.JSX.Element {
   }, []);
 
   const handleCloseWorkspace = useCallback(() => {
-    setPage('workspace-leaving');
-  }, []);
+    navigateTo('workspace-leaving');
+  }, [navigateTo]);
 
   const openFeedback = useCallback((category: FeedbackCategory = 'general-feedback') => {
     setFeedbackInitialCategory(category);
@@ -422,10 +422,12 @@ function App(): React.JSX.Element {
               onOpenDesignSystem={() => setPage('design-system-doc')}
               onOpenAssets={() => setPage('assets')}
               onCloseWorkspace={handleCloseWorkspace}
+              onAgentBusyChange={setAgentBusy}
+              onAgentLeaveRequestChange={registerAgentLeaveRequest}
             />
           )}
           {page === 'assets' && workspaceName && (
-            <AssetsPage workspaceName={workspaceName} onBack={() => setPage('documents')} />
+            <AssetsPage workspaceName={workspaceName} onBack={() => navigateTo('documents')} />
           )}
           {page === 'document' && activeDoc && workspaceName && (
             <DocumentPage
@@ -436,6 +438,7 @@ function App(): React.JSX.Element {
               onDocumentsChange={loadDocuments}
               userName={userProfile.name ?? undefined}
               onAgentBusyChange={setAgentBusy}
+              onAgentLeaveRequestChange={registerAgentLeaveRequest}
             />
           )}
           {page === 'design-system-doc' && workspaceName && (
@@ -444,6 +447,8 @@ function App(): React.JSX.Element {
               workspaceTitle={workspaceTitle ?? workspaceName}
               onBack={() => navigateTo('documents')}
               onAgentBusyChange={setAgentBusy}
+              onAgentLeaveRequestChange={registerAgentLeaveRequest}
+              onDesignSystemChange={() => void refetchDesignSystem()}
             />
           )}
           {page === 'settings' && (
@@ -452,7 +457,7 @@ function App(): React.JSX.Element {
               onOpenFeedback={openFeedback}
               onBack={() => {
                 setSettingsInitialCategory(undefined);
-                setPage(inWorkspace ? 'documents' : 'workspaces');
+                setPage(settingsReturnPage);
               }}
             />
           )}
@@ -481,7 +486,15 @@ function App(): React.JSX.Element {
         documentTitle={feedbackContext.documentTitle}
       />
 
-      <AlertDialog open={pendingNav !== null} onOpenChange={(open) => !open && setPendingNav(null)}>
+      <AlertDialog
+        open={pendingNav !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingNav(null);
+            pendingNavCallbackRef.current = null;
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>AI is still working</AlertDialogTitle>
@@ -492,7 +505,9 @@ function App(): React.JSX.Element {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Wait</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmPendingNav}>Leave anyway</AlertDialogAction>
+            <AlertDialogAction onClick={() => void confirmPendingNav()}>
+              Leave anyway
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

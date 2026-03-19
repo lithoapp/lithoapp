@@ -127,7 +127,7 @@ function ToolCallCard({
         )}
       </div>
       <JsonBlock label="Input" data={input} defaultOpen />
-      {output !== undefined && <JsonBlock label="Output" data={output} />}
+      {output !== undefined && <JsonBlock label="Output" data={output} defaultOpen />}
     </div>
   );
 }

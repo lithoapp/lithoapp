@@ -13,6 +13,8 @@ interface DesignSystemDocPageProps {
   workspaceTitle?: string;
   onBack: () => void;
   onAgentBusyChange?: (busy: boolean) => void;
+  onAgentLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
+  onDesignSystemChange?: () => void;
 }
 
 export function DesignSystemDocPage({
@@ -20,6 +22,8 @@ export function DesignSystemDocPage({
   workspaceTitle,
   onBack,
   onAgentBusyChange,
+  onAgentLeaveRequestChange,
+  onDesignSystemChange,
 }: DesignSystemDocPageProps): React.JSX.Element {
   const [dsDocId, setDsDocId] = useState<string | null>(null);
   const [docConfig, setDocConfig] = useState<DocumentConfig | null>(null);
@@ -129,6 +133,7 @@ export function DesignSystemDocPage({
         onToolComplete,
         sendMessageRef: parentSendRef,
         onBusyChange: parentBusyChange,
+        onLeaveRequestChange,
       }) => (
         <DesignSystemChat
           workspaceName={wsName}
@@ -136,6 +141,9 @@ export function DesignSystemDocPage({
           onToolComplete={(tool, args) => {
             onToolComplete(tool, args);
             diagnosticToolComplete(tool, args);
+            if (REBUILD_ALL_ON_TOOLS.includes(tool) || tool === '__revert__') {
+              onDesignSystemChange?.();
+            }
           }}
           sendMessageRef={sendMessageRef}
           parentSendMessageRef={parentSendRef}
@@ -143,8 +151,10 @@ export function DesignSystemDocPage({
             handleBusyChange(busy);
             parentBusyChange(busy);
           }}
+          onLeaveRequestChange={onLeaveRequestChange}
         />
       )}
+      onAgentLeaveRequestChange={onAgentLeaveRequestChange}
     />
   );
 }

@@ -43,6 +43,7 @@ export interface ChatProps {
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   sendMessageRef?: React.RefObject<((text: string) => void) | null>;
   onBusyChange?: (isBusy: boolean) => void;
+  onLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
   pages?: PageInfo[];
 }
 
@@ -235,6 +236,7 @@ export function Chat({
   onToolComplete,
   sendMessageRef,
   onBusyChange,
+  onLeaveRequestChange,
   pages,
 }: ChatProps): React.JSX.Element {
   // Provider / model from localStorage
@@ -278,6 +280,13 @@ export function Chat({
   useEffect(() => {
     onBusyChange?.(chat.isStreaming);
   }, [chat.isStreaming, onBusyChange]);
+
+  useEffect(() => {
+    onLeaveRequestChange?.(chat.isStreaming ? chat.abort : null);
+    return () => {
+      onLeaveRequestChange?.(null);
+    };
+  }, [chat.isStreaming, chat.abort, onLeaveRequestChange]);
 
   // ---------------------------------------------------------------------------
   // Model selection
@@ -452,6 +461,7 @@ export function Chat({
       <div className="flex-1 overflow-auto">
         <MessageList
           messages={chat.messages}
+          revertibleMessageIds={chat.revertibleMessageIds}
           streamingParts={chat.streamingParts}
           isStreaming={chat.isStreaming}
           pages={pages}

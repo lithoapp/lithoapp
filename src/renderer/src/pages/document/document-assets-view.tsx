@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getAssetNameError, sanitizeAssetNameInput } from '../../../../shared/asset-validation';
 import type { AssetEntry } from '../../../../shared/types';
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
@@ -48,6 +49,7 @@ export function DocumentAssetsView({
   const [renameValue, setRenameValue] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const renameError = getAssetNameError(renameValue);
 
   const loadEntries = useCallback(async () => {
     try {
@@ -89,10 +91,10 @@ export function DocumentAssetsView({
   }
 
   async function handleRename(): Promise<void> {
-    if (!renameTarget || !renameValue.trim()) return;
+    if (!renameTarget || renameError) return;
     const newName = renameTarget.ext
-      ? `${renameValue.trim()}${renameTarget.ext}`
-      : renameValue.trim();
+      ? `${sanitizeAssetNameInput(renameValue).trim()}${renameTarget.ext}`
+      : sanitizeAssetNameInput(renameValue).trim();
     try {
       await window.litho.assets.renameDocument(workspaceName, docId, renameTarget.name, newName);
       await loadEntries();
@@ -224,11 +226,12 @@ export function DocumentAssetsView({
             <Input
               placeholder="New name"
               value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
+              onChange={(e) => setRenameValue(sanitizeAssetNameInput(e.target.value))}
               onKeyDown={(e) => e.key === 'Enter' && void handleRename()}
               className="h-11 px-4 text-base"
               autoFocus
             />
+            {renameError && <p className="text-sm text-destructive">{renameError}</p>}
             {renameTarget?.ext && (
               <span className="shrink-0 text-sm text-muted-foreground">{renameTarget.ext}</span>
             )}
@@ -241,7 +244,7 @@ export function DocumentAssetsView({
             </DialogClose>
             <Button
               onClick={() => void handleRename()}
-              disabled={!renameValue.trim()}
+              disabled={Boolean(renameError)}
               className="h-11"
             >
               Rename

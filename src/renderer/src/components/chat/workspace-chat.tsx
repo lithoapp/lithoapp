@@ -12,12 +12,16 @@ interface WorkspaceChatProps {
   workspaceName: string;
   workspaceTitle: string;
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
+  onBusyChange?: (isBusy: boolean) => void;
+  onLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
 }
 
 export function WorkspaceChat({
   workspaceName,
   workspaceTitle,
   onToolComplete,
+  onBusyChange,
+  onLeaveRequestChange,
 }: WorkspaceChatProps): React.JSX.Element {
   const [userName, setUserName] = useState('');
 
@@ -47,6 +51,8 @@ export function WorkspaceChat({
       agentContext={agentContext}
       kickoffMessage={kickoffMessage}
       onToolComplete={onToolComplete}
+      onBusyChange={onBusyChange}
+      onLeaveRequestChange={onLeaveRequestChange}
     />
   );
 }

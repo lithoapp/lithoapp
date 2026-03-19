@@ -48,6 +48,7 @@ interface DocumentPageProps {
     onToolComplete: (tool: string, args: Record<string, unknown>) => void;
     sendMessageRef: React.RefObject<((text: string) => void) | null>;
     onBusyChange: (isBusy: boolean) => void;
+    onLeaveRequestChange: (handler: (() => Promise<void>) | null) => void;
   }) => React.ReactNode;
   /** Tool names that should trigger a full rebuild of all pages (e.g. CSS changes). */
   rebuildAllOnTools?: string[];
@@ -55,6 +56,7 @@ interface DocumentPageProps {
   refetchDocOnPageChange?: boolean;
   /** Notify parent when the AI agent becomes busy or idle. */
   onAgentBusyChange?: (busy: boolean) => void;
+  onAgentLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
 }
 
 export function DocumentPage({
@@ -68,6 +70,7 @@ export function DocumentPage({
   rebuildAllOnTools,
   refetchDocOnPageChange,
   onAgentBusyChange,
+  onAgentLeaveRequestChange,
 }: DocumentPageProps): React.JSX.Element {
   const [zoom, setZoom] = useState(1);
   const [fitToWidth, setFitToWidth] = useState(true);
@@ -532,6 +535,7 @@ export function DocumentPage({
       onToolComplete: handleToolComplete,
       sendMessageRef,
       onBusyChange: handleBusyChange,
+      onLeaveRequestChange: onAgentLeaveRequestChange ?? (() => {}),
     })
   ) : (
     <DocumentChat
@@ -542,6 +546,7 @@ export function DocumentPage({
       onToolComplete={handleToolComplete}
       sendMessageRef={sendMessageRef}
       onBusyChange={handleBusyChange}
+      onLeaveRequestChange={onAgentLeaveRequestChange}
     />
   );
 

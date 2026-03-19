@@ -52,11 +52,11 @@ export function WorkspacesPage({
   const [createError, setCreateError] = useState<string | null>(null);
   const [selectingSlug, setSelectingSlug] = useState<string | null>(null);
 
-  function resetCreateState(): void {
+  const resetCreateState = useCallback((): void => {
     setNewName('');
     setSelectedTemplate(DEFAULT_TEMPLATE_ID);
     setCreateError(null);
-  }
+  }, []);
 
   function handleCreateDialogOpenChange(open: boolean): void {
     setCreateOpen(open);
@@ -64,6 +64,12 @@ export function WorkspacesPage({
       resetCreateState();
     }
   }
+
+  useEffect(() => {
+    if (!createOpen && !isCreating) {
+      resetCreateState();
+    }
+  }, [createOpen, isCreating, resetCreateState]);
 
   async function handleCreate(): Promise<void> {
     if (!newName.trim()) return;

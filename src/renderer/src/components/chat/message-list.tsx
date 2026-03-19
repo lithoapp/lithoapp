@@ -117,11 +117,13 @@ function UserMessageView({
   isHidden,
   isStreaming,
   onRevert,
+  canRevert,
 }: {
   message: StoredUserMessage;
   isHidden?: boolean;
   isStreaming?: boolean;
   onRevert?: (userMessageId: string) => void;
+  canRevert?: boolean;
 }): React.JSX.Element | null {
   if (isHidden) return null;
 
@@ -129,7 +131,7 @@ function UserMessageView({
   const displayText = severity ? stripDiagnosticPrefix(message.content) : message.content;
 
   const revertButton =
-    message.id && onRevert && !isStreaming ? (
+    message.id && onRevert && canRevert && !isStreaming ? (
       <RevertButton onRevert={() => onRevert(message.id as string)} />
     ) : null;
 
@@ -266,6 +268,7 @@ export function MessageList({
   pages,
   hideFirstUserMessage,
   onRevert,
+  revertibleMessageIds,
   displayMode = 'activity',
   agentId,
   agentContext,
@@ -276,6 +279,7 @@ export function MessageList({
   pages?: PageInfo[];
   hideFirstUserMessage?: boolean;
   onRevert?: (userMessageId: string) => void;
+  revertibleMessageIds?: Set<string>;
   displayMode?: DisplayMode;
   agentId?: AgentId;
   agentContext?: AgentContext;
@@ -307,6 +311,7 @@ export function MessageList({
               isHidden={hideFirstUserMessage && i === 0}
               isStreaming={isStreaming}
               onRevert={onRevert}
+              canRevert={turn.message.id ? revertibleMessageIds?.has(turn.message.id) : false}
             />
           );
         }

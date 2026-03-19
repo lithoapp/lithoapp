@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { getAssetNameError, sanitizeAssetNameInput } from '../../../../shared/asset-validation';
 import type { AssetEntry } from '../../../../shared/types';
 import { AssetGridItem, IMAGE_EXTS } from './asset-grid-item';
 import { PreviewDialog } from './asset-preview-dialog';
@@ -40,11 +41,15 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
   const [renameValue, setRenameValue] = useState('');
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [hasTouchedNewFolderName, setHasTouchedNewFolderName] = useState(false);
   const [previewEntry, setPreviewEntry] = useState<AssetEntry | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeletePaths, setBulkDeletePaths] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const newFolderError = hasTouchedNewFolderName ? getAssetNameError(newFolderName) : null;
+  const renameError = getAssetNameError(renameValue);
 
   const loadEntries = useCallback(async () => {
     setIsLoading(true);
@@ -124,14 +129,18 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
   }
 
   async function handleCreateFolder(): Promise<void> {
-    if (!newFolderName.trim()) return;
-    const dirPath = currentDir ? `${currentDir}/${newFolderName.trim()}` : newFolderName.trim();
+    const folderName = sanitizeAssetNameInput(newFolderName).trim();
+    const folderError = getAssetNameError(folderName);
+    setHasTouchedNewFolderName(true);
+    if (folderError) return;
+    const dirPath = currentDir ? `${currentDir}/${folderName}` : folderName;
     try {
       await window.litho.assets.createDirectory(workspaceName, dirPath);
       await loadEntries();
       setNewFolderOpen(false);
       setNewFolderName('');
-      toast.success(`Created folder "${newFolderName.trim()}"`);
+      setHasTouchedNewFolderName(false);
+      toast.success(`Created folder "${folderName}"`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create folder');
     }
@@ -153,9 +162,8 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
   }
 
   async function handleBulkDelete(): Promise<void> {
-    const paths = [...selected];
+    const paths = bulkDeletePaths;
     setBulkDeleteConfirm(false);
-    setSelected(new Set());
     for (const p of paths) {
       try {
         await window.litho.assets.delete(workspaceName, p);
@@ -164,6 +172,8 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
       }
     }
     await loadEntries();
+    setSelected(new Set());
+    setBulkDeletePaths([]);
     toast.success(`Deleted ${paths.length} item(s)`);
   }
 
@@ -196,10 +206,10 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
   const [isBackDragOver, setIsBackDragOver] = useState(false);
 
   async function handleRename(): Promise<void> {
-    if (!renameTarget || !renameValue.trim()) return;
+    if (!renameTarget || renameError) return;
     const newName = renameTarget.ext
-      ? `${renameValue.trim()}${renameTarget.ext}`
-      : renameValue.trim();
+      ? `${sanitizeAssetNameInput(renameValue).trim()}${renameTarget.ext}`
+      : sanitizeAssetNameInput(renameValue).trim();
     const parentDir = renameTarget.path.includes('/')
       ? renameTarget.path.substring(0, renameTarget.path.lastIndexOf('/'))
       : '';
@@ -278,7 +288,10 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
           {selected.size > 0 && (
             <Button
               variant="destructive"
-              onClick={() => setBulkDeleteConfirm(true)}
+              onClick={() => {
+                setBulkDeletePaths([...selected]);
+                setBulkDeleteConfirm(true);
+              }}
               className="h-10 px-4 text-sm"
             >
               <Trash2 className="mr-1.5 h-4 w-4" />
@@ -381,7 +394,16 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
       )}
 
       {/* New Folder Dialog */}
-      <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
+      <Dialog
+        open={newFolderOpen}
+        onOpenChange={(open) => {
+          setNewFolderOpen(open);
+          if (!open) {
+            setNewFolderName('');
+            setHasTouchedNewFolderName(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Folder</DialogTitle>
@@ -389,11 +411,15 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
           <Input
             placeholder="Folder name"
             value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
+            onChange={(e) => {
+              setHasTouchedNewFolderName(true);
+              setNewFolderName(sanitizeAssetNameInput(e.target.value));
+            }}
             onKeyDown={(e) => e.key === 'Enter' && void handleCreateFolder()}
             className="h-11 px-4 text-base"
             autoFocus
           />
+          {newFolderError && <p className="text-sm text-destructive">{newFolderError}</p>}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" className="h-11">
@@ -402,7 +428,7 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
             </DialogClose>
             <Button
               onClick={() => void handleCreateFolder()}
-              disabled={!newFolderName.trim()}
+              disabled={Boolean(newFolderError)}
               className="h-11"
             >
               Create
@@ -421,11 +447,12 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
             <Input
               placeholder="New name"
               value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
+              onChange={(e) => setRenameValue(sanitizeAssetNameInput(e.target.value))}
               onKeyDown={(e) => e.key === 'Enter' && void handleRename()}
               className="h-11 px-4 text-base"
               autoFocus
             />
+            {renameError && <p className="text-sm text-destructive">{renameError}</p>}
             {renameTarget?.ext && (
               <span className="shrink-0 text-sm text-muted-foreground">{renameTarget.ext}</span>
             )}
@@ -438,7 +465,7 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
             </DialogClose>
             <Button
               onClick={() => void handleRename()}
-              disabled={!renameValue.trim()}
+              disabled={Boolean(renameError)}
               className="h-11"
             >
               Rename
@@ -477,20 +504,32 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
       </AlertDialog>
 
       {/* Bulk Delete Confirm */}
-      <AlertDialog open={bulkDeleteConfirm} onOpenChange={setBulkDeleteConfirm}>
+      <AlertDialog
+        open={bulkDeleteConfirm}
+        onOpenChange={(open) => {
+          setBulkDeleteConfirm(open);
+          if (!open) {
+            setBulkDeletePaths([]);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selected.size} item(s)?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {bulkDeletePaths.length} item(s)?</AlertDialogTitle>
             <AlertDialogDescription>
-              {selected.size <= 5
-                ? `This will permanently delete: ${[...selected].map((p) => p.split('/').pop()).join(', ')}. This cannot be undone.`
-                : `This will permanently delete ${selected.size} items. This cannot be undone.`}
+              {bulkDeletePaths.length <= 5
+                ? `This will permanently delete: ${bulkDeletePaths.map((p) => p.split('/').pop()).join(', ')}. This cannot be undone.`
+                : `This will permanently delete ${bulkDeletePaths.length} items. This cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => void handleBulkDelete()}>
-              Delete {selected.size} item(s)
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => void handleBulkDelete()}
+              disabled={bulkDeletePaths.length === 0}
+            >
+              Delete {bulkDeletePaths.length} item(s)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

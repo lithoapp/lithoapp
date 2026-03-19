@@ -34,6 +34,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
+import { isValidHexColor } from '../../../../shared/color-utils';
+import {
+  getFolderNameError,
+  getPageSizeError,
+  normalizeFolderName,
+  sanitizeFolderNameInput,
+} from '../../../../shared/document-validation';
 import type { ColorPalette, DesignSystem, DocumentInfo } from '../../../../shared/types';
 import { ExportDialog } from '../document/export-dialog';
 import { DocumentCard, formatRelativeTime } from './document-card';
@@ -130,11 +137,6 @@ function groupDocuments(docs: DocumentInfo[]): {
   return { ungrouped, folders };
 }
 
-/** Strip slashes to prevent accidental nesting. */
-function sanitizeFolderName(value: string): string {
-  return value.replace(/\//g, '');
-}
-
 interface DocumentsPageProps {
   workspaceName: string;
   workspaceTitle: string;
@@ -147,6 +149,8 @@ interface DocumentsPageProps {
   onOpenDesignSystem: () => void;
   onOpenAssets: () => void;
   onCloseWorkspace: () => void;
+  onAgentBusyChange?: (busy: boolean) => void;
+  onAgentLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
 }
 
 export function DocumentsPage({
@@ -161,6 +165,8 @@ export function DocumentsPage({
   onOpenDesignSystem,
   onOpenAssets,
   onCloseWorkspace,
+  onAgentBusyChange,
+  onAgentLeaveRequestChange,
 }: DocumentsPageProps): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -179,6 +185,7 @@ export function DocumentsPage({
   const [deleteFolderName, setDeleteFolderName] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [hasTouchedNewFolderName, setHasTouchedNewFolderName] = useState(false);
   const [isBackDragOver, setIsBackDragOver] = useState(false);
   const [localFolderNames, setLocalFolderNames] = useState<Set<string>>(new Set());
   const [renameDocId, setRenameDocId] = useState<string | null>(null);
@@ -191,13 +198,25 @@ export function DocumentsPage({
 
   const renameDoc = renameDocId ? documents.find((d) => d.id === renameDocId) : null;
   const exportDoc = exportDocId ? documents.find((d) => d.id === exportDocId) : null;
+  const newFolderError = hasTouchedNewFolderName ? getFolderNameError(newFolderName) : null;
+  const customSizeError =
+    newSize === 'Custom'
+      ? getPageSizeError({
+          width: Number(customWidth),
+          height: Number(customHeight),
+          unit: customUnit,
+        })
+      : null;
 
   function handleCreateFolder(): void {
-    const name = newFolderName.trim();
-    if (!name) return;
+    const name = normalizeFolderName(newFolderName);
+    const folderError = getFolderNameError(name);
+    setHasTouchedNewFolderName(true);
+    if (folderError) return;
     setLocalFolderNames((prev) => new Set([...prev, name]));
     setNewFolderOpen(false);
     setNewFolderName('');
+    setHasTouchedNewFolderName(false);
   }
 
   async function handleCreate(): Promise<void> {
@@ -522,7 +541,10 @@ export function DocumentsPage({
               open={newFolderOpen}
               onOpenChange={(open) => {
                 setNewFolderOpen(open);
-                if (!open) setNewFolderName('');
+                if (!open) {
+                  setNewFolderName('');
+                  setHasTouchedNewFolderName(false);
+                }
               }}
             >
               <DialogContent>
@@ -532,13 +554,17 @@ export function DocumentsPage({
                 <Input
                   placeholder="Folder name"
                   value={newFolderName}
-                  onChange={(e) => setNewFolderName(sanitizeFolderName(e.target.value))}
+                  onChange={(e) => {
+                    setHasTouchedNewFolderName(true);
+                    setNewFolderName(sanitizeFolderNameInput(e.target.value));
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newFolderName.trim()) handleCreateFolder();
+                    if (e.key === 'Enter' && !newFolderError) handleCreateFolder();
                   }}
                   className="h-11 px-4 text-base"
                   autoFocus
                 />
+                {newFolderError && <p className="text-sm text-destructive">{newFolderError}</p>}
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button variant="outline" className="h-11">
@@ -547,7 +573,7 @@ export function DocumentsPage({
                   </DialogClose>
                   <Button
                     onClick={handleCreateFolder}
-                    disabled={!newFolderName.trim()}
+                    disabled={Boolean(newFolderError)}
                     className="h-11"
                   >
                     Create
@@ -628,6 +654,7 @@ export function DocumentsPage({
                               min={1}
                               value={customWidth}
                               onChange={(e) => setCustomWidth(e.target.value)}
+                              aria-invalid={customSizeError ? true : undefined}
                               className="h-10 w-32 px-3 text-base"
                             />
                           </div>
@@ -642,6 +669,7 @@ export function DocumentsPage({
                               min={1}
                               value={customHeight}
                               onChange={(e) => setCustomHeight(e.target.value)}
+                              aria-invalid={customSizeError ? true : undefined}
                               className="h-10 w-32 px-3 text-base"
                             />
                           </div>
@@ -675,6 +703,9 @@ export function DocumentsPage({
                             </div>
                           </div>
                         </div>
+                        {customSizeError && (
+                          <p className="text-sm text-destructive">{customSizeError}</p>
+                        )}
                       </div>
                     ) : (
                       SIZE_CATEGORIES.filter((cat) => cat.label === sizeCategory).map((cat) => (
@@ -705,12 +736,7 @@ export function DocumentsPage({
                   </DialogClose>
                   <Button
                     onClick={() => void handleCreate()}
-                    disabled={
-                      isCreating ||
-                      !newTitle.trim() ||
-                      (newSize === 'Custom' &&
-                        (Number(customWidth) <= 0 || Number(customHeight) <= 0))
-                    }
+                    disabled={isCreating || !newTitle.trim() || Boolean(customSizeError)}
                     className="h-11"
                   >
                     {isCreating && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
@@ -822,6 +848,8 @@ export function DocumentsPage({
           workspaceName={workspaceName}
           workspaceTitle={workspaceTitle}
           onToolComplete={handleToolComplete}
+          onBusyChange={onAgentBusyChange}
+          onLeaveRequestChange={onAgentLeaveRequestChange}
         />
       </ResizablePanel>
     </ResizablePanelGroup>
@@ -945,7 +973,9 @@ function RenameFolderDialog({
     if (oldName !== null) setValue(oldName);
   }, [oldName]);
 
-  const isValid = value.trim() !== '' && value.trim() !== oldName;
+  const normalizedValue = normalizeFolderName(value);
+  const valueError = getFolderNameError(value);
+  const isValid = !valueError && normalizedValue !== oldName;
 
   return (
     <Dialog open={oldName !== null} onOpenChange={(open) => !open && onClose()}>
@@ -957,17 +987,18 @@ function RenameFolderDialog({
           id="rename-folder"
           placeholder="Folder name"
           value={value}
-          onChange={(e) => setValue(sanitizeFolderName(e.target.value))}
+          onChange={(e) => setValue(sanitizeFolderNameInput(e.target.value))}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && isValid) onRename(value.trim());
+            if (e.key === 'Enter' && isValid) onRename(normalizedValue);
           }}
           className="h-11 px-4 text-base"
         />
+        {valueError && <p className="text-sm text-destructive">{valueError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="h-11">
             Cancel
           </Button>
-          <Button disabled={!isValid} onClick={() => onRename(value.trim())} className="h-11">
+          <Button disabled={!isValid} onClick={() => onRename(normalizedValue)} className="h-11">
             Rename
           </Button>
         </DialogFooter>
@@ -980,7 +1011,7 @@ function RenameFolderDialog({
 function getPrimaryShades(palettes: ColorPalette[]): string[] {
   const primary = palettes.find((p) => p.name.toLowerCase() === 'primary');
   if (!primary) return [];
-  return primary.shades.map((s) => s.value).filter((v) => v.startsWith('#'));
+  return primary.shades.map((s) => s.value).filter((value) => isValidHexColor(value));
 }
 
 function DesignSystemDocCard({
