@@ -51,12 +51,13 @@ Powered by Vercel AI SDK (`ai`, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/
 
 ### Agents (`src/agents/`)
 
-Two AI agents with scoped tool permissions:
+Three AI agents with scoped tool permissions:
 
 - **design-system** (`design-system/`) — Creative design partner for visual branding. Edits workspace `styles.css` (Tailwind v4 `@theme` block) and manages design system document pages. Has read/write access to styles and all page tools.
 - **document** (`document/`) — Creative partner for building PDF pages. Reads design system styles (read-only) and manages document pages. No write access to styles.
+- **workspace** (`workspace/`) — Project-level assistant for organizing documents and folders and understanding the overall project structure.
 
-Each agent has: `system.md` (system prompt — runtime variables at top via Mustache, followed by full agent identity, instructions, and internal operating rules), `kickoff.md` (first message template). Agent configs (tool allowlists, templates) defined in `src/main/ai-providers/agents/config.ts`.
+Each agent has: `system.md` (system prompt — runtime variables at top via Mustache, followed by full agent identity, instructions, and internal operating rules), `kickoff.md` (hidden first message template). Kickoff prompts now carry first-turn tool guidance; system prompts hold longer-lived behavior and scope rules. Agent configs (tool allowlists, templates) defined in `src/main/ai-providers/agents/config.ts`.
 
 **Agent Tools** (`src/main/ai-providers/agents/litho-tools.ts`) — 16 tools exposed as AI SDK tools:
 - Page tools: `listPages`, `readPage`, `writePage`, `editPage`, `createPage`, `deletePage`, `updatePageDetails`, `movePage`
