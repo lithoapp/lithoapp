@@ -13,6 +13,15 @@ import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { DocumentChat } from '@/components/chat/document-chat';
 import type { ChatDocumentLabelContext } from '@/components/chat/message-tool-labels';
 import { PendingChangesPanel } from '@/components/edit-mode/pending-changes-panel';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
@@ -83,6 +92,7 @@ export function DocumentPage({
   const [pageHtmlMap, setPageHtmlMap] = useState<Map<string, string>>(new Map());
   const [pageAudits, setPageAudits] = useState<Map<string, PageAudit[]>>(new Map());
   const [isAgentBusy, setIsAgentBusy] = useState(false);
+  const [editModeBlockedDialogOpen, setEditModeBlockedDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'preview' | 'assets'>('preview');
   // When refetchDocOnPageChange is true, we manage pages internally so
   // createPage/deletePage can refresh without going through the parent.
@@ -393,6 +403,14 @@ export function DocumentPage({
   }, []);
   const modKey = isMac ? '⌘' : 'Ctrl';
 
+  const handleToggleEditMode = useCallback(() => {
+    if (!editMode && isAgentBusy) {
+      setEditModeBlockedDialogOpen(true);
+      return;
+    }
+    toggleEditMode();
+  }, [editMode, isAgentBusy, toggleEditMode]);
+
   const toolbar = (
     <DocumentToolbar
       docTitle={doc.title}
@@ -409,7 +427,7 @@ export function DocumentPage({
       onZoomOut={handleZoomOut}
       onFitToWidth={handleFitToWidth}
       onToggleAssets={setViewMode}
-      onToggleEditMode={toggleEditMode}
+      onToggleEditMode={handleToggleEditMode}
       onExport={() => setExportOpen(true)}
     />
   );
@@ -611,6 +629,19 @@ export function DocumentPage({
           {chatPanel}
         </ResizablePanel>
       </ResizablePanelGroup>
+      <AlertDialog open={editModeBlockedDialogOpen} onOpenChange={setEditModeBlockedDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>AI is still working</AlertDialogTitle>
+            <AlertDialogDescription>
+              Wait for the current chat request to finish before switching to edit mode.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 }
