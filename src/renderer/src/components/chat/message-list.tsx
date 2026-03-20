@@ -24,6 +24,7 @@ import type {
 } from '../../../../shared/types';
 import { promptTemplates, renderTemplate } from '../../lib/prompt-templates';
 import { PersistedActivityLog, StreamingActivityLog } from './activity-log';
+import type { ColorTokenMap } from './color-tokens';
 import { PersistedDebugView, StreamingDebugView } from './debug-view';
 import type { ChatDocumentLabelContext } from './message-tool-labels';
 import type { DisplayMode, StreamingPart } from './types';
@@ -190,6 +191,7 @@ function AssistantTurnView({
   isFirstTurn,
   agentId,
   agentContext,
+  colorTokenMap,
 }: {
   messages: StoredMessage[];
   currentDocumentId?: string;
@@ -199,6 +201,7 @@ function AssistantTurnView({
   isFirstTurn?: boolean;
   agentId?: AgentId;
   agentContext?: AgentContext;
+  colorTokenMap?: ColorTokenMap;
 }): React.JSX.Element {
   if (displayMode === 'debug') {
     return (
@@ -223,6 +226,7 @@ function AssistantTurnView({
           currentDocumentId={currentDocumentId}
           documents={documents}
           pages={pages}
+          colorTokenMap={colorTokenMap}
         />
       ))}
     </div>
@@ -285,6 +289,7 @@ export function MessageList({
   displayMode = 'activity',
   agentId,
   agentContext,
+  colorTokenMap,
 }: {
   messages: StoredMessage[];
   streamingParts: StreamingPart[];
@@ -298,6 +303,7 @@ export function MessageList({
   displayMode?: DisplayMode;
   agentId?: AgentId;
   agentContext?: AgentContext;
+  colorTokenMap?: ColorTokenMap;
 }): React.JSX.Element {
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -343,6 +349,7 @@ export function MessageList({
             isFirstTurn={isFirstTurn}
             agentId={agentId}
             agentContext={agentContext}
+            colorTokenMap={colorTokenMap}
           />
         );
       })}
@@ -361,6 +368,7 @@ export function MessageList({
             currentDocumentId={currentDocumentId}
             documents={documents}
             pages={pages}
+            colorTokenMap={colorTokenMap}
           />
         ))}
 

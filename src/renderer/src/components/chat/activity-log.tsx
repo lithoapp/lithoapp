@@ -1,5 +1,6 @@
 import { AlertCircle, Eye, Loader2, Pencil, Plus, Search, Terminal } from 'lucide-react';
 import type { PageInfo, StoredAssistantMessage } from '../../../../shared/types';
+import type { ColorTokenMap } from './color-tokens';
 import {
   type ChatDocumentLabelContext,
   resolveToolLabel,
@@ -58,14 +59,18 @@ export function PersistedActivityLog({
   currentDocumentId,
   documents,
   pages,
+  colorTokenMap,
 }: {
   message: StoredAssistantMessage;
   currentDocumentId?: string;
   documents?: ChatDocumentLabelContext[];
   pages?: PageInfo[];
+  colorTokenMap?: ColorTokenMap;
 }): React.JSX.Element {
   if (typeof message.content === 'string') {
-    return <StreamingMarkdown text={message.content} isStreaming={false} />;
+    return (
+      <StreamingMarkdown text={message.content} isStreaming={false} colorTokenMap={colorTokenMap} />
+    );
   }
 
   return (
@@ -87,7 +92,7 @@ export function PersistedActivityLog({
           if (!text) return null;
           return (
             <div key={`text-${String(i)}`} className="w-full pt-1">
-              <StreamingMarkdown text={text} isStreaming={false} />
+              <StreamingMarkdown text={text} isStreaming={false} colorTokenMap={colorTokenMap} />
             </div>
           );
         }
@@ -106,11 +111,13 @@ export function StreamingActivityLog({
   currentDocumentId,
   documents,
   pages,
+  colorTokenMap,
 }: {
   streamingParts: StreamingPart[];
   currentDocumentId?: string;
   documents?: ChatDocumentLabelContext[];
   pages?: PageInfo[];
+  colorTokenMap?: ColorTokenMap;
 }): React.JSX.Element {
   const visibleParts = streamingParts.filter((p) => p.type !== 'reasoning');
 
@@ -144,7 +151,11 @@ export function StreamingActivityLog({
         const isLastPart = i === streamingParts.length - 1;
         return (
           <div key={`text-${String(i)}`} className="w-full pt-1">
-            <StreamingMarkdown text={part.text} isStreaming={isLastPart} />
+            <StreamingMarkdown
+              text={part.text}
+              isStreaming={isLastPart}
+              colorTokenMap={colorTokenMap}
+            />
           </div>
         );
       })}

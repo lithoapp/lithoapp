@@ -1,18 +1,24 @@
 import NodeRenderer, { setCustomComponents } from 'markstream-react';
+import { createContext, useContext } from 'react';
 import 'markstream-react/index.css';
+import { cn } from '@/lib/utils';
+import {
+  type ColorTokenMap,
+  renderTextWithColorMentions,
+  resolveColorMention,
+} from './color-tokens';
 
 // ---------------------------------------------------------------------------
-// Hex color detection — renders inline color pills
+// Color mention detection — renders inline color pills
 // ---------------------------------------------------------------------------
 
-const HEX_EXACT_RE = /^#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})$/i;
-const HEX_SPLIT_RE = /(#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3}))(?=[^0-9a-f]|$)/gi;
+const ColorTokenContext = createContext<ColorTokenMap>(new Map());
 
-function ColorPill({ color }: { color: string }): React.JSX.Element {
+function ColorPill({ color, label }: { color: string; label: string }): React.JSX.Element {
   return (
     <span className="color-pill">
       <span className="color-pill-swatch" style={{ backgroundColor: color }} />
-      {color.toLowerCase()}
+      {label}
     </span>
   );
 }
@@ -22,9 +28,11 @@ function CustomInlineCode({
 }: {
   node: { type: 'inline_code'; code: string };
 }): React.JSX.Element {
+  const colorTokenMap = useContext(ColorTokenContext);
   const code = node.code.trim();
-  if (HEX_EXACT_RE.test(code)) {
-    return <ColorPill color={code} />;
+  const resolvedMention = resolveColorMention(code, colorTokenMap);
+  if (resolvedMention) {
+    return <ColorPill color={resolvedMention.color} label={resolvedMention.label} />;
   }
   return <code className="inline-code">{node.code}</code>;
 }
@@ -34,25 +42,14 @@ function CustomText({
 }: {
   node: { type: 'text'; content: string; center?: boolean };
 }): React.JSX.Element {
+  const colorTokenMap = useContext(ColorTokenContext);
   const { content, center } = node;
   const className = center ? 'text-node text-node-center' : 'text-node';
-  const segments = content.split(HEX_SPLIT_RE);
+  const segments = renderTextWithColorMentions(content, colorTokenMap, (mention, key) => (
+    <ColorPill key={key} color={mention.color} label={mention.label} />
+  ));
 
-  if (segments.length === 1) {
-    return <span className={className}>{content}</span>;
-  }
-
-  return (
-    <span className={className}>
-      {segments.map((segment, i) =>
-        HEX_EXACT_RE.test(segment) ? (
-          <ColorPill key={`${segment}-${String(i)}`} color={segment} />
-        ) : (
-          segment
-        ),
-      )}
-    </span>
-  );
+  return <span className={className}>{segments}</span>;
 }
 
 setCustomComponents({
@@ -67,22 +64,28 @@ setCustomComponents({
 export function StreamingMarkdown({
   text,
   isStreaming,
+  colorTokenMap,
+  className,
 }: {
   text: string;
   isStreaming: boolean;
+  colorTokenMap?: ColorTokenMap;
+  className?: string;
 }): React.JSX.Element {
   return (
-    <div className="markdown-stream text-base">
-      <NodeRenderer
-        content={text}
-        final={!isStreaming}
-        isDark
-        renderCodeBlocksAsPre
-        typewriter={false}
-        maxLiveNodes={0}
-        renderBatchSize={40}
-        renderBatchDelay={16}
-      />
-    </div>
+    <ColorTokenContext.Provider value={colorTokenMap ?? new Map()}>
+      <div className={cn('markdown-stream text-base', className)}>
+        <NodeRenderer
+          content={text}
+          final={!isStreaming}
+          isDark
+          renderCodeBlocksAsPre
+          typewriter={false}
+          maxLiveNodes={0}
+          renderBatchSize={40}
+          renderBatchDelay={16}
+        />
+      </div>
+    </ColorTokenContext.Provider>
   );
 }

@@ -7,7 +7,7 @@ import {
   Square,
   WifiOff,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PulseLoader } from 'react-spinners';
 import { isVisualEditMessage } from '@/components/edit-mode/visual-edit-message';
 import {
@@ -24,9 +24,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { type AgentContext, type ChatError, useChatV2 } from '@/hooks/use-chat';
+import { useDesignSystem } from '@/hooks/use-design-system';
 import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
 import type { ChatErrorType, PageInfo } from '../../../../shared/types';
 import { ChatCover } from './chat-cover';
+import { buildColorTokenMap } from './color-tokens';
 import { MessageList } from './message-list';
 import type { ChatDocumentLabelContext } from './message-tool-labels';
 import { ModelSelector } from './model-selector';
@@ -242,6 +244,7 @@ export function Chat({
   documents,
   pages,
 }: ChatProps): React.JSX.Element {
+  const { designSystem } = useDesignSystem(workspaceName);
   // Provider / model from localStorage
   const [providerId, setProviderId] = useState(() => loadChatPrefs().providerId);
   const [modelId, setModelId] = useState(() => loadChatPrefs().modelId);
@@ -376,6 +379,7 @@ export function Chat({
   const isConversationEmpty = chat.messages.length === 0 && !chat.isStreaming;
   const showCover = kickoffMessage && isConversationEmpty && !kickoffSent;
   const hideFirstUserMessage = Boolean(kickoffMessage);
+  const colorTokenMap = useMemo(() => buildColorTokenMap(designSystem), [designSystem]);
 
   // ---------------------------------------------------------------------------
   // Loading state
@@ -475,6 +479,7 @@ export function Chat({
           displayMode={displayMode}
           agentId={agentId}
           agentContext={agentContext}
+          colorTokenMap={colorTokenMap}
         />
       </div>
 
