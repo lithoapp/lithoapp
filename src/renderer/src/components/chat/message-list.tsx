@@ -25,6 +25,7 @@ import type {
 import { promptTemplates, renderTemplate } from '../../lib/prompt-templates';
 import { PersistedActivityLog, StreamingActivityLog } from './activity-log';
 import { PersistedDebugView, StreamingDebugView } from './debug-view';
+import type { ChatDocumentLabelContext } from './message-tool-labels';
 import type { DisplayMode, StreamingPart } from './types';
 
 // ---------------------------------------------------------------------------
@@ -182,6 +183,8 @@ function UserMessageView({
 
 function AssistantTurnView({
   messages,
+  currentDocumentId,
+  documents,
   pages,
   displayMode,
   isFirstTurn,
@@ -189,6 +192,8 @@ function AssistantTurnView({
   agentContext,
 }: {
   messages: StoredMessage[];
+  currentDocumentId?: string;
+  documents?: ChatDocumentLabelContext[];
   pages?: PageInfo[];
   displayMode: DisplayMode;
   isFirstTurn?: boolean;
@@ -212,7 +217,13 @@ function AssistantTurnView({
   return (
     <div className="flex flex-col gap-1">
       {assistantMessages.map((msg, i) => (
-        <PersistedActivityLog key={`activity-${String(i)}`} message={msg} pages={pages} />
+        <PersistedActivityLog
+          key={`activity-${String(i)}`}
+          message={msg}
+          currentDocumentId={currentDocumentId}
+          documents={documents}
+          pages={pages}
+        />
       ))}
     </div>
   );
@@ -265,6 +276,8 @@ export function MessageList({
   messages,
   streamingParts,
   isStreaming,
+  currentDocumentId,
+  documents,
   pages,
   hideFirstUserMessage,
   onRevert,
@@ -276,6 +289,8 @@ export function MessageList({
   messages: StoredMessage[];
   streamingParts: StreamingPart[];
   isStreaming: boolean;
+  currentDocumentId?: string;
+  documents?: ChatDocumentLabelContext[];
   pages?: PageInfo[];
   hideFirstUserMessage?: boolean;
   onRevert?: (userMessageId: string) => void;
@@ -321,6 +336,8 @@ export function MessageList({
           <AssistantTurnView
             key={`assistant-${String(i)}`}
             messages={turn.messages}
+            currentDocumentId={currentDocumentId}
+            documents={documents}
             pages={pages}
             displayMode={displayMode}
             isFirstTurn={isFirstTurn}
@@ -339,7 +356,12 @@ export function MessageList({
             agentContext={!firstAssistantSeen ? agentContext : undefined}
           />
         ) : (
-          <StreamingActivityLog streamingParts={streamingParts} pages={pages} />
+          <StreamingActivityLog
+            streamingParts={streamingParts}
+            currentDocumentId={currentDocumentId}
+            documents={documents}
+            pages={pages}
+          />
         ))}
 
       {displayMode === 'debug' && messages.length > 0 && !isStreaming && (

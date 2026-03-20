@@ -1,6 +1,7 @@
 import { Files, Home, Images, Loader2, MessageSquareText, Palette, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import type { ChatDocumentLabelContext } from '@/components/chat/message-tool-labels';
 import { FeedbackDialog } from '@/components/feedback/feedback-dialog';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import {
@@ -227,6 +228,14 @@ function App(): React.JSX.Element {
   }, []);
 
   const activeDoc = activeDocId ? (documents.find((d) => d.id === activeDocId) ?? null) : null;
+  const chatDocuments = useMemo<ChatDocumentLabelContext[]>(() => {
+    const allDocuments = designSystemDoc ? [...documents, designSystemDoc] : documents;
+    return allDocuments.map((document) => ({
+      id: document.id,
+      title: document.title,
+      pages: document.pages,
+    }));
+  }, [documents, designSystemDoc]);
 
   const inWorkspace = workspaceName !== null;
 
@@ -424,6 +433,7 @@ function App(): React.JSX.Element {
               onCloseWorkspace={handleCloseWorkspace}
               onAgentBusyChange={setAgentBusy}
               onAgentLeaveRequestChange={registerAgentLeaveRequest}
+              chatDocuments={chatDocuments}
             />
           )}
           {page === 'assets' && workspaceName && (
@@ -439,6 +449,7 @@ function App(): React.JSX.Element {
               userName={userProfile.name ?? undefined}
               onAgentBusyChange={setAgentBusy}
               onAgentLeaveRequestChange={registerAgentLeaveRequest}
+              documents={chatDocuments}
             />
           )}
           {page === 'design-system-doc' && workspaceName && (
@@ -449,6 +460,7 @@ function App(): React.JSX.Element {
               onAgentBusyChange={setAgentBusy}
               onAgentLeaveRequestChange={registerAgentLeaveRequest}
               onDesignSystemChange={() => void refetchDesignSystem()}
+              documents={chatDocuments}
             />
           )}
           {page === 'settings' && (

@@ -1,6 +1,11 @@
 import { AlertCircle, Eye, Loader2, Pencil, Plus, Search, Terminal } from 'lucide-react';
 import type { PageInfo, StoredAssistantMessage } from '../../../../shared/types';
-import { resolveToolLabel, type ToolIcon, type ToolLabel } from './message-tool-labels';
+import {
+  type ChatDocumentLabelContext,
+  resolveToolLabel,
+  type ToolIcon,
+  type ToolLabel,
+} from './message-tool-labels';
 import { StreamingMarkdown } from './streaming-markdown';
 import type { StreamingPart, StreamingToolCallPart } from './types';
 
@@ -50,9 +55,13 @@ function ThinkingIndicator(): React.JSX.Element {
 
 export function PersistedActivityLog({
   message,
+  currentDocumentId,
+  documents,
   pages,
 }: {
   message: StoredAssistantMessage;
+  currentDocumentId?: string;
+  documents?: ChatDocumentLabelContext[];
   pages?: PageInfo[];
 }): React.JSX.Element {
   if (typeof message.content === 'string') {
@@ -67,6 +76,8 @@ export function PersistedActivityLog({
           const label = resolveToolLabel(
             call.toolName,
             (call.input ?? {}) as Record<string, unknown>,
+            currentDocumentId,
+            documents,
             pages,
           );
           return <ToolLine key={call.toolCallId} label={label} isActive={false} />;
@@ -92,9 +103,13 @@ export function PersistedActivityLog({
 
 export function StreamingActivityLog({
   streamingParts,
+  currentDocumentId,
+  documents,
   pages,
 }: {
   streamingParts: StreamingPart[];
+  currentDocumentId?: string;
+  documents?: ChatDocumentLabelContext[];
   pages?: PageInfo[];
 }): React.JSX.Element {
   const visibleParts = streamingParts.filter((p) => p.type !== 'reasoning');
@@ -118,6 +133,8 @@ export function StreamingActivityLog({
           const label = resolveToolLabel(
             part.toolName,
             (part.input ?? {}) as Record<string, unknown>,
+            currentDocumentId,
+            documents,
             pages,
           );
           return (

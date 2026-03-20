@@ -28,6 +28,7 @@ import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
 import type { ChatErrorType, PageInfo } from '../../../../shared/types';
 import { ChatCover } from './chat-cover';
 import { MessageList } from './message-list';
+import type { ChatDocumentLabelContext } from './message-tool-labels';
 import { ModelSelector } from './model-selector';
 import type { DisplayMode } from './types';
 // ---------------------------------------------------------------------------
@@ -44,6 +45,7 @@ export interface ChatProps {
   sendMessageRef?: React.RefObject<((text: string) => void) | null>;
   onBusyChange?: (isBusy: boolean) => void;
   onLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
+  documents?: ChatDocumentLabelContext[];
   pages?: PageInfo[];
 }
 
@@ -237,6 +239,7 @@ export function Chat({
   sendMessageRef,
   onBusyChange,
   onLeaveRequestChange,
+  documents,
   pages,
 }: ChatProps): React.JSX.Element {
   // Provider / model from localStorage
@@ -464,6 +467,8 @@ export function Chat({
           revertibleMessageIds={chat.revertibleMessageIds}
           streamingParts={chat.streamingParts}
           isStreaming={chat.isStreaming}
+          currentDocumentId={documentId}
+          documents={documents}
           pages={pages}
           hideFirstUserMessage={hideFirstUserMessage}
           onRevert={agentId === 'workspace' ? undefined : handleRevert}

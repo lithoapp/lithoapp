@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 import type { DocumentConfig } from '../../../../shared/types';
 import { Chat } from './chat';
+import type { ChatDocumentLabelContext } from './message-tool-labels';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -12,6 +13,7 @@ type SendMessageFn = ((text: string) => void) | null;
 interface DesignSystemChatProps {
   workspaceName: string;
   workspaceTitle?: string;
+  documents?: ChatDocumentLabelContext[];
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   sendMessageRef?: React.RefObject<SendMessageFn>;
   parentSendMessageRef?: React.RefObject<SendMessageFn>;
@@ -26,6 +28,7 @@ interface DesignSystemChatProps {
 export function DesignSystemChat({
   workspaceName,
   workspaceTitle,
+  documents,
   onToolComplete,
   sendMessageRef,
   parentSendMessageRef,
@@ -131,6 +134,7 @@ export function DesignSystemChat({
       sendMessageRef={mergedSendRef}
       onBusyChange={onBusyChange}
       onLeaveRequestChange={onLeaveRequestChange}
+      documents={documents}
       pages={docConfig?.pages}
     />
   );

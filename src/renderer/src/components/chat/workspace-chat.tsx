@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 import { Chat } from './chat';
+import type { ChatDocumentLabelContext } from './message-tool-labels';
 
 /**
  * Well-known document ID used to persist the workspace-level conversation.
@@ -11,6 +12,7 @@ const WORKSPACE_CONVERSATION_ID = '__workspace__';
 interface WorkspaceChatProps {
   workspaceName: string;
   workspaceTitle: string;
+  documents?: ChatDocumentLabelContext[];
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   onBusyChange?: (isBusy: boolean) => void;
   onLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
@@ -19,6 +21,7 @@ interface WorkspaceChatProps {
 export function WorkspaceChat({
   workspaceName,
   workspaceTitle,
+  documents,
   onToolComplete,
   onBusyChange,
   onLeaveRequestChange,
@@ -53,6 +56,7 @@ export function WorkspaceChat({
       onToolComplete={onToolComplete}
       onBusyChange={onBusyChange}
       onLeaveRequestChange={onLeaveRequestChange}
+      documents={documents}
     />
   );
 }

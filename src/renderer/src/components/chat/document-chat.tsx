@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { promptTemplates, renderTemplate } from '@/lib/prompt-templates';
 import type { DocumentInfo } from '../../../../shared/types';
 import { Chat } from './chat';
+import type { ChatDocumentLabelContext } from './message-tool-labels';
 
 // ---------------------------------------------------------------------------
 // Props — same interface as the old document-chat
@@ -12,6 +13,7 @@ interface DocumentChatProps {
   workspaceName: string;
   workspaceTitle?: string;
   userName?: string;
+  documents?: ChatDocumentLabelContext[];
   onToolComplete?: (tool: string, args: Record<string, unknown>) => void;
   sendMessageRef?: React.RefObject<((text: string) => void) | null>;
   onBusyChange?: (isBusy: boolean) => void;
@@ -27,6 +29,7 @@ export function DocumentChat({
   workspaceName,
   workspaceTitle,
   userName,
+  documents,
   onToolComplete,
   sendMessageRef,
   onBusyChange,
@@ -75,6 +78,7 @@ export function DocumentChat({
       sendMessageRef={sendMessageRef}
       onBusyChange={onBusyChange}
       onLeaveRequestChange={onLeaveRequestChange}
+      documents={documents}
       pages={doc.pages}
     />
   );

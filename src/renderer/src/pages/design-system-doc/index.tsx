@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/electron/renderer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DesignSystemChat } from '@/components/chat/design-system-chat';
+import type { ChatDocumentLabelContext } from '@/components/chat/message-tool-labels';
 import { Spinner } from '@/components/ui/spinner';
 import { type PostTurnValidator, usePostTurnDiagnostics } from '@/hooks/use-post-turn-diagnostics';
 import type { DocumentConfig, DocumentInfo } from '../../../../shared/types';
@@ -15,6 +16,7 @@ interface DesignSystemDocPageProps {
   onAgentBusyChange?: (busy: boolean) => void;
   onAgentLeaveRequestChange?: (handler: (() => Promise<void>) | null) => void;
   onDesignSystemChange?: () => void;
+  documents?: ChatDocumentLabelContext[];
 }
 
 export function DesignSystemDocPage({
@@ -24,6 +26,7 @@ export function DesignSystemDocPage({
   onAgentBusyChange,
   onAgentLeaveRequestChange,
   onDesignSystemChange,
+  documents,
 }: DesignSystemDocPageProps): React.JSX.Element {
   const [dsDocId, setDsDocId] = useState<string | null>(null);
   const [docConfig, setDocConfig] = useState<DocumentConfig | null>(null);
@@ -130,6 +133,7 @@ export function DesignSystemDocPage({
       renderChat={({
         workspaceName: wsName,
         workspaceTitle: wsTitle,
+        documents: chatDocuments,
         onToolComplete,
         sendMessageRef: parentSendRef,
         onBusyChange: parentBusyChange,
@@ -138,6 +142,7 @@ export function DesignSystemDocPage({
         <DesignSystemChat
           workspaceName={wsName}
           workspaceTitle={wsTitle}
+          documents={chatDocuments}
           onToolComplete={(tool, args) => {
             onToolComplete(tool, args);
             diagnosticToolComplete(tool, args);

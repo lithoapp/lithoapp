@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { DocumentChat } from '@/components/chat/document-chat';
+import type { ChatDocumentLabelContext } from '@/components/chat/message-tool-labels';
 import { PendingChangesPanel } from '@/components/edit-mode/pending-changes-panel';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -41,10 +42,12 @@ interface DocumentPageProps {
   onBack: () => void;
   onDocumentsChange?: () => void;
   userName?: string;
+  documents?: ChatDocumentLabelContext[];
   /** Render a custom chat panel instead of the default DocumentChat. */
   renderChat?: (props: {
     workspaceName: string;
     workspaceTitle?: string;
+    documents?: ChatDocumentLabelContext[];
     onToolComplete: (tool: string, args: Record<string, unknown>) => void;
     sendMessageRef: React.RefObject<((text: string) => void) | null>;
     onBusyChange: (isBusy: boolean) => void;
@@ -66,6 +69,7 @@ export function DocumentPage({
   onBack,
   onDocumentsChange,
   userName,
+  documents,
   renderChat,
   rebuildAllOnTools,
   refetchDocOnPageChange,
@@ -532,6 +536,7 @@ export function DocumentPage({
     renderChat({
       workspaceName,
       workspaceTitle,
+      documents,
       onToolComplete: handleToolComplete,
       sendMessageRef,
       onBusyChange: handleBusyChange,
@@ -543,6 +548,7 @@ export function DocumentPage({
       workspaceName={workspaceName}
       workspaceTitle={workspaceTitle}
       userName={userName}
+      documents={documents}
       onToolComplete={handleToolComplete}
       sendMessageRef={sendMessageRef}
       onBusyChange={handleBusyChange}

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import type { ChatDocumentLabelContext } from '@/components/chat/message-tool-labels';
 import { WorkspaceChat } from '@/components/chat/workspace-chat';
 import {
   AlertDialog,
@@ -143,6 +144,7 @@ interface DocumentsPageProps {
   documents: DocumentInfo[];
   designSystemDoc: DocumentInfo | null;
   designSystem: DesignSystem | null;
+  chatDocuments: ChatDocumentLabelContext[];
   isLoading: boolean;
   refetch: () => Promise<void>;
   onSelectDocument: (slug: string) => void;
@@ -159,6 +161,7 @@ export function DocumentsPage({
   documents: documentsProp,
   designSystemDoc,
   designSystem,
+  chatDocuments,
   isLoading,
   refetch,
   onSelectDocument,
@@ -847,6 +850,7 @@ export function DocumentsPage({
         <WorkspaceChat
           workspaceName={workspaceName}
           workspaceTitle={workspaceTitle}
+          documents={chatDocuments}
           onToolComplete={handleToolComplete}
           onBusyChange={onAgentBusyChange}
           onLeaveRequestChange={onAgentLeaveRequestChange}

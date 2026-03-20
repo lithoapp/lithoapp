@@ -1,5 +1,11 @@
 import type { PageInfo } from '../../../../shared/types';
 
+export interface ChatDocumentLabelContext {
+  id: string;
+  title: string;
+  pages?: PageInfo[];
+}
+
 export type ToolIcon = 'search' | 'eye' | 'pencil' | 'plus' | 'error' | 'terminal';
 
 export interface ToolLabel {
@@ -15,10 +21,19 @@ export interface ToolLabel {
 export function resolveToolLabel(
   tool: string,
   input: Record<string, unknown>,
+  currentDocumentId?: string,
+  documents?: ChatDocumentLabelContext[],
   pages?: PageInfo[],
 ): ToolLabel {
+  const docId = input.docId as string | undefined;
   const pageId = input.pageId as string | undefined;
   const pageLabel = resolvePageLabel(pageId, pages);
+  const crossDocumentLabel = resolveCrossDocumentPageLabel(
+    docId,
+    pageId,
+    currentDocumentId,
+    documents,
+  );
 
   switch (tool) {
     case 'listPages':
@@ -26,8 +41,8 @@ export function resolveToolLabel(
 
     case 'readPage':
       return {
-        activeLabel: pageLabel ? `Reading page ${pageLabel}` : 'Reading a page',
-        doneLabel: pageLabel ? `Read page ${pageLabel}` : 'Read a page',
+        activeLabel: crossDocumentLabel?.activeLabel ?? pageLabelLabel('Reading', pageLabel),
+        doneLabel: crossDocumentLabel?.doneLabel ?? pageLabelLabel('Read', pageLabel),
         icon: 'eye',
       };
 
@@ -159,6 +174,13 @@ export function resolveToolLabel(
   }
 }
 
+function pageLabelLabel(action: 'Reading' | 'Read', pageLabel: string | undefined): string {
+  if (!pageLabel) {
+    return action === 'Reading' ? 'Reading a page' : 'Read a page';
+  }
+  return `${action} page ${pageLabel}`;
+}
+
 export function summarizeStep(labels: string[]): string {
   if (labels.length === 0) return 'Thinking';
   if (labels.length === 1) return labels[0];
@@ -183,4 +205,33 @@ function resolvePageLabel(
     }
   }
   return pageId.slice(0, 6);
+}
+
+function resolveCrossDocumentPageLabel(
+  docId: string | undefined,
+  pageId: string | undefined,
+  currentDocumentId: string | undefined,
+  documents: ChatDocumentLabelContext[] | undefined,
+): Pick<ToolLabel, 'activeLabel' | 'doneLabel'> | undefined {
+  if (!docId || docId === currentDocumentId || !documents) {
+    return undefined;
+  }
+
+  const document = documents.find((entry) => entry.id === docId);
+  if (!document) {
+    return undefined;
+  }
+
+  const page = pageId ? document.pages?.find((entry) => entry.id === pageId) : undefined;
+  if (page?.name) {
+    return {
+      activeLabel: `Reading page "${page.name}" from "${document.title}"`,
+      doneLabel: `Read page "${page.name}" from "${document.title}"`,
+    };
+  }
+
+  return {
+    activeLabel: `Reading a page from "${document.title}"`,
+    doneLabel: `Read a page from "${document.title}"`,
+  };
 }
