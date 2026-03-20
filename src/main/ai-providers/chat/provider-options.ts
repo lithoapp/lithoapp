@@ -7,7 +7,7 @@ import { getProviderInfo } from '../providers/models-cache';
 // biome-ignore lint/suspicious/noExplicitAny: providerOptions accepts wide union
 type ProviderOpts = Record<string, Record<string, any>>;
 
-const ENABLE_PARALLEL_TOOL_CALLS = false;
+const ENABLE_PARALLEL_TOOL_CALLS = true;
 
 function getCompatibleProviderOptionsKey(providerId: string): string {
   const routingProviderId = getProviderInfo(providerId)?.internalProvider ?? providerId;
