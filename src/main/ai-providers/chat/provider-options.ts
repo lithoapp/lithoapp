@@ -2,8 +2,17 @@
 // Provider-specific options — matches OpenCode's ProviderTransform.options()
 // ---------------------------------------------------------------------------
 
+import { getProviderInfo } from '../providers/models-cache';
+
 // biome-ignore lint/suspicious/noExplicitAny: providerOptions accepts wide union
 type ProviderOpts = Record<string, Record<string, any>>;
+
+const ENABLE_PARALLEL_TOOL_CALLS = false;
+
+function getCompatibleProviderOptionsKey(providerId: string): string {
+  const routingProviderId = getProviderInfo(providerId)?.internalProvider ?? providerId;
+  return routingProviderId.split('.')[0]?.trim() || providerId;
+}
 
 export function buildProviderOptions(
   providerId: string,
@@ -11,10 +20,22 @@ export function buildProviderOptions(
   extra: Record<string, unknown> = {},
 ): ProviderOpts {
   const result: ProviderOpts = {};
+  const compatibleProviderOptionsKey = getCompatibleProviderOptionsKey(providerId);
 
-  // OpenAI / Codex: store=false, promptCacheKey, parallel tool calls
+  // OpenAI / Codex: store=false, promptCacheKey, configurable tool parallelism
   if (providerId === 'openai') {
-    result.openai = { store: false, ...extra };
+    result.openai = {
+      store: false,
+      parallelToolCalls: ENABLE_PARALLEL_TOOL_CALLS,
+      ...extra,
+    };
+  }
+
+  if (providerId !== 'anthropic' && providerId !== 'openai') {
+    result[compatibleProviderOptionsKey] = {
+      ...(result[compatibleProviderOptionsKey] ?? {}),
+      parallel_tool_calls: ENABLE_PARALLEL_TOOL_CALLS,
+    };
   }
 
   // Google Gemini: enable thinking
@@ -23,7 +44,7 @@ export function buildProviderOptions(
     if (modelId.includes('gemini-3')) {
       thinkingConfig.thinkingLevel = 'high';
     }
-    result.google = { thinkingConfig };
+    result.google = { ...(result.google ?? {}), thinkingConfig };
   }
 
   // GPT-5 reasoning models: reasoningEffort + reasoningSummary
@@ -35,16 +56,25 @@ export function buildProviderOptions(
     };
   }
 
-  // Anthropic: parallel tool calls enabled
+  // Anthropic: configurable tool parallelism
   if (providerId === 'anthropic') {
-    result.anthropic = { ...result.anthropic };
+    result.anthropic = {
+      ...result.anthropic,
+      disableParallelToolUse: !ENABLE_PARALLEL_TOOL_CALLS,
+    };
   }
 
   // OpenRouter: include usage
   if (providerId === 'openrouter') {
-    result.openrouter = { usage: { include: true } };
+    result.openrouter = {
+      ...(result.openrouter ?? {}),
+      usage: { include: true },
+    };
     if (modelId.includes('gemini-3')) {
-      result.openrouter.reasoning = { effort: 'high' };
+      result.openrouter = {
+        ...result.openrouter,
+        reasoning: { effort: 'high' },
+      };
     }
   }
 
