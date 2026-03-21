@@ -96,6 +96,7 @@ Sandbox enabled, context isolation, no nodeIntegration, CSP headers. Assets serv
 - **Windows**: `.exe` installer (NSIS)
 - **Linux**: `.AppImage`, `.snap`, `.deb`
 - Auto-updates via GitHub Releases (electron-updater), published to `kareemaly/lithoapp`
+- When asked to release a new macOS version, follow `docs/release/macos.md` exactly.
 - Packaged runtime builds are split across `app.asar/node_modules` and `app.asar.unpacked/node_modules`. Native/binary lookup (e.g. `esbuild`) may need the unpacked path, but JS runtime resolution for the page build pipeline must search both locations.
 - Repeated release-only `Cannot find module` / `Could not resolve` failures in startup, SSR, or visual edit mode are usually packaged dependency resolution bugs first, not page-source bugs. See `docs/release/packaged-runtime-troubleshooting.md`.
 

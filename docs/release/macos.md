@@ -1,34 +1,92 @@
-# macOS Release Guide
+# macOS Release Process
 
-## Prerequisites
+This is the current manual macOS release flow for Litho.
 
-### Code Signing Certificate
+Use this exact order for every new mac release.
 
-A **Developer ID Application** certificate is required for distribution outside the Mac App Store.
+## 1. Bump the app version
 
-**Initial setup (done once):**
+Update the version in `package.json` first.
 
-1. Enroll in the [Apple Developer Program](https://developer.apple.com/programs/) ($99/yr)
-2. In Keychain Access → Certificate Assistant → Request a Certificate From a Certificate Authority
-3. Save the `.certSigningRequest` to disk
-4. Go to [Certificates](https://developer.apple.com/account/resources/certificates/list) → click **+**
-5. Select **Developer ID Application** → choose **G2 Sub-CA**
-6. Upload the CSR, download the `.cer`, double-click to install in Keychain
+Example:
 
-**Verify installation:**
-
-```bash
-security find-identity -v -p codesigning
-# Should show: "Developer ID Application: Kareem Elbahrawy (X22C2HTA88)"
+```json
+{
+  "version": "1.0.0-beta.3"
+}
 ```
 
-**Back up the certificate:**
+The build output path and artifact names come from that version.
 
-In Keychain Access, right-click the Developer ID Application certificate → Export as `.p12` with a strong password. Store securely (password manager, encrypted drive). This file is also used as `CSC_LINK` for CI/CD.
+## 2. Build the mac release
 
-### Environment Variables
+```bash
+pnpm dist:mac
+```
 
-Add to `~/.zshrc` (never commit these):
+This creates the signed mac artifacts in:
+
+```bash
+dist/<version>/
+```
+
+Important artifact for distribution:
+
+- `dist/<version>/litho-<version>.dmg`
+
+## 3. Smoke test the built app locally
+
+```bash
+pnpm install:mac
+```
+
+This removes `/Applications/Litho.app`, copies the built app from `dist/<version>/mac-arm64/Litho.app` into `/Applications`, and opens it.
+
+This is a local sanity check, not a full real-user download test.
+
+## 4. Notarize the DMG
+
+```bash
+xcrun notarytool submit "./dist/<version>/litho-<version>.dmg" \
+  --apple-id "$APPLE_ID" \
+  --team-id "$APPLE_TEAM_ID" \
+  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+  --wait
+```
+
+If notarization fails, inspect the rejection log:
+
+```bash
+xcrun notarytool log "<submission-id>" \
+  --apple-id "$APPLE_ID" \
+  --team-id "$APPLE_TEAM_ID" \
+  --password "$APPLE_APP_SPECIFIC_PASSWORD"
+```
+
+## 5. Staple the notarization ticket to the DMG
+
+```bash
+xcrun stapler staple "./dist/<version>/litho-<version>.dmg"
+```
+
+## 6. Validate the stapled DMG
+
+```bash
+xcrun stapler validate "./dist/<version>/litho-<version>.dmg"
+```
+
+## 7. Publish the DMG
+
+Upload the stapled DMG to the website or beta distribution channel.
+
+Current recommendation:
+
+- distribute the `.dmg` for macOS
+- do not distribute an unstapled artifact
+
+## Required environment variables
+
+These must exist in the shell before notarization:
 
 ```bash
 export APPLE_ID="kareem@kareemelbahrawy.com"
@@ -36,82 +94,19 @@ export APPLE_APP_SPECIFIC_PASSWORD="<app-specific-password>"
 export APPLE_TEAM_ID="X22C2HTA88"
 ```
 
-The app-specific password is generated at [account.apple.com](https://account.apple.com/) → App-Specific Passwords.
+## Release checklist
 
-## Building
+1. Update `package.json` version.
+2. Run `pnpm dist:mac`.
+3. Run `pnpm install:mac`.
+4. Notarize the DMG with `xcrun notarytool submit ... --wait`.
+5. Staple the DMG.
+6. Validate the DMG.
+7. Upload the final DMG.
 
-### Local build (no upload)
+## Notes for future agents
 
-```bash
-pnpm dist:mac
-```
-
-Produces signed `.dmg` and `.zip` in `dist/${version}/`.
-
-### Publish to GitHub Releases
-
-```bash
-GH_TOKEN=<github-token> pnpm release:mac
-```
-
-Requires a GitHub personal access token with `repo` scope.
-
-### Local installation (for testing)
-
-```bash
-pnpm install:mac
-```
-
-Installs the built app to `/Applications/Litho.app` and launches it.
-
-## Artifacts
-
-| File | Purpose |
-|------|---------|
-| `litho-<version>.dmg` | Installer for manual distribution |
-| `Litho-<version>-arm64-mac.zip` | Used by `electron-updater` for auto-updates |
-| `latest-mac.yml` | Version manifest for auto-update feed |
-
-Artifacts are organized by version in `dist/<version>/`.
-
-## Notarization
-
-Notarization is currently disabled in `electron-builder.yml` (`notarize: false`). When enabled, Apple scans the app server-side — this adds 5-20 minutes to the build.
-
-**To enable notarization**, set `notarize: true` in `electron-builder.yml` and ensure environment variables are configured.
-
-**Check notarization status:**
-
-```bash
-xcrun notarytool history \
-  --apple-id "$APPLE_ID" \
-  --team-id "$APPLE_TEAM_ID" \
-  --password "$APPLE_APP_SPECIFIC_PASSWORD"
-```
-
-**View details for a specific submission:**
-
-```bash
-xcrun notarytool info <submission-id> \
-  --apple-id "$APPLE_ID" \
-  --team-id "$APPLE_TEAM_ID" \
-  --password "$APPLE_APP_SPECIFIC_PASSWORD"
-```
-
-## Auto-Updates
-
-`electron-updater` checks GitHub Releases for `latest-mac.yml`. The `.zip` artifact is required (DMG alone is not sufficient). Auto-download is disabled — users are prompted to download and install.
-
-## Troubleshooting
-
-- **Keychain prompts during signing**: Enter your Mac login password. Select "Always Allow" to avoid repeated prompts.
-- **Notarization rejected**: Run `xcrun notarytool log <submission-id> ...` to see the detailed rejection reasons.
-- **Certificate expired/lost**: Revoke in Apple Developer portal, create a new one following the steps above.
-
-## Reference
-
-- **App ID**: `com.lithoapp.litho`
-- **Team ID**: `X22C2HTA88`
-- **Certificate**: `Developer ID Application: Kareem Elbahrawy (X22C2HTA88)`
-- **Config**: `electron-builder.yml`
-- **Entitlements**: `build/entitlements.mac.plist`
+- `electron-builder.yml` currently has `notarize: false`, so notarization is manual.
+- The canonical release artifact for direct mac download is the DMG at `dist/<version>/litho-<version>.dmg`.
+- `pnpm install:mac` is only a local smoke test.
+- A real download/install test on another Mac is still recommended before broad release.
