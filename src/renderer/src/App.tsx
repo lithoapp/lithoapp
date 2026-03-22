@@ -55,7 +55,6 @@ function App(): React.JSX.Element {
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [agentBusy, setAgentBusy] = useState(false);
   const [pendingNav, setPendingNav] = useState<Page | null>(null);
-  const [settingsReturnPage, setSettingsReturnPage] = useState<Page>('workspaces');
   const [settingsInitialCategory, setSettingsInitialCategory] = useState<
     SettingsCategory | undefined
   >();
@@ -95,9 +94,6 @@ function App(): React.JSX.Element {
 
   const navigateTo = useCallback(
     (target: Page, callback?: () => void) => {
-      if (target === 'settings') {
-        setSettingsReturnPage(page);
-      }
       const isOnAgentPage =
         page === 'documents' || page === 'document' || page === 'design-system-doc';
       if (isOnAgentPage && agentBusy) {
@@ -469,7 +465,7 @@ function App(): React.JSX.Element {
               onOpenFeedback={openFeedback}
               onBack={() => {
                 setSettingsInitialCategory(undefined);
-                setPage(settingsReturnPage);
+                setPage(workspaceName ? 'documents' : 'workspaces');
               }}
             />
           )}
