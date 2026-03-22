@@ -1,6 +1,6 @@
 {
   "name": "litho",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.3",
   "private": true,
   "type": "module",
   "description": "Litho desktop application",
