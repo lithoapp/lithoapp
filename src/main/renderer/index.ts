@@ -13,6 +13,7 @@ import {
   type TemplateId,
 } from '../workspace-data/design-system-pages';
 import { resolveWorkspacePath } from '../workspace-paths';
+import { clearBuildFailures, recordBuildFailure } from './build-failure-reporting';
 import { inlineAssetRefs } from './build-shared';
 import { detectApproach } from './detect-approach';
 
@@ -43,6 +44,9 @@ export async function buildPage(
   approach?: RenderApproach,
   editMode?: boolean,
 ): Promise<RendererResult<PageBuildData>> {
+  const requestedApproach = approach ?? 'auto';
+  const isEditMode = editMode ?? false;
+
   try {
     const totalStart = performance.now();
 
@@ -67,6 +71,14 @@ export async function buildPage(
     html = inlineAssetRefs(html, wsPath);
     const assetInlining = Math.round(performance.now() - assetStart);
 
+    clearBuildFailures({
+      workspace,
+      document,
+      page,
+      approach: requestedApproach,
+      editMode: isEditMode,
+    });
+
     return {
       ok: true,
       data: {
@@ -82,15 +94,43 @@ export async function buildPage(
     };
   } catch (err) {
     const stage = inferStage(err);
-    captureException(err, {
-      tags: { component: 'renderer', stage: stage ?? 'unknown' },
-      extras: { workspace, document, page, approach },
+    const message = err instanceof Error ? err.message : String(err);
+    const failureAttempt = recordBuildFailure({
+      workspace,
+      document,
+      page,
+      approach: requestedApproach,
+      editMode: isEditMode,
+      stage: stage ?? 'unknown',
+      message,
     });
+
+    console.error(
+      `[renderer] Build failed for ${workspace}/${document}/${page} ` +
+        `(attempt ${failureAttempt.count}/${failureAttempt.threshold})`,
+      err,
+    );
+
+    if (failureAttempt.shouldReport) {
+      captureException(err, {
+        tags: { component: 'renderer', stage: stage ?? 'unknown' },
+        extras: {
+          workspace,
+          document,
+          page,
+          approach: requestedApproach,
+          editMode: isEditMode,
+          failureCount: failureAttempt.count,
+          failureThreshold: failureAttempt.threshold,
+        },
+      });
+    }
+
     return {
       ok: false,
       error: {
         code: 'BUILD_FAILED',
-        message: err instanceof Error ? err.message : String(err),
+        message,
         stage,
       },
     };

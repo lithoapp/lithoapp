@@ -97,7 +97,9 @@ import {
 import { getWorkspaceEntry } from './workspace-data/registry-db';
 import { resolveWorkspacePath } from './workspace-paths';
 
-initSentry();
+if (!is.dev) {
+  initSentry();
+}
 
 const documentExporter = new DocumentExporter();
 let mainWindow: BrowserWindow | null = null;

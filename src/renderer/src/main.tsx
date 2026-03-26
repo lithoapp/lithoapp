@@ -46,5 +46,8 @@ createRoot(document.getElementById('root') as HTMLElement).render(
   </StrictMode>,
 );
 
-void initRendererSentry();
+if (import.meta.env.PROD) {
+  void initRendererSentry();
+}
+
 void initTheme();

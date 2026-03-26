@@ -10,6 +10,10 @@ function log(message: string, ...args: unknown[]): void {
   console.log(`[export] ${message}`, ...args);
 }
 
+class ExportBuildFailureError extends Error {
+  readonly code = 'BUILD_FAILED';
+}
+
 export class DocumentExporter extends EventEmitter {
   private progress: ExportProgress = { status: 'idle', current: 0, total: 0 };
 
@@ -37,7 +41,9 @@ export class DocumentExporter extends EventEmitter {
         // Build HTML via the offline build pipeline
         const buildResult = await buildPage(workspaceName, docId, pages[i]);
         if (!buildResult.ok) {
-          throw new Error(`Build failed for page ${pages[i]}: ${buildResult.error.message}`);
+          throw new ExportBuildFailureError(
+            `Build failed for page ${pages[i]}: ${buildResult.error.message}`,
+          );
         }
 
         log(`Page ${i + 1} built, exporting as ${format}...`);
@@ -65,10 +71,12 @@ export class DocumentExporter extends EventEmitter {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Export failed';
       log('Export failed:', message);
-      captureException(err, {
-        tags: { component: 'document-exporter' },
-        extras: { docId, format, pageCount: pages.length },
-      });
+      if (!(err instanceof ExportBuildFailureError)) {
+        captureException(err, {
+          tags: { component: 'document-exporter' },
+          extras: { docId, format, pageCount: pages.length },
+        });
+      }
       this.setProgress({ status: 'error', current: 0, total: pages.length, error: message });
       throw err;
     }

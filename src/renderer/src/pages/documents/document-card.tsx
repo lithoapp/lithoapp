@@ -261,8 +261,8 @@ export function CardThumbnail({
       if (result.ok) {
         setHtml(result.data.html);
       }
-    } catch {
-      // Silently fail — we'll show the placeholder
+    } catch (err) {
+      console.error(`[document-card] Preview build failed for ${firstPage.id}:`, err);
     } finally {
       setIsBuilding(false);
     }

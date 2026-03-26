@@ -83,6 +83,7 @@ Current recommendation:
 
 - distribute the `.dmg` for macOS
 - do not distribute an unstapled artifact
+- do not publish a GitHub Release as part of the default macOS release flow
 
 ## Required environment variables
 
@@ -108,5 +109,6 @@ export APPLE_TEAM_ID="X22C2HTA88"
 
 - `electron-builder.yml` currently has `notarize: false`, so notarization is manual.
 - The canonical release artifact for direct mac download is the DMG at `dist/<version>/litho-<version>.dmg`.
+- Do not publish a GitHub Release unless there is a separate explicit need for it.
 - `pnpm install:mac` is only a local smoke test.
 - A real download/install test on another Mac is still recommended before broad release.
