@@ -28,9 +28,7 @@
     "dist:mac": "pnpm rebuild:mac && electron-vite build && electron-builder --mac --publish never",
     "dist:win": "pnpm rebuild:win && electron-vite build && electron-builder --win --x64 --arm64 --publish never",
     "dist:all": "electron-vite build && electron-builder --mac --win --publish never",
-    "release:mac": "electron-vite build && electron-builder --mac --publish always",
-    "release:win": "electron-vite build && electron-builder --win --x64 --arm64 --publish always",
-    "release:all": "electron-vite build && electron-builder --mac --win --publish always"
+    "release": "echo 'Use litho-releases API to upload artifacts. Build with dist:mac / dist:win / dist:all.' && exit 1"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.65",

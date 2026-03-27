@@ -22,6 +22,9 @@ export function initAutoUpdater(window: BrowserWindow): void {
 
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.requestHeaders = {
+    'x-api-key': 'REDACTED',
+  };
 
   if (is.dev) {
     autoUpdater.forceDevUpdateConfig = true;

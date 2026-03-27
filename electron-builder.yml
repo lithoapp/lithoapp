@@ -56,6 +56,5 @@ appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: true
 publish:
-  provider: github
-  owner: kareemaly
-  repo: lithoapp
+  provider: generic
+  url: https://releases-api.lithoapp.com/v1/updates/
