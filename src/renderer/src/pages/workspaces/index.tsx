@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { WorkspaceInfo } from '@/hooks/use-workspace';
+import { extractIpcErrorMessage } from '@/lib/ipc-error';
 import { cn } from '@/lib/utils';
 
 type TemplateId = 'minimal' | 'corporate' | 'brightside' | 'editorial';
@@ -82,11 +83,7 @@ export function WorkspacesPage({
       resetCreateState();
       onWorkspaceSelected(slug);
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message.replace(/^Error invoking remote method.*?:\s*/i, '')
-          : String(err);
-      setCreateError(message);
+      setCreateError(extractIpcErrorMessage(err, 'Failed to create project'));
     } finally {
       setIsCreating(false);
     }
@@ -100,7 +97,7 @@ export function WorkspacesPage({
       onWorkspaceSelected(slug);
     } catch (err) {
       console.error('[workspaces] Select failed:', err);
-      toast.error('Failed to open project');
+      toast.error(extractIpcErrorMessage(err, 'Failed to open project'));
     } finally {
       setSelectingSlug(null);
     }

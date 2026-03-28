@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { extractIpcErrorMessage } from '@/lib/ipc-error';
 import type { ChatDocumentLabelContext } from '@/components/chat/message-tool-labels';
 import { WorkspaceChat } from '@/components/chat/workspace-chat';
 import {
@@ -282,7 +283,7 @@ export function DocumentsPage({
       await refetch();
     } catch (err) {
       console.error('[documents] Delete failed:', err);
-      toast.error('Failed to delete document');
+      toast.error(extractIpcErrorMessage(err, 'Failed to delete document'));
     } finally {
       setIsDeleting(null);
     }
@@ -295,7 +296,7 @@ export function DocumentsPage({
       await refetch();
     } catch (err) {
       console.error('[documents] Rename failed:', err);
-      toast.error('Failed to rename document');
+      toast.error(extractIpcErrorMessage(err, 'Failed to rename document'));
     } finally {
       setRenameDocId(null);
     }
@@ -308,7 +309,7 @@ export function DocumentsPage({
       toast.success('Document duplicated');
     } catch (err) {
       console.error('[documents] Duplicate failed:', err);
-      toast.error('Failed to duplicate document');
+      toast.error(extractIpcErrorMessage(err, 'Failed to duplicate document'));
     }
   }
 
@@ -318,7 +319,7 @@ export function DocumentsPage({
       await refetch();
     } catch (err) {
       console.error('[documents] Assign folder failed:', err);
-      toast.error('Failed to move document to folder');
+      toast.error(extractIpcErrorMessage(err, 'Failed to move document to folder'));
     }
   }
 
@@ -328,7 +329,7 @@ export function DocumentsPage({
       await refetch();
     } catch (err) {
       console.error('[documents] Remove from folder failed:', err);
-      toast.error('Failed to remove document from folder');
+      toast.error(extractIpcErrorMessage(err, 'Failed to remove document from folder'));
     }
   }
 
@@ -349,7 +350,7 @@ export function DocumentsPage({
       });
     } catch (err) {
       console.error('[documents] Rename folder failed:', err);
-      toast.error('Failed to rename folder');
+      toast.error(extractIpcErrorMessage(err, 'Failed to rename folder'));
     }
   }
 
@@ -368,7 +369,7 @@ export function DocumentsPage({
       });
     } catch (err) {
       console.error('[documents] Delete folder failed:', err);
-      toast.error('Failed to delete folder');
+      toast.error(extractIpcErrorMessage(err, 'Failed to delete folder'));
     }
   }
 

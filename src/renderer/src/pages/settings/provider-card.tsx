@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { AuthMethod, ProviderInfo } from '@/hooks/use-provider-list';
+import { maybeAutoSelectDefault } from '@/lib/chat-prefs';
+import { extractIpcErrorMessage } from '@/lib/ipc-error';
 import { connectFree, disconnectProvider } from '@/lib/provider-actions';
 import { cn } from '@/lib/utils';
 import { ConnectDialog } from './connect-dialog';
@@ -74,9 +76,11 @@ export function ProviderCard({
     setConnecting(true);
     try {
       await connectFree(provider.id);
+      const autoModel = await maybeAutoSelectDefault(provider.id);
+      if (autoModel) toast.success(`Default model set to ${autoModel}`);
       onRefresh();
-    } catch {
-      toast.error('Failed to connect provider');
+    } catch (err) {
+      toast.error(extractIpcErrorMessage(err, 'Failed to connect provider'));
     } finally {
       setConnecting(false);
     }
@@ -90,8 +94,8 @@ export function ProviderCard({
         onClearDefault();
       }
       onRefresh();
-    } catch {
-      toast.error('Failed to disconnect provider');
+    } catch (err) {
+      toast.error(extractIpcErrorMessage(err, 'Failed to disconnect provider'));
     } finally {
       setDisconnecting(false);
     }
@@ -282,7 +286,11 @@ export function ProviderCard({
         authMethods={authMethods}
         open={connectOpen}
         onOpenChange={setConnectOpen}
-        onConnected={onRefresh}
+        onConnected={async () => {
+          const autoModel = await maybeAutoSelectDefault(provider.id);
+          if (autoModel) toast.success(`Default model set to ${autoModel}`);
+          onRefresh();
+        }}
       />
 
       {isConnected && <PingDialog provider={provider} open={pingOpen} onOpenChange={setPingOpen} />}

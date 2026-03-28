@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useDesignSystem } from '@/hooks/use-design-system';
 import { useWorkspace } from '@/hooks/use-workspace';
+import { extractIpcErrorMessage } from '@/lib/ipc-error';
 import { NavigationContext } from '@/lib/navigation-context';
 import { setRendererSentryTelemetryEnabled, syncRendererSentryUser } from '@/lib/sentry';
 import { cn } from '@/lib/utils';
@@ -136,7 +137,7 @@ function App(): React.JSX.Element {
       setDesignSystemDoc(dsDoc);
     } catch (err) {
       console.error('[app] Failed to load documents:', err);
-      toast.error('Failed to load documents');
+      toast.error(extractIpcErrorMessage(err, 'Failed to load documents'));
     } finally {
       setDocumentsLoading(false);
     }

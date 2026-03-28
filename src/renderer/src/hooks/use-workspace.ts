@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { WorkspaceInfo } from '../../../shared/types';
+import { extractIpcErrorMessage } from '../lib/ipc-error';
 
 export type { WorkspaceInfo };
 
@@ -18,7 +19,7 @@ export function useWorkspace(): UseWorkspaceReturn {
       setWorkspaces(list);
     } catch (err) {
       console.error('[use-workspace] Failed to list workspaces:', err);
-      toast.error('Failed to load workspaces');
+      toast.error(extractIpcErrorMessage(err, 'Failed to load workspaces'));
     }
   }, []);
 

@@ -56,7 +56,7 @@ export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
     });
   }
 
-  results.sort((a, b) => new Date(b.lastOpenedAt).getTime() - new Date(a.lastOpenedAt).getTime());
+  results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return results;
 }
