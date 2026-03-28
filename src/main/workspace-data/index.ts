@@ -31,7 +31,6 @@ export {
   renameDocument,
   revertToSnapshot,
   saveConversation,
-  updateDesignTokens,
   updateDocumentFolder,
   updatePageDetails,
   updateWorkspaceLastOpened,

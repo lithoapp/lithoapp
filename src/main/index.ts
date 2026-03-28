@@ -90,7 +90,6 @@ import {
   renameDocument,
   revertToSnapshot,
   saveConversation,
-  updateDesignTokens,
   updateDocumentFolder,
   updateWorkspaceLastOpened,
 } from './workspace-data';
@@ -266,11 +265,6 @@ ipcMain.handle('document:updateFolder', (_event, ws: string, docId: string, fold
 
 // Design System IPC handlers
 ipcMain.handle('designSystem:read', (_event, ws: string) => readDesignSystem(ws));
-ipcMain.handle(
-  'designSystem:updateTokens',
-  (_event, ws: string, updates: Array<{ variable: string; value: string }>) =>
-    updateDesignTokens(ws, updates),
-);
 
 // Conversation persistence IPC handlers
 ipcMain.handle('conversation:load', (_event, ws: string, docId: string) =>

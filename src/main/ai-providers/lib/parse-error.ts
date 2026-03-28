@@ -134,6 +134,8 @@ export function parseError(err: unknown): ParsedError {
 
 function extractCleanMessage(message: string): string {
   let cleaned = message
+    .replace(/^Tool execution failed:\s*/i, '')
+    .replace(/^Tool failed:\s*/i, '')
     .replace(/^[A-Z_]+Error:\s*/i, '')
     .replace(/^Error:\s*/i, '')
     .replace(/^Failed to fetch:\s*/i, '')

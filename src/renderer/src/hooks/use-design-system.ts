@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
 import type { DesignSystem } from '@/lib/design-system-types';
 
 export interface UseDesignSystemReturn {
@@ -7,7 +6,6 @@ export interface UseDesignSystemReturn {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-  updateTokens: (updates: Array<{ variable: string; value: string }>) => Promise<void>;
 }
 
 export function useDesignSystem(workspaceName: string | null): UseDesignSystemReturn {
@@ -43,19 +41,5 @@ export function useDesignSystem(workspaceName: string | null): UseDesignSystemRe
     fetchDesignSystem();
   }, [workspaceName, fetchDesignSystem]);
 
-  const updateTokens = useCallback(
-    async (updates: Array<{ variable: string; value: string }>) => {
-      if (!workspaceName) return;
-      try {
-        await window.litho.designSystem.updateTokens(workspaceName, updates);
-        await fetchDesignSystem();
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to update tokens';
-        toast.error(message);
-      }
-    },
-    [workspaceName, fetchDesignSystem],
-  );
-
-  return { designSystem, loading, error, refetch: fetchDesignSystem, updateTokens };
+  return { designSystem, loading, error, refetch: fetchDesignSystem };
 }

@@ -71,10 +71,6 @@ interface LithoAPI {
   };
   designSystem: {
     read: (workspaceName: string) => Promise<DesignSystem>;
-    updateTokens: (
-      workspaceName: string,
-      updates: Array<{ variable: string; value: string }>,
-    ) => Promise<void>;
   };
   renderer: {
     build: (

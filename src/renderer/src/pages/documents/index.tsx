@@ -211,6 +211,23 @@ export function DocumentsPage({
         })
       : null;
 
+  function resetCreateDialog(): void {
+    setNewTitle('');
+    setNewSize('A4');
+    setSizeCategory(SIZE_CATEGORIES[0].label);
+    setCustomWidth('1080');
+    setCustomHeight('1080');
+    setCustomUnit('px');
+    setCreateError(null);
+  }
+
+  function handleCreateOpenChange(open: boolean): void {
+    setCreateOpen(open);
+    if (!open) {
+      resetCreateDialog();
+    }
+  }
+
   function handleCreateFolder(): void {
     const name = normalizeFolderName(newFolderName);
     const folderError = getFolderNameError(name);
@@ -238,10 +255,7 @@ export function DocumentsPage({
         currentFolder ?? undefined,
       );
       await refetch();
-      setCreateOpen(false);
-      setNewTitle('');
-      setNewSize('A4');
-      setCreateError(null);
+      handleCreateOpenChange(false);
       onSelectDocument(docId);
     } catch (err) {
       const message =
@@ -586,7 +600,7 @@ export function DocumentsPage({
             </Dialog>
 
             {/* Create document dialog */}
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
               <DialogContent className="gap-0 p-0 sm:max-w-[70vw]">
                 <div className="flex flex-col gap-4 p-6 pb-5">
                   <DialogHeader>
@@ -733,7 +747,7 @@ export function DocumentsPage({
                 {/* Footer */}
                 <DialogFooter className="border-t px-6 py-4">
                   <DialogClose asChild>
-                    <Button variant="outline" className="h-11">
+                    <Button variant="outline" className="h-11" onClick={resetCreateDialog}>
                       Cancel
                     </Button>
                   </DialogClose>

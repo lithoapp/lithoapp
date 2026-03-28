@@ -289,7 +289,9 @@ export function validateThemeHexColors(css: string): void {
     }
 
     if (!isValidHexColor(value)) {
-      throw new Error(`Invalid HEX color for ${token.variable}: "${token.value}"`);
+      throw new Error(
+        `Invalid hex color for ${token.variable}: "${token.value}". Use #RGB, #RGBA, #RRGGBB, or #RRGGBBAA.`,
+      );
     }
   }
 }

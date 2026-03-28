@@ -20,7 +20,6 @@ import { useWorkspace } from '@/hooks/use-workspace';
 import { NavigationContext } from '@/lib/navigation-context';
 import { setRendererSentryTelemetryEnabled, syncRendererSentryUser } from '@/lib/sentry';
 import { cn } from '@/lib/utils';
-import { isValidHexColor, parseHexColorRgb } from '../../shared/color-utils';
 import type { DocumentInfo, FeedbackCategory } from '../../shared/types';
 import { AssetsPage } from './pages/assets';
 import { DesignSystemDocPage } from './pages/design-system-doc';
@@ -41,13 +40,8 @@ type Page =
   | 'workspace-opening'
   | 'workspace-leaving';
 
-function relativeLuminance(hex: string): number {
-  const [r, g, b] = parseHexColorRgb(hex).map((c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
+const LITHO_TITLEBAR_BG = '#e8652b';
+const LITHO_TITLEBAR_FG = '#ffffff';
 
 function App(): React.JSX.Element {
   const [platform, setPlatform] = useState<string>('');
@@ -76,21 +70,9 @@ function App(): React.JSX.Element {
 
   const { designSystem, refetch: refetchDesignSystem } = useDesignSystem(workspaceName);
 
-  const titleBarTheme = useMemo(() => {
-    const primaryPalette = designSystem?.colors.palettes.find(
-      (p) => p.name.toLowerCase() === 'primary',
-    );
-    const shade =
-      primaryPalette?.shades.find((s) => s.variable.endsWith('-600')) ??
-      primaryPalette?.shades.find((s) => s.variable.endsWith('-500'));
-    if (!shade || !isValidHexColor(shade.value)) return null;
-    const isLight = relativeLuminance(shade.value) > 0.4;
-    return { bg: shade.value, fg: isLight ? '#000000' : '#ffffff' };
-  }, [designSystem]);
-
   useEffect(() => {
-    void window.litho.app.setTitleBarOverlay(titleBarTheme?.bg ?? '', titleBarTheme?.fg ?? '');
-  }, [titleBarTheme]);
+    void window.litho.app.setTitleBarOverlay(LITHO_TITLEBAR_BG, LITHO_TITLEBAR_FG);
+  }, []);
 
   const navigateTo = useCallback(
     (target: Page, callback?: () => void) => {
@@ -313,14 +295,9 @@ function App(): React.JSX.Element {
         className={cn(
           'flex h-10 shrink-0 items-center transition-colors duration-300',
           platform === 'win32' ? 'pl-4 pr-[140px]' : 'pl-[80px] pr-4',
-          !titleBarTheme && 'border-b border-border',
+          'bg-forge text-white',
         )}
-        style={
-          {
-            WebkitAppRegion: 'drag',
-            ...(titleBarTheme && { backgroundColor: titleBarTheme.bg, color: titleBarTheme.fg }),
-          } as React.CSSProperties
-        }
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         <span className="text-sm font-semibold">
           {inWorkspace && workspaceTitle ? workspaceTitle : 'Home'}
@@ -351,9 +328,9 @@ function App(): React.JSX.Element {
                 return (
                   <Button
                     key={target}
-                    variant={!titleBarTheme && isActive ? 'secondary' : 'ghost'}
+                    variant="ghost"
                     size="icon-sm"
-                    className={titleBarTheme && isActive ? 'bg-white/20' : undefined}
+                    className={isActive ? 'bg-white/20 hover:bg-white/25' : 'hover:bg-white/10'}
                     onClick={() => navigateTo(target)}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -370,15 +347,16 @@ function App(): React.JSX.Element {
                 return (
                   <Button
                     key={target}
-                    variant={isActive ? 'secondary' : 'ghost'}
+                    variant="ghost"
                     size="icon-sm"
+                    className={isActive ? 'bg-white/20 hover:bg-white/25' : 'hover:bg-white/10'}
                     onClick={() => navigateTo(target)}
                   >
                     <Icon className="h-3.5 w-3.5" />
                   </Button>
                 );
               })}
-          <div className={cn('mx-1 h-4 w-px', titleBarTheme ? 'bg-white/20' : 'bg-border')} />
+          <div className="mx-1 h-4 w-px bg-white/20" />
           <ThemeSwitcher />
         </nav>
       </div>

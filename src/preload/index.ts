@@ -86,10 +86,6 @@ contextBridge.exposeInMainWorld('litho', {
   designSystem: {
     read: (workspaceName: string): Promise<unknown> =>
       ipcRenderer.invoke('designSystem:read', workspaceName),
-    updateTokens: (
-      workspaceName: string,
-      updates: Array<{ variable: string; value: string }>,
-    ): Promise<void> => ipcRenderer.invoke('designSystem:updateTokens', workspaceName, updates),
   },
   renderer: {
     build: (

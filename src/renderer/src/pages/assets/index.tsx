@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { getAssetUploadErrorMessage } from '@/lib/asset-upload-errors';
 import { getAssetNameError, sanitizeAssetNameInput } from '../../../../shared/asset-validation';
 import type { AssetEntry } from '../../../../shared/types';
 import { AssetGridItem, IMAGE_EXTS } from './asset-grid-item';
@@ -97,7 +98,7 @@ export function AssetsPage({ workspaceName, onBack }: AssetsPageProps): React.JS
       await loadEntries();
       toast.success(`Uploaded ${toUpload.length} file(s)`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed');
+      toast.error(getAssetUploadErrorMessage(err, currentDir ? 'folder' : 'workspace'));
     }
   }
 

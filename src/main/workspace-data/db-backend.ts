@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { isValidHexColor } from '../../shared/color-utils';
 import { assertValidFolderName, assertValidPageSize } from '../../shared/document-validation';
 import type {
   DesignSystem,
@@ -22,13 +21,7 @@ import {
   insertDesignSystemDocument,
   type TemplateId,
 } from './design-system-pages';
-import {
-  applyUpdates,
-  categorizeTokens,
-  parseThemeBlock,
-  serializeFullCss,
-  slugify,
-} from './design-system-parser';
+import { categorizeTokens, parseThemeBlock, slugify } from './design-system-parser';
 import {
   createWorkspaceEntry,
   getAllWorkspaceEntries,
@@ -509,44 +502,6 @@ export async function readDesignSystem(workspace: string): Promise<DesignSystem>
   const css = await readStyles(workspace);
   const parsed = parseThemeBlock(css);
   return categorizeTokens(parsed.rawTokens, parsed.fonts);
-}
-
-export async function updateDesignTokens(
-  workspace: string,
-  updates: Array<{ variable: string; value: string }>,
-): Promise<void> {
-  const db = getWorkspaceDb(workspace);
-  const row = db.prepare('SELECT css FROM styles WHERE id = 1').get() as
-    | { css: string }
-    | undefined;
-
-  if (!row) {
-    throw new Error(`Styles not found in workspace "${workspace}"`);
-  }
-
-  const parsed = parseThemeBlock(row.css);
-  const tokensByVariable = new Map(parsed.rawTokens.map((token) => [token.variable, token]));
-
-  const normalizedUpdates = updates.map((update) => ({
-    variable: update.variable,
-    value: update.value.trim(),
-  }));
-
-  for (const update of normalizedUpdates) {
-    const rawToken = tokensByVariable.get(update.variable);
-    if (!rawToken) {
-      throw new Error(`Unknown design token: "${update.variable}"`);
-    }
-
-    if (rawToken.variable.startsWith('--color-') && !isValidHexColor(update.value)) {
-      throw new Error(`Invalid HEX color for ${update.variable}: "${update.value}"`);
-    }
-  }
-
-  const updatedTokens = applyUpdates(parsed.rawTokens, normalizedUpdates);
-  const newCss = serializeFullCss(parsed, updatedTokens);
-
-  db.prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1").run(newCss);
 }
 
 // ---------------------------------------------------------------------------

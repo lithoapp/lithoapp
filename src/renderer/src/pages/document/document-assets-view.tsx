@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getAssetUploadErrorMessage } from '@/lib/asset-upload-errors';
 import { getAssetNameError, sanitizeAssetNameInput } from '../../../../shared/asset-validation';
 import type { AssetEntry } from '../../../../shared/types';
 
@@ -77,7 +78,7 @@ export function DocumentAssetsView({
       await loadEntries();
       toast.success(`Uploaded ${toUpload.length} file(s)`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed');
+      toast.error(getAssetUploadErrorMessage(err, 'document'));
     }
   }
 
