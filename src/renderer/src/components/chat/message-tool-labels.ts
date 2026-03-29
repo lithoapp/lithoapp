@@ -127,6 +127,23 @@ export function resolveToolLabel(
         icon: 'search',
       };
 
+    case 'viewPage':
+      return {
+        activeLabel: crossDocumentLabel?.activeLabel ?? pageLabelLabel('Viewing', pageLabel),
+        doneLabel: crossDocumentLabel?.doneLabel ?? pageLabelLabel('Viewed', pageLabel),
+        icon: 'eye',
+      };
+
+    case 'viewAsset': {
+      const assetPath = (input.path as string | undefined) ?? 'asset';
+      const assetName = assetPath.split('/').pop() ?? assetPath;
+      return {
+        activeLabel: `Viewing ${assetName}`,
+        doneLabel: `Viewed ${assetName}`,
+        icon: 'eye',
+      };
+    }
+
     case 'createDocument':
       return {
         activeLabel: 'Creating a document',
@@ -174,9 +191,13 @@ export function resolveToolLabel(
   }
 }
 
-function pageLabelLabel(action: 'Reading' | 'Read', pageLabel: string | undefined): string {
+function pageLabelLabel(
+  action: 'Reading' | 'Read' | 'Viewing' | 'Viewed',
+  pageLabel: string | undefined,
+): string {
   if (!pageLabel) {
-    return action === 'Reading' ? 'Reading a page' : 'Read a page';
+    const isActive = action === 'Reading' || action === 'Viewing';
+    return isActive ? `${action} a page` : `${action} a page`;
   }
   return `${action} page ${pageLabel}`;
 }

@@ -15,6 +15,10 @@ const DISCOVERY_FILE = join(LITHO_MCP_DIR, 'mcp-port');
 
 let httpServer: HttpServer | null = null;
 
+// Tools that are only meaningful inside the Electron app (e.g. they return
+// binary image data that the MCP protocol cannot represent as text).
+const IN_APP_ONLY_TOOLS = new Set(['viewPage', 'viewAsset']);
+
 // Pre-computed tool shapes (workspace-independent, computed once at startup)
 type ToolShape = Record<string, z.ZodType>;
 type ToolShapes = Record<string, { description: string; shape: ToolShape }>;
@@ -27,6 +31,7 @@ function buildToolShapes(): ToolShapes {
   const shapes: ToolShapes = {};
 
   for (const [name, toolDef] of Object.entries(tools)) {
+    if (IN_APP_ONLY_TOOLS.has(name)) continue;
     // Cast via unknown: the AI SDK types inputSchema as FlexibleSchema but
     // createLithoTools always passes a z.object(), so .shape is available.
     const inputSchema = toolDef.inputSchema as unknown as z.ZodObject<Record<string, z.ZodType>>;

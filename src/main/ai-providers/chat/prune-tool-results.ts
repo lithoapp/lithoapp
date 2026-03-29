@@ -7,7 +7,10 @@ import type { StoredMessage } from '../../../shared/types';
 const PRUNED_PLACEHOLDER = '[Previous result cleared — see latest read below]';
 
 /** Replace tool output with a placeholder, preserving the original structure. */
-export function prunedOutput(original: unknown): unknown {
+export function prunedOutput(toolName: string, original: unknown): unknown {
+  if (toolName === 'viewPage' || toolName === 'viewAsset') {
+    return { type: 'text' as const, value: '[Image was viewed — pruned to save context]' };
+  }
   if (typeof original === 'object' && original !== null && 'type' in original) {
     // Preserve the AI SDK structured format: { type: "text", value: "..." }
     return { type: 'text', value: PRUNED_PLACEHOLDER };
@@ -28,6 +31,12 @@ function pruneKey(toolName: string, input: unknown): string | undefined {
       return 'readMainCss';
     case 'listPages':
       return 'listPages';
+    case 'viewPage': {
+      const inp = input as { docId?: string; pageId?: string };
+      return `viewPage:${inp?.docId ?? ''}:${inp?.pageId ?? ''}`;
+    }
+    case 'viewAsset':
+      return `viewAsset:${(input as { path?: string })?.path ?? ''}`;
     default:
       return undefined;
   }

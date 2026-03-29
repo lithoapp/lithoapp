@@ -934,6 +934,48 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
       },
     }),
 
+    // ── viewAsset ─────────────────────────────────────────────────────────
+    viewAsset: tool({
+      description:
+        'Return a workspace or document asset as an inline image so you can see it. ' +
+        'Use the @assets/ path as shown by listWorkspaceAssets or listDocumentAssets.',
+      inputSchema: z.object({
+        path: z
+          .string()
+          .describe(
+            'Asset path starting with @assets/ (e.g. @assets/logo.png, @assets/documents/<docId>/photo.jpg)',
+          ),
+      }),
+      execute: async ({ path: assetPath }) => {
+        const workspacePath = resolveWorkspacePath(workspace);
+        const relPath = parseAssetPath(assetPath);
+        const abs = join(workspacePath, 'assets', relPath);
+        if (!existsSync(abs)) {
+          throw new Error(`Asset not found: ${assetPath}`);
+        }
+        const ext = assetPath.split('.').pop()?.toLowerCase() ?? '';
+        const MIME_MAP: Record<string, string> = {
+          png: 'image/png',
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          webp: 'image/webp',
+          gif: 'image/gif',
+          svg: 'image/svg+xml',
+        };
+        const mediaType = MIME_MAP[ext];
+        if (!mediaType) {
+          throw new Error(`Unsupported image type: .${ext}`);
+        }
+        const buffer = readFileSync(abs);
+        console.log(`[viewAsset] path=${relPath} size=${buffer.length}B`);
+        return {
+          type: 'content' as const,
+          value: [{ type: 'media' as const, data: buffer.toString('base64'), mediaType }],
+        };
+      },
+      toModelOutput: (output) => output,
+    }),
+
     // ── updateDocumentSize ──────────────────────────────────────────────
     updateDocumentSize: tool({
       description: "Change a document's page size. Only works if the document has no pages yet.",
@@ -1312,6 +1354,43 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
 
         return `Image saved at ${finalPath}`;
       },
+    }),
+
+    // ── viewPage ───────────────────────────────────────────────────────
+    viewPage: tool({
+      description:
+        'Render a document page and return it as an inline image so you can see the visual result.',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID'),
+        pageId: z.string().describe('Page ID'),
+      }),
+      execute: async ({ docId, pageId }) => {
+        const config = await readDocumentConfig(workspace, docId);
+        const buildResult = await buildPage(workspace, docId, pageId);
+        if (!buildResult.ok) {
+          throw new Error(`Build failed: ${buildResult.error.message}`);
+        }
+        const buffer = await exportPageFn({
+          html: buildResult.data.html,
+          approach: buildResult.data.approach,
+          format: 'jpg',
+          size: config.size,
+          dpi: 72,
+          jpgQuality: 70,
+          savePath: '',
+        });
+        const base64 = buffer.toString('base64');
+        console.log(
+          `[viewPage] page=${pageId} raw=${buffer.length}B base64=${base64.length}B`,
+        );
+        return {
+          type: 'content' as const,
+          value: [{ type: 'media' as const, data: base64, mediaType: 'image/jpeg' }],
+        };
+      },
+      // Pass structured content directly to the model so images are sent as
+      // actual vision input, not serialized as a JSON text blob.
+      toModelOutput: (output) => output,
     }),
 
     // ── exportDocument ───────────────────────────────────────────────────────

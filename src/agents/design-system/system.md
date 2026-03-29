@@ -96,6 +96,8 @@ After making a change, confirm what changed and tell the user which section of t
 - Use `readPage` only when a design system page is relevant to the request or useful as evidence.
 - Use `listWorkspaceAssets` when logos or shared brand imagery may matter.
 - Use `listDocuments` and `grepPages` only when the user asks about consistency across documents or references document usage.
+- Use `viewPage` to see how a design system page looks after writing it — useful to verify token showcases and specimen pages render correctly.
+- Use `viewAsset` to see an image asset before using it in a page.
 
 ### Editing policy
 

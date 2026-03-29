@@ -18,6 +18,7 @@ import {
 } from './message-mapping';
 import { buildProviderOptions } from './provider-options';
 import { type ChatStreamEvent, mapStreamPart } from './stream-events';
+import { stripImagesIfNoVision } from './transform-messages';
 
 // ---------------------------------------------------------------------------
 // Active stream registry
@@ -153,6 +154,10 @@ async function runStepLoop(
   // Get model's context window for progress tracking
   const modelInfo = getModelInfo(providerId, modelId);
   const contextWindow = modelInfo?.contextWindow;
+  const hasVision = modelInfo?.capabilities?.includes('vision') ?? false;
+  console.log(
+    `  [model] capabilities=${JSON.stringify(modelInfo?.capabilities ?? [])} vision=${hasVision}`,
+  );
 
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
@@ -173,6 +178,9 @@ async function runStepLoop(
         ...currentMessages,
       ];
 
+      // Strip image outputs for models that don't support vision.
+      const safeMsgs = stripImagesIfNoVision(msgs, hasVision);
+
       // Build provider-specific options (matches OpenCode's ProviderTransform.options)
       // biome-ignore lint/suspicious/noExplicitAny: providerOptions needs wide type
       const extra: Record<string, any> = { promptCacheKey: chatId };
@@ -183,7 +191,7 @@ async function runStepLoop(
 
       const result = streamText({
         model,
-        messages: msgs,
+        messages: safeMsgs,
         abortSignal: controller.signal,
         maxRetries: 0,
         ...(isOAuthCodex ? {} : { maxOutputTokens: OUTPUT_TOKEN_MAX }),

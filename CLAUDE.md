@@ -43,7 +43,8 @@ Powered by Vercel AI SDK (`ai`, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/
 - `chat/stream-events.ts` — `ChatStreamEvent` union type (text-delta, reasoning-delta, tool-call, tool-result, finish, error)
 - `chat/provider-options.ts` — Per-provider `streamText` options (prompt caching, reasoning config, etc.)
 - `agents/config.ts` — Agent definitions: tool allowlists, system/kickoff templates (Mustache)
-- `agents/litho-tools.ts` — 16 AI SDK tools with Zod schemas, executed directly in main process. Mutating tools emit `WorkspaceMutationEvent` via `mutation-emitter.ts` after each successful write, which the renderer subscribes to for automatic refresh.
+- `agents/litho-tools.ts` — AI SDK tools with Zod schemas, executed directly in main process. Mutating tools emit `WorkspaceMutationEvent` via `mutation-emitter.ts` after each successful write, which the renderer subscribes to for automatic refresh.
+- `chat/transform-messages.ts` — Vision capability transform: strips image content from `viewPage`/`viewAsset` tool results before sending to non-vision models, replacing with an error message. Applied before each `streamText()` call.
 - `providers/create-model.ts` — Creates AI SDK model instances for Anthropic, OpenAI, OpenAI-compatible
 - `providers/credential-store.ts` — API key / OAuth credential persistence
 - `oauth/` — OAuth flows for Anthropic and OpenAI
@@ -61,17 +62,18 @@ Three AI agents with scoped tool permissions:
 
 Each agent has: `system.md` (system prompt — runtime variables at top via Mustache, followed by full agent identity, instructions, and internal operating rules), `kickoff.md` (hidden first message template). Kickoff prompts now carry first-turn tool guidance; system prompts hold longer-lived behavior and scope rules. Agent configs (tool allowlists, templates) defined in `src/main/ai-providers/agents/config.ts`.
 
-**Agent Tools** (`src/main/ai-providers/agents/litho-tools.ts`) — 16 tools exposed as AI SDK tools:
+**Agent Tools** (`src/main/ai-providers/agents/litho-tools.ts`) — AI SDK tools:
 - Page tools: `listPages`, `readPage`, `writePage`, `editPage`, `createPage`, `deletePage`, `updatePageDetails`, `movePage`
 - Style tools: `readMainCss`, `writeMainCss`, `editMainCss`
 - Document tools: `updateDocumentDescription`, `listDocuments`, `grepPages`
-- Asset tools: `listWorkspaceAssets`, `listDocumentAssets`
+- Asset tools: `listWorkspaceAssets`, `listDocumentAssets`, `viewAsset`
+- Vision tools: `viewPage`, `viewAsset` — return inline images via AI SDK `{ type: 'content', value: [{ type: 'media', ... }] }` format with `toModelOutput` passthrough. In-app only (excluded from MCP). Non-vision models receive an error message instead (handled by `transform-messages.ts`). Old results pruned from context to save tokens.
 
 ### MCP Architecture (`src/main/mcp-server.ts` + `src/mcp-wrapper/`)
 
 Exposes all litho-tools to external AI clients (Claude Desktop, Cursor, VS Code Copilot, etc.) via MCP (Model Context Protocol). Uses `@modelcontextprotocol/sdk`.
 
-- **HTTP server** (`src/main/mcp-server.ts`) — Streamable HTTP MCP server bound to `127.0.0.1:0` (random port). Registers all litho-tools with `workspace` as an additional required parameter. Bearer token auth. Writes discovery file `~/.litho/mcp-port` (`{ port, token }` JSON) on start, deletes on quit.
+- **HTTP server** (`src/main/mcp-server.ts`) — Streamable HTTP MCP server bound to `127.0.0.1:0` (random port). Registers litho-tools (except in-app-only vision tools) with `workspace` as an additional required parameter. Bearer token auth. Writes discovery file `~/.litho/mcp-port` (`{ port, token }` JSON) on start, deletes on quit.
 - **stdio wrapper** (`src/mcp-wrapper/index.ts`) — Standalone Node.js script bundled by esbuild to `resources/bin/litho-mcp.cjs`. Reads discovery file, proxies newline-delimited JSON-RPC from stdin to the HTTP server, parses SSE responses back to stdout.
 - **Platform launchers** (`resources/bin/litho-mcp`, `resources/bin/litho-mcp.cmd`) — Shell/batch scripts that run the wrapper using `ELECTRON_RUN_AS_NODE=1` with the app's bundled Electron binary. No external Node.js dependency required.
 - **Build** — `pnpm build:mcp-wrapper` (runs automatically via `prebuild` hook). See `scripts/build-mcp-wrapper.mjs`.

@@ -104,6 +104,8 @@ The user may have logos, photos, and other images available as project assets or
 - Use `readMainCss` to understand available design tokens before styling decisions.
 - Use `listDocumentAssets` and `listWorkspaceAssets` when imagery may be relevant.
 - Use `listDocuments` and `grepPages` only when cross-document reference is actually needed.
+- Use `viewPage` to see the rendered result when you want to verify a design looks right — especially useful for single-page designs or after writing the first page of a multi-page document to confirm the layout before continuing with similar pages.
+- Use `viewAsset` to see an image asset before using it in a page.
 
 ### Editing policy
 

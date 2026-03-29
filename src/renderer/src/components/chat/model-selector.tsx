@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Loader2, Plus } from 'lucide-react';
+import { Check, ChevronDown, Eye, Loader2, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,7 @@ interface ProviderInfo {
 interface ModelInfo {
   id: string;
   name: string;
+  capabilities?: string[];
 }
 
 interface ModelSelectorProps {
@@ -152,6 +153,9 @@ export function ModelSelector({
                         className={`h-3.5 w-3.5 shrink-0 ${isSelected ? 'text-primary' : 'opacity-0'}`}
                       />
                       <span className="flex-1 truncate">{model.name}</span>
+                      {model.capabilities?.includes('vision') && (
+                        <Eye className="h-3.5 w-3.5 shrink-0 opacity-40" />
+                      )}
                     </CommandItem>
                   );
                 })}
