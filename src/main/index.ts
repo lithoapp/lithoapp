@@ -93,6 +93,7 @@ import {
   updateDocumentFolder,
   updateWorkspaceLastOpened,
 } from './workspace-data';
+import { startMcpServer, stopMcpServer } from './mcp-server';
 import { getWorkspaceEntry } from './workspace-data/registry-db';
 import { resolveWorkspacePath } from './workspace-paths';
 
@@ -434,6 +435,8 @@ app.whenReady().then(async () => {
   }
   setTimeout(() => checkForUpdates(), 30_000);
 
+  startMcpServer().catch((err) => console.error('[mcp] Failed to start:', err));
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -447,4 +450,5 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   closeAllDbs();
+  void stopMcpServer();
 });

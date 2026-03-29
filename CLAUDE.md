@@ -13,6 +13,7 @@ pnpm test                 # Run tests (vitest)
 pnpm lint                 # Lint with Biome
 pnpm format               # Auto-fix lint/format issues
 pnpm typecheck            # Type-check (main + renderer)
+pnpm build:mcp-wrapper    # Bundle MCP stdio wrapper + platform launchers
 ```
 
 ## Architecture
@@ -20,6 +21,7 @@ pnpm typecheck            # Type-check (main + renderer)
 ### Main Process (`src/main/`)
 
 - `index.ts` — Window creation, IPC handlers, `litho-asset://` custom protocol, app lifecycle
+- `mcp-server.ts` — MCP server for external AI clients (see MCP Architecture below)
 - `ai-providers/` — AI SDK integration (see AI Architecture below)
 - `renderer/` — Offline build pipeline (TSX + Tailwind → HTML): `build-csr.ts`, `build-ssr.ts`, `build-shared.ts`, `detect-approach.ts`, `loc-plugin.ts` (Babel-based `data-litho-loc` injection for edit mode), `editor-script.ts` (iframe interaction script for visual editing)
 - `exporter/` — Export capture & assembly: `export-page.ts` (hidden BrowserWindow → PDF/PNG/JPG buffer), `document-exporter.ts` (multi-page orchestrator), `batch-export.ts` (CLI batch entry point)
@@ -64,6 +66,16 @@ Each agent has: `system.md` (system prompt — runtime variables at top via Must
 - Style tools: `readMainCss`, `writeMainCss`, `editMainCss`
 - Document tools: `updateDocumentDescription`, `listDocuments`, `grepPages`
 - Asset tools: `listWorkspaceAssets`, `listDocumentAssets`
+
+### MCP Architecture (`src/main/mcp-server.ts` + `src/mcp-wrapper/`)
+
+Exposes all litho-tools to external AI clients (Claude Desktop, Cursor, VS Code Copilot, etc.) via MCP (Model Context Protocol). Uses `@modelcontextprotocol/sdk`.
+
+- **HTTP server** (`src/main/mcp-server.ts`) — Streamable HTTP MCP server bound to `127.0.0.1:0` (random port). Registers all litho-tools with `workspace` as an additional required parameter. Bearer token auth. Writes discovery file `~/.litho/mcp-port` (`{ port, token }` JSON) on start, deletes on quit.
+- **stdio wrapper** (`src/mcp-wrapper/index.ts`) — Standalone Node.js script bundled by esbuild to `resources/bin/litho-mcp.cjs`. Reads discovery file, proxies newline-delimited JSON-RPC from stdin to the HTTP server, parses SSE responses back to stdout.
+- **Platform launchers** (`resources/bin/litho-mcp`, `resources/bin/litho-mcp.cmd`) — Shell/batch scripts that run the wrapper using `ELECTRON_RUN_AS_NODE=1` with the app's bundled Electron binary. No external Node.js dependency required.
+- **Build** — `pnpm build:mcp-wrapper` (runs automatically via `prebuild` hook). See `scripts/build-mcp-wrapper.mjs`.
+- **Setup guide** — `docs/mcp-setup.md`
 
 ### Preload (`src/preload/`)
 
