@@ -1,9 +1,24 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import os from 'node:os';
+import { basename, join } from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { assertValidFolderName } from '../../../shared/document-validation';
 import { type AgentId, PAGE_SIZE_NAMES, PAGE_SIZES } from '../../../shared/types';
-import { listAssets } from '../../assets-manager';
+import {
+  createAssetDirectory,
+  deleteAsset as deleteAssetFile,
+  deleteDocumentAsset,
+  listAssets,
+  renameAsset as renameAssetFile,
+  renameDocumentAsset,
+  uploadAssets,
+  uploadDocumentAssets,
+} from '../../assets-manager';
+import { DocumentExporter } from '../../exporter/document-exporter';
+import { exportPage as exportPageFn } from '../../exporter/export-page';
 import { mutationEmitter } from '../../mutation-emitter';
 import { analyzePage, formatAnalysisSummary } from '../../renderer/analyze-page';
 import { buildPage } from '../../renderer/index';
@@ -76,6 +91,14 @@ function formatAssetMetadata(entry: {
     entry.width && entry.height ? `${entry.width}x${entry.height}` : 'unknown-dimensions';
 
   return `${entry.ext}\t${entry.size}\t${dimensions}`;
+}
+
+function parseAssetPath(assetPath: string): string {
+  const PREFIX = '@assets/';
+  if (!assetPath.startsWith(PREFIX)) {
+    throw new Error(`Asset path must start with "@assets/", got: "${assetPath}"`);
+  }
+  return assetPath.slice(PREFIX.length);
 }
 
 // ---------------------------------------------------------------------------
@@ -1038,6 +1061,236 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           .get(newDocId) as { count: number };
 
         return `Duplicated "${doc.title}" → "${doc.title} (copy)" (${newDocId}, ${pageCount.count} pages)`;
+      },
+    }),
+
+    // ── uploadAsset ──────────────────────────────────────────────────────────
+    uploadAsset: tool({
+      description:
+        'Upload an image asset from a local file path or HTTP(S) URL into workspace or document assets.',
+      inputSchema: z.object({
+        source: z.string().describe('Absolute local file path or HTTP(S) URL'),
+        docId: z
+          .string()
+          .optional()
+          .describe('Document ID — uploads to per-document assets if provided'),
+        name: z.string().optional().describe('Override filename (including extension)'),
+        folder: z
+          .string()
+          .optional()
+          .describe('Workspace asset sub-folder (e.g. "icons"). Ignored when docId is set.'),
+      }),
+      execute: async ({ source, docId, name, folder }) => {
+        const workspacePath = resolveWorkspacePath(workspace);
+        let data: Uint8Array;
+        let resolvedName: string;
+
+        if (source.startsWith('http://') || source.startsWith('https://')) {
+          const response = await fetch(source);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status} fetching: ${source}`);
+          }
+          data = new Uint8Array(await response.arrayBuffer());
+          resolvedName = name ?? basename(new URL(source).pathname);
+        } else {
+          data = readFileSync(source);
+          resolvedName = name ?? basename(source);
+        }
+
+        if (docId) {
+          uploadDocumentAssets(workspacePath, docId, [{ name: resolvedName, data }]);
+        } else {
+          uploadAssets(workspacePath, folder ?? '', [{ name: resolvedName, data }]);
+        }
+
+        return `Asset uploaded: ${resolvedName}`;
+      },
+    }),
+
+    // ── deleteAsset ──────────────────────────────────────────────────────────
+    deleteAsset: tool({
+      description:
+        'Delete a workspace or document asset file or folder. ' +
+        'Use the @assets/ path as shown by listWorkspaceAssets or listDocumentAssets.',
+      inputSchema: z.object({
+        path: z
+          .string()
+          .describe(
+            'Asset path starting with @assets/ (e.g. @assets/logo.png, @assets/icons/, @assets/documents/<docId>/file.jpg)',
+          ),
+      }),
+      execute: async ({ path: assetPath }) => {
+        const workspacePath = resolveWorkspacePath(workspace);
+        const relPath = parseAssetPath(assetPath);
+
+        const DOC_PREFIX = 'documents/';
+        if (relPath.startsWith(DOC_PREFIX)) {
+          const withoutPrefix = relPath.slice(DOC_PREFIX.length);
+          const slashIdx = withoutPrefix.indexOf('/');
+          if (slashIdx === -1) {
+            throw new Error(
+              `Invalid document asset path: "${assetPath}" — expected @assets/documents/<docId>/filename`,
+            );
+          }
+          const docId = withoutPrefix.slice(0, slashIdx);
+          const fileName = withoutPrefix.slice(slashIdx + 1);
+          deleteDocumentAsset(workspacePath, docId, fileName);
+        } else {
+          deleteAssetFile(workspacePath, relPath);
+        }
+
+        return `Deleted: ${assetPath}`;
+      },
+    }),
+
+    // ── renameAsset ──────────────────────────────────────────────────────────
+    renameAsset: tool({
+      description: 'Rename or move a workspace or document asset.',
+      inputSchema: z.object({
+        path: z.string().describe('Current asset path starting with @assets/'),
+        newPath: z.string().describe('New asset path starting with @assets/'),
+      }),
+      execute: async ({ path: assetPath, newPath }) => {
+        const workspacePath = resolveWorkspacePath(workspace);
+        const oldRel = parseAssetPath(assetPath);
+        const newRel = parseAssetPath(newPath);
+
+        const DOC_PREFIX = 'documents/';
+        if (oldRel.startsWith(DOC_PREFIX)) {
+          const withoutPrefix = oldRel.slice(DOC_PREFIX.length);
+          const slashIdx = withoutPrefix.indexOf('/');
+          if (slashIdx === -1) {
+            throw new Error(`Invalid document asset path: "${assetPath}"`);
+          }
+          const docId = withoutPrefix.slice(0, slashIdx);
+          const oldName = withoutPrefix.slice(slashIdx + 1);
+          const newName = newRel.startsWith(DOC_PREFIX + docId + '/')
+            ? newRel.slice(DOC_PREFIX.length + docId.length + 1)
+            : basename(newRel);
+          renameDocumentAsset(workspacePath, docId, oldName, newName);
+        } else {
+          renameAssetFile(workspacePath, oldRel, newRel);
+        }
+
+        return `Renamed: ${assetPath} → ${newPath}`;
+      },
+    }),
+
+    // ── createAssetFolder ────────────────────────────────────────────────────
+    createAssetFolder: tool({
+      description:
+        'Create a new folder in the workspace assets directory. Cannot use "documents" (reserved).',
+      inputSchema: z.object({
+        folder: z
+          .string()
+          .describe('Folder name or path to create (e.g. "logos" or "brand/icons")'),
+      }),
+      execute: async ({ folder }) => {
+        const workspacePath = resolveWorkspacePath(workspace);
+        createAssetDirectory(workspacePath, folder);
+        return `Folder created: ${folder}`;
+      },
+    }),
+
+    // ── exportPage ───────────────────────────────────────────────────────────
+    exportPage: tool({
+      description:
+        'Render and export a single document page as an image (PNG or JPG). ' +
+        'Returns the path to the saved file. Useful for a visual feedback loop — export, read the image, iterate.',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID'),
+        pageId: z.string().describe('Page ID'),
+        format: z.enum(['png', 'jpg']).optional().describe('Image format (default: png)'),
+        outputPath: z
+          .string()
+          .optional()
+          .describe('Absolute file path to save to. Defaults to a temp file.'),
+      }),
+      execute: async ({ docId, pageId, format: fmt, outputPath }) => {
+        const resolvedFormat = fmt ?? 'png';
+        const config = await readDocumentConfig(workspace, docId);
+
+        const buildResult = await buildPage(workspace, docId, pageId);
+        if (!buildResult.ok) {
+          throw new Error(`Build failed: ${buildResult.error.message}`);
+        }
+
+        const finalPath = outputPath ?? join(os.tmpdir(), `page-${pageId}.${resolvedFormat}`);
+
+        await exportPageFn({
+          html: buildResult.data.html,
+          approach: buildResult.data.approach,
+          format: resolvedFormat,
+          size: config.size,
+          dpi: 150,
+          jpgQuality: 90,
+          savePath: finalPath,
+        });
+
+        return `Image saved at ${finalPath}`;
+      },
+    }),
+
+    // ── exportDocument ───────────────────────────────────────────────────────
+    exportDocument: tool({
+      description:
+        'Export an entire document to PDF or as images (PNG/JPG). ' +
+        'PDF is a single merged file. PNG/JPG exports each page as a separate file in a directory.',
+      inputSchema: z.object({
+        docId: z.string().describe('Document ID'),
+        format: z.enum(['pdf', 'png', 'jpg']).optional().describe('Export format (default: pdf)'),
+        outputPath: z
+          .string()
+          .optional()
+          .describe(
+            'For PDF: absolute file path. For images: absolute directory path. Defaults to a temp location.',
+          ),
+      }),
+      execute: async ({ docId, format: fmt, outputPath }) => {
+        const resolvedFormat = fmt ?? 'pdf';
+        const config = await readDocumentConfig(workspace, docId);
+        const pageIds = config.pages.map((p) => p.id);
+
+        if (resolvedFormat === 'pdf') {
+          const finalPath = outputPath ?? join(os.tmpdir(), `${config.title}-${docId}.pdf`);
+          const exporter = new DocumentExporter();
+          await exporter.exportDocument({
+            format: 'pdf',
+            workspaceName: workspace,
+            docId,
+            title: config.title,
+            pages: pageIds,
+            size: config.size,
+            dpi: 150,
+            jpgQuality: 90,
+            savePath: finalPath,
+          });
+          return `Document exported to ${finalPath}`;
+        }
+
+        const outDir = outputPath ?? join(os.tmpdir(), `${docId}-export`);
+        await mkdir(outDir, { recursive: true });
+
+        for (let i = 0; i < pageIds.length; i++) {
+          const buildResult = await buildPage(workspace, docId, pageIds[i]);
+          if (!buildResult.ok) {
+            throw new Error(`Build failed for page ${i + 1}: ${buildResult.error.message}`);
+          }
+          await exportPageFn({
+            html: buildResult.data.html,
+            approach: buildResult.data.approach,
+            format: resolvedFormat,
+            size: config.size,
+            dpi: 150,
+            jpgQuality: 90,
+            savePath: join(outDir, `page-${i + 1}.${resolvedFormat}`),
+          });
+        }
+
+        if (pageIds.length === 1) {
+          return `Image saved at ${join(outDir, `page-1.${resolvedFormat}`)}`;
+        }
+        return `Pages exported to ${outDir}/`;
       },
     }),
   };
