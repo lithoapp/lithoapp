@@ -43,7 +43,7 @@ Powered by Vercel AI SDK (`ai`, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/
 - `chat/stream-events.ts` — `ChatStreamEvent` union type (text-delta, reasoning-delta, tool-call, tool-result, finish, error)
 - `chat/provider-options.ts` — Per-provider `streamText` options (prompt caching, reasoning config, etc.)
 - `agents/config.ts` — Agent definitions: tool allowlists, system/kickoff templates (Mustache)
-- `agents/litho-tools.ts` — 11 AI SDK tools with Zod schemas, executed directly in main process
+- `agents/litho-tools.ts` — 16 AI SDK tools with Zod schemas, executed directly in main process. Mutating tools emit `WorkspaceMutationEvent` via `mutation-emitter.ts` after each successful write, which the renderer subscribes to for automatic refresh.
 - `providers/create-model.ts` — Creates AI SDK model instances for Anthropic, OpenAI, OpenAI-compatible
 - `providers/credential-store.ts` — API key / OAuth credential persistence
 - `oauth/` — OAuth flows for Anthropic and OpenAI
@@ -87,6 +87,7 @@ Exposes all litho-tools to external AI clients (Claude Desktop, Cursor, VS Code 
 - **Router**: Centralized state machine in `App.tsx` — no file-based routing. `Page` union type drives navigation.
 - **Pages**: Onboarding (profile setup + provider picker), Workspaces, Documents (grid with thumbnails), Document viewer (with chat panel + page audit bar), Design System Doc (token editor + chat), Assets browser, Settings v2 (sidebar + tabs: profile, AI providers, feedback, privacy, about, advanced), Renderer POC (build/export testing)
 - **Hooks**: `useChat()` (streaming via IPC `chat:delta` events, messages, cost/tokens), `useProviderList()` (AI provider discovery + auth), `usePostTurnDiagnostics()` (post-agent validation on dirty pages), `useEditMode()` (visual edit mode state, pending changes, postMessage listener, confirm/discard), `useWorkspace()`, `useDesignSystem()`, `usePageBuild()`, `usePageExport()`, `useDocumentConfig()`, `useConnectFlow()`, `useMobile()`
+- **Data Invalidation**: Push-based — mutating tools in `litho-tools.ts` emit `WorkspaceMutationEvent` via `mutation-emitter.ts` → forwarded to renderer as `workspace:mutation` IPC → `App.tsx` subscribes for document/page events (refreshes document list), `DocumentPage` subscribes for page/CSS events (rebuilds pages), `DesignSystemDocPage` subscribes for CSS events (refreshes tokens). Works for both in-app chat and external MCP clients. The `__revert__` undo action still uses a direct `handleToolComplete` callback since it's not a litho-tool.
 - **Chat** (`components/chat/`): Streams from main process via IPC events. Handles model selection, cost tracking. Renders hex colors as inline swatches.
 - **Feedback** (`components/feedback/feedback-dialog.tsx`): Custom in-app Sentry feedback modal with category selection, optional email, optional app-window screenshot, and opt-out technical details. Feedback events are sent from the renderer via `Sentry.sendFeedback()`, while screenshots are captured in the main process and passed back through preload.
 - **Edit Mode** (`components/edit-mode/`): Visual inline editing — users click elements in page preview iframes, make text edits inline or describe changes via floating input. Changes accumulate as pending, then compile into a structured prompt sent to the AI agent. Files: `types.ts` (PendingChange union), `pending-changes-panel.tsx` (UI panel), `compile-prompt.ts` (changes → agent prompt), `visual-edit-message.tsx` (renders visual edit messages in chat).
@@ -96,7 +97,7 @@ Exposes all litho-tools to external AI clients (Claude Desktop, Cursor, VS Code 
 
 ### Shared Types (`src/shared/types.ts`)
 
-Cross-process types used by main, preload, and renderer: `WorkspaceInfo`, `UpdateState`, `ExportRequest`/`ExportProgress`, `DocumentInfo`, `DocumentConfig`, `PageInfo`, `PageSize`, `DesignSystem`/`DesignSystemToken`, `PageBuildData`, `RendererError`, `AssetEntry`, `StoredMessage`/`StoredUserMessage`/`StoredAssistantMessage`/`StoredToolMessage`, `AgentId`, `AgentContext`
+Cross-process types used by main, preload, and renderer: `WorkspaceInfo`, `UpdateState`, `ExportRequest`/`ExportProgress`, `DocumentInfo`, `DocumentConfig`, `PageInfo`, `PageSize`, `DesignSystem`/`DesignSystemToken`, `PageBuildData`, `RendererError`, `AssetEntry`, `StoredMessage`/`StoredUserMessage`/`StoredAssistantMessage`/`StoredToolMessage`, `AgentId`, `AgentContext`, `WorkspaceMutationEvent`
 
 ### Security
 
