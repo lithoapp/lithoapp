@@ -1,5 +1,5 @@
-import { chmodSync, writeFileSync } from 'node:fs'
-import * as esbuild from 'esbuild'
+import { chmodSync, writeFileSync } from 'node:fs';
+import * as esbuild from 'esbuild';
 
 // Bundle the wrapper as CJS — safest for ELECTRON_RUN_AS_NODE which may not
 // fully support ESM in all Electron versions.
@@ -10,7 +10,7 @@ await esbuild.build({
   target: 'node20',
   format: 'cjs',
   outfile: 'resources/bin/litho-mcp.cjs',
-})
+});
 
 // macOS / Linux launcher — finds Electron binary relative to itself
 const macLauncher = `#!/bin/sh
@@ -21,7 +21,7 @@ if [ ! -f "$ELECTRON" ]; then
   exit 1
 fi
 ELECTRON_RUN_AS_NODE=1 exec "$ELECTRON" "$DIR/litho-mcp.cjs" "$@"
-`
+`;
 
 // Windows launcher — finds Litho.exe relative to itself
 const winLauncher = `@echo off
@@ -33,13 +33,13 @@ if not exist "%ELECTRON%" (
 )
 set ELECTRON_RUN_AS_NODE=1
 "%ELECTRON%" "%DIR%litho-mcp.cjs" %*
-`
+`;
 
-writeFileSync('resources/bin/litho-mcp', macLauncher, 'utf8')
-chmodSync('resources/bin/litho-mcp', 0o755)
+writeFileSync('resources/bin/litho-mcp', macLauncher, 'utf8');
+chmodSync('resources/bin/litho-mcp', 0o755);
 
-writeFileSync('resources/bin/litho-mcp.cmd', winLauncher, 'utf8')
+writeFileSync('resources/bin/litho-mcp.cmd', winLauncher, 'utf8');
 
-console.log('Built resources/bin/litho-mcp.cjs')
-console.log('Built resources/bin/litho-mcp     (macOS/Linux launcher)')
-console.log('Built resources/bin/litho-mcp.cmd (Windows launcher)')
+console.log('Built resources/bin/litho-mcp.cjs');
+console.log('Built resources/bin/litho-mcp     (macOS/Linux launcher)');
+console.log('Built resources/bin/litho-mcp.cmd (Windows launcher)');

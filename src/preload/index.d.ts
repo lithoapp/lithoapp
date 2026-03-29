@@ -6,6 +6,7 @@ import type {
   ExportProgress,
   ExportRequest,
   PageSize,
+  WorkspaceMutationEvent,
 } from '../shared/types';
 import type { PageBuildData, PageExportOptions, RendererResult } from '../shared/types';
 import type { UpdateState } from '../shared/types';
@@ -54,6 +55,7 @@ interface LithoAPI {
     getDocumentCount: (name: string) => Promise<number>;
     getDesignSystemDocId: (name: string) => Promise<string | null>;
     getDesignSystemDocInfo: (name: string) => Promise<DocumentInfo | null>;
+    onMutation: (callback: (event: WorkspaceMutationEvent) => void) => () => void;
   };
   document: {
     list: (workspaceName: string) => Promise<DocumentInfo[]>;

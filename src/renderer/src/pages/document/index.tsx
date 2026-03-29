@@ -62,8 +62,6 @@ interface DocumentPageProps {
     onBusyChange: (isBusy: boolean) => void;
     onLeaveRequestChange: (handler: (() => Promise<void>) | null) => void;
   }) => React.ReactNode;
-  /** Tool names that should trigger a full rebuild of all pages (e.g. CSS changes). */
-  rebuildAllOnTools?: string[];
   /** When true, refetch doc config via IPC on createPage/deletePage instead of calling onDocumentsChange. */
   refetchDocOnPageChange?: boolean;
   /** Notify parent when the AI agent becomes busy or idle. */
@@ -80,7 +78,6 @@ export function DocumentPage({
   userName,
   documents,
   renderChat,
-  rebuildAllOnTools,
   refetchDocOnPageChange,
   onAgentBusyChange,
   onAgentLeaveRequestChange,
@@ -319,55 +316,50 @@ export function DocumentPage({
     }
   }, [workspaceName, doc.id]);
 
-  // Handle completed litho tool calls.
-  // writePage/editPage → rebuild the specific page only.
-  // createPage/deletePage → refetch doc list or doc config depending on mode.
-  // rebuildAllOnTools matches → rebuild all pages.
+  // Subscribe to push-based mutation events from the main process.
+  // This handles both in-app chat and external MCP client mutations.
   const onDocumentsChangeRef = useRef(onDocumentsChange);
   onDocumentsChangeRef.current = onDocumentsChange;
-  const rebuildAllOnToolsRef = useRef(rebuildAllOnTools);
-  rebuildAllOnToolsRef.current = rebuildAllOnTools;
-  const handleToolComplete = useCallback(
-    (tool: string, args: Record<string, unknown>) => {
-      // Handle revert — full rebuild of all pages + refresh page list
-      if (tool === '__revert__') {
+
+  useEffect(() => {
+    return window.litho.workspace.onMutation((event) => {
+      if (event.workspaceName !== workspaceName) return;
+
+      if (event.type === 'css') {
         setPageAudits(new Map());
         void buildPages();
-        if (refetchDocOnPageChange) {
-          void refetchDocConfig();
+        return;
+      }
+
+      if (event.type === 'page') {
+        if (event.docId !== doc.id) return;
+        if (event.action === 'write' || event.action === 'edit') {
+          void buildPage(event.pageId);
         } else {
-          onDocumentsChangeRef.current?.();
-        }
-        return;
-      }
-
-      // Check caller-provided tools that require a full rebuild
-      if (rebuildAllOnToolsRef.current?.includes(tool)) {
-        setPageAudits(new Map());
-        void buildPages();
-        return;
-      }
-
-      switch (tool) {
-        case 'writePage':
-        case 'editPage': {
-          const pageId = args.pageId as string | undefined;
-          if (pageId) void buildPage(pageId);
-          break;
-        }
-        case 'createPage':
-        case 'deletePage':
-        case 'movePage':
-        case 'updatePageDetails':
+          // create | delete | move | updateDetails
           if (refetchDocOnPageChange) {
             void refetchDocConfig();
           } else {
             onDocumentsChangeRef.current?.();
           }
-          break;
+        }
+      }
+    });
+  }, [workspaceName, doc.id, buildPage, buildPages, refetchDocConfig, refetchDocOnPageChange]);
+
+  // Handle __revert__ — triggered by the chat undo mechanism, not a tool emit.
+  const handleToolComplete = useCallback(
+    (tool: string, _args: Record<string, unknown>) => {
+      if (tool !== '__revert__') return;
+      setPageAudits(new Map());
+      void buildPages();
+      if (refetchDocOnPageChange) {
+        void refetchDocConfig();
+      } else {
+        onDocumentsChangeRef.current?.();
       }
     },
-    [buildPage, buildPages, refetchDocOnPageChange, refetchDocConfig],
+    [buildPages, refetchDocOnPageChange, refetchDocConfig],
   );
 
   const handleIframeLoad = useCallback(

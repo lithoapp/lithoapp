@@ -334,6 +334,31 @@ export interface ChatError {
   retryAfter?: number;
 }
 
+// --- Workspace Mutation Events (pushed from main to renderer) ---
+
+export type WorkspaceMutationEvent =
+  | { type: 'page'; action: 'write' | 'edit'; workspaceName: string; docId: string; pageId: string }
+  | {
+      type: 'page';
+      action: 'create' | 'delete' | 'move' | 'updateDetails';
+      workspaceName: string;
+      docId: string;
+    }
+  | {
+      type: 'document';
+      action:
+        | 'create'
+        | 'delete'
+        | 'rename'
+        | 'duplicate'
+        | 'move'
+        | 'updateDescription'
+        | 'updateSize';
+      workspaceName: string;
+      docId: string;
+    }
+  | { type: 'css'; action: 'write' | 'edit'; workspaceName: string };
+
 // --- Document Type ---
 
 export type DocumentType = 'normal' | 'design-system';

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { assertValidFolderName } from '../../../shared/document-validation';
 import { type AgentId, PAGE_SIZE_NAMES, PAGE_SIZES } from '../../../shared/types';
 import { listAssets } from '../../assets-manager';
+import { mutationEmitter } from '../../mutation-emitter';
 import { analyzePage, formatAnalysisSummary } from '../../renderer/analyze-page';
 import { buildPage } from '../../renderer/index';
 import { generateId, getWorkspaceDb } from '../../workspace-data/db';
@@ -192,6 +193,14 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           throw new Error(`Page "${pageId}" not found in document "${docId}"`);
         }
 
+        mutationEmitter.emit('mutation', {
+          type: 'page',
+          action: 'write',
+          workspaceName: workspace,
+          docId,
+          pageId,
+        });
+
         const lineCount = content.split('\n').length;
         let msg = `Wrote ${getPageLabel(docId, pageId)} (${lineCount} lines)`;
 
@@ -243,6 +252,14 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
             "UPDATE pages SET source = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
           )
           .run(updated, pageId, docId);
+
+        mutationEmitter.emit('mutation', {
+          type: 'page',
+          action: 'edit',
+          workspaceName: workspace,
+          docId,
+          pageId,
+        });
 
         const layoutSummary = await runLayoutAnalysis(docId, pageId);
         return `Edited ${getPageLabel(docId, pageId)}${layoutSummary}`;
@@ -317,6 +334,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           'INSERT INTO pages (id, document_id, name, description, source, position) VALUES (?, ?, ?, ?, ?, ?)',
         ).run(newPageId, docId, trimmedName, desc, pageContent, position);
 
+        mutationEmitter.emit('mutation', {
+          type: 'page',
+          action: 'create',
+          workspaceName: workspace,
+          docId,
+        });
+
         const pageNumber = pages.filter((p) => p.position < position).length + 1;
         return `Created page ${pageNumber} "${trimmedName}" (${newPageId}, blank). Use writePage to add content.`;
       },
@@ -335,6 +359,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           .run(pageId, docId);
 
         if (result.changes === 0) throw new Error(`Page "${pageId}" not found`);
+
+        mutationEmitter.emit('mutation', {
+          type: 'page',
+          action: 'delete',
+          workspaceName: workspace,
+          docId,
+        });
 
         return `Deleted ${pageId}`;
       },
@@ -376,6 +407,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         if (result.changes === 0) {
           throw new Error(`Page "${pageId}" not found in document "${docId}"`);
         }
+
+        mutationEmitter.emit('mutation', {
+          type: 'page',
+          action: 'updateDetails',
+          workspaceName: workspace,
+          docId,
+        });
 
         const updated = [name && 'name', description && 'description']
           .filter(Boolean)
@@ -448,6 +486,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           "UPDATE pages SET position = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
         ).run(newPosition, pageId, docId);
 
+        mutationEmitter.emit('mutation', {
+          type: 'page',
+          action: 'move',
+          workspaceName: workspace,
+          docId,
+        });
+
         return `Moved ${pageId} ${position} ${targetPageId}`;
       },
     }),
@@ -474,6 +519,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         if (result.changes === 0) {
           throw new Error(`Document "${docId}" not found`);
         }
+
+        mutationEmitter.emit('mutation', {
+          type: 'document',
+          action: 'updateDescription',
+          workspaceName: workspace,
+          docId,
+        });
 
         return 'Updated document description.';
       },
@@ -689,6 +741,12 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           .prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1")
           .run(content);
 
+        mutationEmitter.emit('mutation', {
+          type: 'css',
+          action: 'write',
+          workspaceName: workspace,
+        });
+
         const lineCount = content.split('\n').length;
         return `Wrote styles.css (${lineCount} lines)`;
       },
@@ -719,6 +777,8 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         db()
           .prepare("UPDATE styles SET css = ?, updated_at = datetime('now') WHERE id = 1")
           .run(updated);
+
+        mutationEmitter.emit('mutation', { type: 'css', action: 'edit', workspaceName: workspace });
 
         return 'Edited styles.css';
       },
@@ -798,6 +858,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           "UPDATE documents SET size_preset = ?, size_width = ?, size_height = ?, size_unit = ?, updated_at = datetime('now') WHERE id = ?",
         ).run(size, dimensions.width, dimensions.height, dimensions.unit, docId);
 
+        mutationEmitter.emit('mutation', {
+          type: 'document',
+          action: 'updateSize',
+          workspaceName: workspace,
+          docId,
+        });
+
         return `Changed "${doc.title}" to ${size} (${dimensions.width}×${dimensions.height} ${dimensions.unit}).`;
       },
     }),
@@ -819,6 +886,12 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
       }),
       execute: async ({ title, size, folder }) => {
         const docId = await createDocumentFn(workspace, title, size, folder);
+        mutationEmitter.emit('mutation', {
+          type: 'document',
+          action: 'create',
+          workspaceName: workspace,
+          docId,
+        });
         const folderNote = folder ? ` in "${folder}"` : '';
         return `Created "${title}"${folderNote} (${docId}, ${size}). The document is empty — open it to start adding pages.`;
       },
@@ -856,6 +929,12 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         }
 
         d.prepare('DELETE FROM documents WHERE id = ?').run(docId);
+        mutationEmitter.emit('mutation', {
+          type: 'document',
+          action: 'delete',
+          workspaceName: workspace,
+          docId,
+        });
         return `Deleted "${doc.title}" and its ${actual.count} pages.`;
       },
     }),
@@ -879,6 +958,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           title,
           docId,
         );
+
+        mutationEmitter.emit('mutation', {
+          type: 'document',
+          action: 'rename',
+          workspaceName: workspace,
+          docId,
+        });
 
         return `Renamed "${doc.title}" → "${title}"`;
       },
@@ -910,6 +996,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           docId,
         );
 
+        mutationEmitter.emit('mutation', {
+          type: 'document',
+          action: 'move',
+          workspaceName: workspace,
+          docId,
+        });
+
         if (!normalizedFolder) {
           return `Moved "${doc.title}" out of "${doc.folder}" to ungrouped.`;
         }
@@ -932,6 +1025,13 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         if (!doc) throw new Error(`Document "${docId}" not found`);
 
         const newDocId = await duplicateDocumentFn(workspace, docId);
+
+        mutationEmitter.emit('mutation', {
+          type: 'document',
+          action: 'duplicate',
+          workspaceName: workspace,
+          docId: newDocId,
+        });
 
         const pageCount = d
           .prepare('SELECT COUNT(*) as count FROM pages WHERE document_id = ?')

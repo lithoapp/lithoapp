@@ -52,27 +52,6 @@ export interface UseChatV2Return {
   clearConversation: () => Promise<void>;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const MUTATING_TOOLS = new Set([
-  'writePage',
-  'editPage',
-  'createPage',
-  'deletePage',
-  'updatePageDetails',
-  'movePage',
-  'writeMainCss',
-  'editMainCss',
-  'createDocument',
-  'deleteDocument',
-  'renameDocument',
-  'moveDocumentToFolder',
-  'duplicateDocument',
-  'updateDocumentDescription',
-]);
-
 function generateMessageId(): string {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 }
@@ -347,10 +326,6 @@ export function useChatV2({
             toolPart.output = event.output;
           }
           setStreamingParts([...streamingPartsRef.current]);
-
-          if (MUTATING_TOOLS.has(toolName)) {
-            onToolCompleteRef.current?.(toolName, args);
-          }
           break;
         }
         case 'finish': {

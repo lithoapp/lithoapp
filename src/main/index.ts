@@ -55,6 +55,8 @@ import {
 import { DocumentExporter, exportPage } from './exporter';
 import { buildExportFileName } from './exporter/export-filename';
 import { captureFeedbackScreenshot } from './feedback';
+import { startMcpServer, stopMcpServer } from './mcp-server';
+import { mutationEmitter } from './mutation-emitter';
 import { buildAllTemplatePreviews, buildPage } from './renderer';
 import { compileTailwind, formatCssError } from './renderer/build-shared';
 import { initSentry, syncSentryUserProfile } from './sentry';
@@ -93,7 +95,6 @@ import {
   updateDocumentFolder,
   updateWorkspaceLastOpened,
 } from './workspace-data';
-import { startMcpServer, stopMcpServer } from './mcp-server';
 import { getWorkspaceEntry } from './workspace-data/registry-db';
 import { resolveWorkspacePath } from './workspace-paths';
 
@@ -393,6 +394,13 @@ ipcMain.handle('shell:showItemInFolder', (_event, filePath: string) => {
 documentExporter.on('progress', (data) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('export:progress', data);
+  }
+});
+
+// Forward workspace mutation events to renderer
+mutationEmitter.on('mutation', (event) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('workspace:mutation', event);
   }
 });
 

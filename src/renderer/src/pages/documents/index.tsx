@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { extractIpcErrorMessage } from '@/lib/ipc-error';
 import type { ChatDocumentLabelContext } from '@/components/chat/message-tool-labels';
 import { WorkspaceChat } from '@/components/chat/workspace-chat';
 import {
@@ -35,6 +34,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { extractIpcErrorMessage } from '@/lib/ipc-error';
 import { cn } from '@/lib/utils';
 import { isValidHexColor } from '../../../../shared/color-utils';
 import {
@@ -392,19 +392,6 @@ export function DocumentsPage({
       />
     );
   }
-
-  const handleToolComplete = (tool: string, _args: Record<string, unknown>) => {
-    if (
-      tool === 'createDocument' ||
-      tool === 'deleteDocument' ||
-      tool === 'renameDocument' ||
-      tool === 'moveDocumentToFolder' ||
-      tool === 'duplicateDocument' ||
-      tool === 'updateDocumentDescription'
-    ) {
-      void refetch();
-    }
-  };
 
   return (
     <ResizablePanelGroup orientation="horizontal" className="h-full">
@@ -866,7 +853,6 @@ export function DocumentsPage({
           workspaceName={workspaceName}
           workspaceTitle={workspaceTitle}
           documents={chatDocuments}
-          onToolComplete={handleToolComplete}
           onBusyChange={onAgentBusyChange}
           onLeaveRequestChange={onAgentLeaveRequestChange}
         />

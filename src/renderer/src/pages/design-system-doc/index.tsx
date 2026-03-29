@@ -7,8 +7,6 @@ import { type PostTurnValidator, usePostTurnDiagnostics } from '@/hooks/use-post
 import type { DocumentConfig, DocumentInfo } from '../../../../shared/types';
 import { DocumentPage } from '../document';
 
-const REBUILD_ALL_ON_TOOLS = ['writeMainCss', 'editMainCss'];
-
 interface DesignSystemDocPageProps {
   workspaceName: string;
   workspaceTitle?: string;
@@ -98,6 +96,14 @@ export function DesignSystemDocPage({
     })();
   }, [workspaceName]);
 
+  // Subscribe to CSS mutations for external MCP client updates.
+  useEffect(() => {
+    return window.litho.workspace.onMutation((event) => {
+      if (event.workspaceName !== workspaceName) return;
+      if (event.type === 'css') onDesignSystemChange?.();
+    });
+  }, [workspaceName, onDesignSystemChange]);
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -128,7 +134,6 @@ export function DesignSystemDocPage({
       workspaceName={workspaceName}
       workspaceTitle={workspaceTitle}
       onBack={onBack}
-      rebuildAllOnTools={REBUILD_ALL_ON_TOOLS}
       refetchDocOnPageChange
       renderChat={({
         workspaceName: wsName,
@@ -146,7 +151,7 @@ export function DesignSystemDocPage({
           onToolComplete={(tool, args) => {
             onToolComplete(tool, args);
             diagnosticToolComplete(tool, args);
-            if (REBUILD_ALL_ON_TOOLS.includes(tool) || tool === '__revert__') {
+            if (tool === '__revert__') {
               onDesignSystemChange?.();
             }
           }}

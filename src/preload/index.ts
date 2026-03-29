@@ -62,6 +62,11 @@ contextBridge.exposeInMainWorld('litho', {
       ipcRenderer.invoke('workspace:getDesignSystemDocId', name),
     getDesignSystemDocInfo: (name: string): Promise<unknown> =>
       ipcRenderer.invoke('workspace:getDesignSystemDocInfo', name),
+    onMutation: (callback: (data: unknown) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data);
+      ipcRenderer.on('workspace:mutation', listener);
+      return () => ipcRenderer.removeListener('workspace:mutation', listener);
+    },
   },
   document: {
     list: (workspaceName: string): Promise<unknown> =>

@@ -153,6 +153,19 @@ function App(): React.JSX.Element {
   }, [workspaceName, loadDocuments]);
 
   useEffect(() => {
+    return window.litho.workspace.onMutation((event) => {
+      if (event.workspaceName !== workspaceName) return;
+      // Document mutations and page structure changes (create/delete/move/updateDetails)
+      // both affect what loadDocuments() returns (DocumentInfo includes pages array).
+      if (event.type === 'document') {
+        void loadDocuments();
+      } else if (event.type === 'page') {
+        void loadDocuments();
+      }
+    });
+  }, [workspaceName, loadDocuments]);
+
+  useEffect(() => {
     if (userProfile) {
       syncRendererSentryUser(userProfile);
     }
