@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import { basename, join } from 'node:path';
@@ -79,6 +79,81 @@ function detectBadAssetPath(source: string): string | null {
     `Use @assets/${filename} for workspace assets or @assets/documents/<docId>/${filename} for document assets. ` +
     `The @assets/ prefix is required — it maps to the workspace asset directory at build time.`
   );
+}
+
+/**
+ * Extract image references from page source for validation.
+ * Catches `<img src="...">`, `<source src="...">`, CSS `url(...)`,
+ * and JSX `backgroundImage: 'url(...)'` patterns.
+ */
+function extractImageRefs(source: string): { assetRefs: string[]; externalUrls: string[] } {
+  const assetRefs = new Set<string>();
+  const externalUrls = new Set<string>();
+
+  // src="..." attributes (img, source, video, etc.)
+  const srcRe = /\bsrc=["']([^"']+)["']/g;
+  // CSS url(...) — with or without quotes
+  const urlRe = /\burl\(["']?([^"')]+)["']?\)/g;
+
+  for (const re of [srcRe, urlRe]) {
+    for (const match of source.matchAll(re)) {
+      const ref = match[1].trim();
+      if (ref.startsWith('@assets/')) {
+        assetRefs.add(ref);
+      } else if (ref.startsWith('https://') || ref.startsWith('http://')) {
+        externalUrls.add(ref);
+      }
+    }
+  }
+
+  return { assetRefs: [...assetRefs], externalUrls: [...externalUrls] };
+}
+
+/**
+ * Validate that all image references in page source resolve.
+ * - `@assets/` refs must point to existing files on disk.
+ * - External URLs must be well-formed.
+ * Returns an error string if validation fails, null otherwise.
+ */
+function validateImageRefs(source: string, workspacePath: string): string | null {
+  const { assetRefs, externalUrls } = extractImageRefs(source);
+
+  const missingAssets: string[] = [];
+  for (const ref of assetRefs) {
+    const relativePath = ref.slice('@assets/'.length);
+    const absPath = join(workspacePath, 'assets', relativePath);
+    if (!existsSync(absPath)) {
+      missingAssets.push(ref);
+    }
+  }
+
+  if (missingAssets.length > 0) {
+    return (
+      `Page not saved — referenced assets not found:\n` +
+      missingAssets.map((r) => `  - ${r}`).join('\n') +
+      `\n\nUpload the missing assets first, or fix the references. ` +
+      `Use listWorkspaceAssets or listDocumentAssets to see available files.`
+    );
+  }
+
+  const malformedUrls: string[] = [];
+  for (const url of externalUrls) {
+    try {
+      new URL(url);
+    } catch {
+      malformedUrls.push(url);
+    }
+  }
+
+  if (malformedUrls.length > 0) {
+    return (
+      `Page not saved — malformed external URLs:\n` +
+      malformedUrls.map((u) => `  - ${u}`).join('\n') +
+      `\n\nFix the URLs to be valid absolute URLs (e.g. https://example.com/image.png).`
+    );
+  }
+
+  return null;
 }
 
 function formatAssetMetadata(entry: {
@@ -206,6 +281,10 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
         const badAsset = detectBadAssetPath(content);
         if (badAsset) return badAsset;
 
+        const wsPath = resolveWorkspacePath(workspace);
+        const badRefs = validateImageRefs(content, wsPath);
+        if (badRefs) return badRefs;
+
         const result = db()
           .prepare(
             "UPDATE pages SET source = ?, updated_at = datetime('now') WHERE id = ? AND document_id = ?",
@@ -269,6 +348,10 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
 
         const badAsset = detectBadAssetPath(updated);
         if (badAsset) return badAsset;
+
+        const wsPath = resolveWorkspacePath(workspace);
+        const badRefs = validateImageRefs(updated, wsPath);
+        if (badRefs) return badRefs;
 
         db()
           .prepare(
