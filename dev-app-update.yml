@@ -1,2 +1,3 @@
 provider: generic
 url: https://releases-api.lithoapp.com/v1/updates/
+channel: latest
