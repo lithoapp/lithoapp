@@ -4,29 +4,15 @@ import { getOAuthConfig, getProviderInfo } from './models-cache';
 export function getAuthMethods(providerId: string): AuthMethod[] {
   const oauthConfig = getOAuthConfig(providerId);
 
+  if (providerId === 'anthropic') {
+    return [{ type: 'api', label: 'API Key' }];
+  }
+
   if (providerId === 'openai') {
     return [
       {
         type: 'oauth',
         label: 'ChatGPT Pro/Plus (browser)',
-        ...(oauthConfig && { oauth: oauthConfig }),
-      },
-      { type: 'api', label: 'API Key' },
-    ];
-  }
-
-  if (providerId === 'anthropic') {
-    return [
-      {
-        type: 'oauth',
-        id: 'anthropic-max',
-        label: 'Claude Pro/Max',
-        ...(oauthConfig && { oauth: oauthConfig }),
-      },
-      {
-        type: 'oauth',
-        id: 'anthropic-console',
-        label: 'Create an API Key (via OAuth)',
         ...(oauthConfig && { oauth: oauthConfig }),
       },
       { type: 'api', label: 'API Key' },

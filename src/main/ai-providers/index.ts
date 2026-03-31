@@ -1,6 +1,5 @@
 import { abortChat, startChat } from './chat/run-chat';
 import { ensureAiTables } from './db';
-import { completeAnthropicOAuth, startAnthropicOAuth } from './oauth/anthropic';
 import { completeOpenAIOAuth, startOpenAIOAuth } from './oauth/openai-flow';
 import { getAuthMethods } from './providers/auth-methods';
 import {
@@ -73,13 +72,6 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
 
   ipcMain.handle('ai-provider:start-oauth', async (_event, providerId: string, mode?: string) => {
     await waitForModelsReady();
-    if (providerId === 'anthropic') {
-      const clientId = getOAuthConfig('anthropic')?.clientId;
-      if (!clientId) throw new Error('Anthropic OAuth client ID not configured');
-      const anthropicMode = mode?.includes('console') ? 'console' : 'max';
-      const { url, verifier } = await startAnthropicOAuth(anthropicMode, clientId);
-      return { url, verifier, method: 'code' as const };
-    }
     if (providerId === 'openai') {
       const clientId = getOAuthConfig('openai')?.clientId;
       if (!clientId) throw new Error('OpenAI OAuth client ID not configured');
@@ -89,25 +81,13 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
     throw new Error(`OAuth is not supported for ${providerId}`);
   });
 
-  ipcMain.handle(
-    'ai-provider:complete-oauth',
-    async (_event, providerId: string, code?: string, verifier?: string, mode?: string) => {
-      await waitForModelsReady();
-      if (providerId === 'anthropic') {
-        if (!code || !verifier) {
-          throw new Error('Anthropic OAuth requires code and verifier');
-        }
-        const clientId = getOAuthConfig('anthropic')?.clientId;
-        if (!clientId) throw new Error('Anthropic OAuth client ID not configured');
-        const anthropicMode = mode?.includes('console') ? 'console' : 'max';
-        return completeAnthropicOAuth(code, verifier, anthropicMode, setCredential, clientId);
-      }
-      if (providerId === 'openai') {
-        return completeOpenAIOAuth(getCredential);
-      }
-      throw new Error(`OAuth is not supported for ${providerId}`);
-    },
-  );
+  ipcMain.handle('ai-provider:complete-oauth', async (_event, providerId: string) => {
+    await waitForModelsReady();
+    if (providerId === 'openai') {
+      return completeOpenAIOAuth(getCredential);
+    }
+    throw new Error(`OAuth is not supported for ${providerId}`);
+  });
 
   // --- Health check ---
 

@@ -24,7 +24,8 @@ export function useConnectFlow(
   authMethods: AuthMethod[],
   onConnected: () => void,
 ): ConnectFlowState {
-  const initialStep = authMethods.length === 0 ? 'api-key' : 'select';
+  const initialStep =
+    authMethods.length <= 1 && authMethods[0]?.type !== 'oauth' ? 'api-key' : 'select';
   const [step, setStep] = useState<'select' | 'api-key' | 'oauth-waiting' | 'oauth-code'>(
     initialStep,
   );

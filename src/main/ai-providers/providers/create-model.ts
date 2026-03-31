@@ -3,10 +3,9 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModel } from 'ai';
 import { createSseFilterFetch } from '../lib/sse-filter';
-import { createAnthropicFetchWrapper } from '../oauth/anthropic';
 import { createOpenAIFetchWrapper } from '../oauth/openai-fetch';
 import { CODEX_DEFAULT_MODEL, OAUTH_DUMMY_KEY } from '../oauth/openai-flow';
-import type { CredentialApi, CredentialOAuth } from '../types';
+import type { CredentialApi } from '../types';
 import { getCredential, setCredential } from './credential-store';
 import { getModelsCache, getOAuthConfig } from './models-cache';
 
@@ -51,24 +50,12 @@ export function createModel(providerId: string, modelId: string): LanguageModel 
     return provider.responses(modelId);
   }
 
-  if (providerId === 'anthropic' && cred.type === 'oauth') {
-    const clientId = getOAuthConfig('anthropic')?.clientId;
-    if (!clientId) throw new Error('Anthropic OAuth client ID not configured');
-    const wrapper = createAnthropicFetchWrapper(
-      cred as CredentialOAuth,
-      (c) => setCredential('anthropic', c),
-      clientId,
-    );
-    const provider = createAnthropic({
-      apiKey: 'oauth-placeholder',
-      fetch: wrapper,
-    });
-    return provider(modelId);
-  }
-
   if (providerId === 'anthropic') {
+    if (cred.type !== 'api') {
+      throw new Error('Anthropic only supports API key authentication');
+    }
     const provider = createAnthropic({
-      apiKey: (cred as CredentialApi).key,
+      apiKey: cred.key,
     });
     return provider(modelId);
   }
