@@ -115,7 +115,7 @@ litho-lab                           lithoapp (headless)
   │── provider.setCredential ──────▶│  one per provider you'll use
   │◀─── {} ──────────────────────────│
   │── workspace.create ─────────────▶│
-  │◀─── { workspaceId, path } ───────│
+  │◀─── { workspaceId, path, designSystemDocId } ──│
   │── document.create ──────────────▶│
   │◀─── { documentId } ──────────────│
   │── agent.run ────────────────────▶│  returns immediately
@@ -168,9 +168,9 @@ and refreshed at startup.
 
 | Method | Params | Result |
 |---|---|---|
-| `workspace.create` | `{ name: string, title?: string, templateId?: TemplateId }` | `{ workspaceId: string, path: string }` |
+| `workspace.create` | `{ name: string, title?: string, templateId?: TemplateId }` | `{ workspaceId: string, path: string, designSystemDocId: string }` |
 | `workspace.open` | `{ path: string }` | `{ workspaceId: string, title: string }` |
-| `workspace.list` | `{}` | `{ workspaces: WorkspaceInfo[] }` |
+| `workspace.list` | `{}` | `{ workspaces: WorkspaceInfo[] }` — each entry includes `designSystemDocId: string` |
 | `workspace.close` | `{ workspaceId: string }` | `{}` |
 | `workspace.delete` | `{ workspaceId: string }` | `{}` — closes the DB, removes the registry row, deletes the directory recursively |
 
@@ -185,6 +185,12 @@ Notes on `workspace.create`:
   returned from `initialize.templates`. Defaults to `'minimal'`. All
   templates work for agent runs — the choice affects the starting CSS
   tokens and design-system document pages only.
+- `designSystemDocId` — the workspace's design-system document, auto-created
+  by lithoapp at workspace creation time. Required as `documentId` when
+  calling `agent.run` with `agentId: 'design-system'`. Capture this from
+  `workspace.create` and reuse it across the workspace's lifetime. Also
+  available per-entry from `workspace.list` for cases where the create-time
+  value wasn't persisted.
 
 ### Documents
 
@@ -192,7 +198,7 @@ Notes on `workspace.create`:
 |---|---|---|
 | `document.create` | `{ workspaceId, title, size: PageSizeName \| PageSize, folder? }` | `{ documentId: string }` |
 | `document.updateSize` | `{ workspaceId, documentId, size }` | `{}` — throws if the document already has pages |
-| `document.list` | `{ workspaceId }` | `{ documents: DocumentInfo[] }` |
+| `document.list` | `{ workspaceId }` | `{ documents: DocumentInfo[] }` — includes both `'normal'` and `'design-system'` entries; use the `type` field to identify the design-system document |
 | `document.export` | `{ workspaceId, documentId, format: 'pdf'\|'png'\|'jpg', outputPath: string }` | `{ files: string[] }` |
 
 `size` accepts either a preset name (`'A4'`, `'Letter'`, ...) or an explicit
@@ -306,7 +312,7 @@ response of `"Hello."`.
 
 // → create isolated workspace
 {"jsonrpc":"2.0","id":3,"method":"workspace.create","params":{"name":"eval-run-42","title":"Eval Run 42","templateId":"minimal"}}
-// ← { workspaceId: "eval-run-42", path: "/tmp/litho-eval/eval-run-42" }
+// ← { workspaceId: "eval-run-42", path: "/tmp/litho-eval/eval-run-42", designSystemDocId: "..." }
 
 // → create document
 {"jsonrpc":"2.0","id":4,"method":"document.create","params":{"workspaceId":"eval-run-42","title":"Cover","size":"A4"}}

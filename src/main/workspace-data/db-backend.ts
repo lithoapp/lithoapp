@@ -236,12 +236,17 @@ export async function updateDocumentFolder(
   );
 }
 
-export async function listDocumentsFull(workspace: string): Promise<DocumentInfo[]> {
+export async function listDocumentsFull(
+  workspace: string,
+  { includeAllTypes = false }: { includeAllTypes?: boolean } = {},
+): Promise<DocumentInfo[]> {
   const db = getWorkspaceDb(workspace);
 
-  const docs = db
-    .prepare("SELECT * FROM documents WHERE type = 'normal' ORDER BY created_at")
-    .all() as Array<{
+  const sql = includeAllTypes
+    ? 'SELECT * FROM documents ORDER BY created_at'
+    : "SELECT * FROM documents WHERE type = 'normal' ORDER BY created_at";
+
+  const docs = db.prepare(sql).all() as Array<{
     id: string;
     title: string;
     type: string;

@@ -72,6 +72,6 @@ export async function handleDocumentList(params: {
   workspaceId: string;
 }): Promise<{ documents: unknown[] }> {
   assertWorkspaceNameSafe(params.workspaceId);
-  const documents = await listDocumentsFull(params.workspaceId);
+  const documents = await listDocumentsFull(params.workspaceId, { includeAllTypes: true });
   return { documents };
 }

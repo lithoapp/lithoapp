@@ -3,6 +3,7 @@ import {
   closeWorkspaceDb,
   createNewWorkspace,
   deleteWorkspace,
+  getDesignSystemDocId,
   listWorkspaces,
   updateWorkspaceLastOpened,
 } from '../../workspace-data';
@@ -28,6 +29,7 @@ export interface CreateWorkspaceParams {
 export interface CreateWorkspaceResult {
   workspaceId: string;
   path: string;
+  designSystemDocId: string;
 }
 
 export async function handleWorkspaceCreate(
@@ -42,7 +44,8 @@ export async function handleWorkspaceCreate(
     );
   }
   const slug = await createNewWorkspace(title, templateId);
-  return { workspaceId: slug, path: resolveWorkspacePath(slug) };
+  const designSystemDocId = (await getDesignSystemDocId(slug)) ?? '';
+  return { workspaceId: slug, path: resolveWorkspacePath(slug), designSystemDocId };
 }
 
 export interface OpenWorkspaceParams {
@@ -85,7 +88,13 @@ export async function handleWorkspaceOpen(params: OpenWorkspaceParams): Promise<
 
 export async function handleWorkspaceList(): Promise<{ workspaces: unknown[] }> {
   const workspaces = await listWorkspaces();
-  return { workspaces };
+  const enriched = await Promise.all(
+    workspaces.map(async (ws) => ({
+      ...ws,
+      designSystemDocId: (await getDesignSystemDocId(ws.slug)) ?? '',
+    })),
+  );
+  return { workspaces: enriched };
 }
 
 export async function handleWorkspaceClose(params: {
