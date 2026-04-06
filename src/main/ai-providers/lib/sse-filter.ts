@@ -7,9 +7,11 @@
 // field — matching how OpenCode's Zen proxy handles these server-side.
 // ---------------------------------------------------------------------------
 
-export function createSseFilterFetch(): typeof globalThis.fetch {
+export function createSseFilterFetch(
+  inner: typeof globalThis.fetch = globalThis.fetch,
+): typeof globalThis.fetch {
   return async (input: RequestInfo | URL, init?: RequestInit) => {
-    const response = await globalThis.fetch(input, init);
+    const response = await inner(input, init);
 
     const contentType = response.headers.get('content-type') ?? '';
     if (!contentType.includes('text/event-stream') || !response.body) {

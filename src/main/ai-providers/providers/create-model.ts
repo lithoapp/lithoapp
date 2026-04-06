@@ -2,6 +2,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModel } from 'ai';
+import { createDiagnosticFetch } from '../lib/diagnostic-fetch';
 import { createSseFilterFetch } from '../lib/sse-filter';
 import { createOpenAIFetchWrapper } from '../oauth/openai-fetch';
 import { CODEX_DEFAULT_MODEL, OAUTH_DUMMY_KEY } from '../oauth/openai-flow';
@@ -38,15 +39,25 @@ export function createModel(providerId: string, modelId: string): LanguageModel 
   if (providerId === 'openai' && cred.type === 'oauth') {
     const clientId = getOAuthConfig('openai')?.clientId;
     if (!clientId) throw new Error('OpenAI OAuth client ID not configured');
-    const wrapper = createOpenAIFetchWrapper(cred, (c) => setCredential('openai', c), clientId);
-    const provider = createOpenAI({ apiKey: OAUTH_DUMMY_KEY, fetch: wrapper });
+    const oauthWrapper = createOpenAIFetchWrapper(
+      cred,
+      (c) => setCredential('openai', c),
+      clientId,
+    );
+    const provider = createOpenAI({
+      apiKey: OAUTH_DUMMY_KEY,
+      fetch: createDiagnosticFetch(oauthWrapper),
+    });
     const fallback = CODEX_DEFAULT_MODEL;
     const selected = modelId || fallback;
     return provider.responses(selected);
   }
 
   if (providerId === 'openai') {
-    const provider = createOpenAI({ apiKey: (cred as CredentialApi).key });
+    const provider = createOpenAI({
+      apiKey: (cred as CredentialApi).key,
+      fetch: createDiagnosticFetch(),
+    });
     return provider.responses(modelId);
   }
 
@@ -56,6 +67,7 @@ export function createModel(providerId: string, modelId: string): LanguageModel 
     }
     const provider = createAnthropic({
       apiKey: cred.key,
+      fetch: createDiagnosticFetch(),
     });
     return provider(modelId);
   }
@@ -69,7 +81,7 @@ export function createModel(providerId: string, modelId: string): LanguageModel 
     name: routingProviderId,
     baseURL,
     apiKey: (cred as CredentialApi).key,
-    fetch: createSseFilterFetch(),
+    fetch: createSseFilterFetch(createDiagnosticFetch()),
   });
   return provider(modelId);
 }

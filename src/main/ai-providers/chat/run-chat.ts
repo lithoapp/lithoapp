@@ -180,6 +180,7 @@ async function runStepLoop(
     cacheWriteTokens: 0,
   };
   let streamErrorEmitted = false;
+  let prevFinishReason = 'none';
 
   // Track current step's streamed content so we can recover it on abort.
   // These are reset at the start of each step and used in the AbortError catch.
@@ -226,6 +227,17 @@ async function runStepLoop(
       }
       const providerOptions = buildProviderOptions(providerId, modelId, extra);
 
+      const stepStartTs = Date.now();
+      const approxTokens = safeMsgs.reduce((sum, m) => {
+        const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+        return sum + Math.ceil(content.length / 4);
+      }, 0);
+      console.log(
+        `  [step-request] step=${step + 1} provider=${providerId} model=${modelId} ` +
+          `msgs=${safeMsgs.length} approxTokens=${approxTokens} sysLen=${systemPrompt.length} ` +
+          `tools=${Object.keys(tools).length} prevFinish=${prevFinishReason}`,
+      );
+
       const result = streamText({
         model,
         messages: safeMsgs,
@@ -257,10 +269,19 @@ async function runStepLoop(
       let textLength = 0;
       let stepFinishReason = 'unknown';
       let hadStreamError = false;
+      let firstEventTs: number | null = null;
+      let eventCount = 0;
 
       for await (const part of result.fullStream) {
         // biome-ignore lint/suspicious/noExplicitAny: stream part is a wide union
         const p = part as any;
+        if (firstEventTs === null) {
+          firstEventTs = Date.now();
+          console.log(
+            `  [step-ttfb] step=${step + 1} ttfbMs=${firstEventTs - stepStartTs} firstEventType=${p.type}`,
+          );
+        }
+        eventCount++;
 
         if (p.type === 'text-delta') {
           textLength += (p.text ?? '').length;
@@ -322,7 +343,11 @@ async function runStepLoop(
         }
       }
 
-      console.log(`    done — text=${textLength} tools=${hasToolCalls} finish=${stepFinishReason}`);
+      console.log(
+        `  [step-done] step=${step + 1} events=${eventCount} totalMs=${Date.now() - stepStartTs} ` +
+          `text=${textLength} tools=${hasToolCalls} finish=${stepFinishReason}`,
+      );
+      prevFinishReason = stepFinishReason;
 
       // If an in-stream error was emitted, stop the loop — the renderer
       // already received the error event.
