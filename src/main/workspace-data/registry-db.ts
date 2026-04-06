@@ -1,9 +1,7 @@
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname } from 'node:path';
 import Database from 'better-sqlite3';
-import { app } from 'electron';
-
-const REGISTRY_PATH = join(app.getPath('userData'), 'registry.db');
+import { getRegistryDbPath } from '../workspace-paths';
 
 let registryDb: Database.Database | null = null;
 
@@ -26,8 +24,9 @@ export interface WorkspaceRegistryEntry {
 function openRegistryDb(): Database.Database {
   if (registryDb) return registryDb;
 
-  mkdirSync(app.getPath('userData'), { recursive: true });
-  registryDb = new Database(REGISTRY_PATH);
+  const registryPath = getRegistryDbPath();
+  mkdirSync(dirname(registryPath), { recursive: true });
+  registryDb = new Database(registryPath);
   registryDb.pragma('journal_mode = WAL');
   registryDb.exec(SCHEMA_SQL);
 
@@ -67,6 +66,11 @@ export function updateWorkspaceLastOpened(slug: string): void {
 export function updateWorkspaceTitle(slug: string, title: string): void {
   const db = getRegistryDb();
   db.prepare('UPDATE workspaces SET title = ? WHERE slug = ?').run(title, slug);
+}
+
+export function deleteWorkspaceEntry(slug: string): void {
+  const db = getRegistryDb();
+  db.prepare('DELETE FROM workspaces WHERE slug = ?').run(slug);
 }
 
 export function getAllWorkspaceEntries(): Map<string, WorkspaceRegistryEntry> {

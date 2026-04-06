@@ -46,7 +46,9 @@ export function storedToModelMessages(messages: StoredMessage[]): ModelMessage[]
                   type: 'tool-result' as const,
                   toolCallId: p.toolCallId,
                   toolName: p.toolName,
-                  output: pruneIds.has(p.toolCallId) ? prunedOutput(p.toolName, p.output) : p.output,
+                  output: pruneIds.has(p.toolCallId)
+                    ? prunedOutput(p.toolName, p.output)
+                    : p.output,
                 };
               default:
                 throw new Error(`Unknown part type: ${(p as { type: string }).type}`);

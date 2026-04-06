@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { assertValidFolderName, assertValidPageSize } from '../../shared/document-validation';
 import type {
@@ -13,8 +13,8 @@ import type {
   StoredMessage,
   WorkspaceInfo,
 } from '../../shared/types';
-import { resolveWorkspacePath, WORKSPACES_BASE } from '../workspace-paths';
-import { generateId, getWorkspaceDb } from './db';
+import { getWorkspacesBase, resolveWorkspacePath } from '../workspace-paths';
+import { closeWorkspaceDb, generateId, getWorkspaceDb } from './db';
 import {
   DEFAULT_TEMPLATE_ID,
   getTemplateStyles,
@@ -24,6 +24,7 @@ import {
 import { categorizeTokens, parseThemeBlock, slugify } from './design-system-parser';
 import {
   createWorkspaceEntry,
+  deleteWorkspaceEntry,
   getAllWorkspaceEntries,
   updateWorkspaceLastOpened as updateRegistryLastOpened,
 } from './registry-db';
@@ -33,9 +34,10 @@ import {
 // ---------------------------------------------------------------------------
 
 export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
-  if (!existsSync(WORKSPACES_BASE)) return [];
+  const base = getWorkspacesBase();
+  if (!existsSync(base)) return [];
 
-  const slugs = readdirSync(WORKSPACES_BASE, { withFileTypes: true })
+  const slugs = readdirSync(base, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
 
@@ -88,6 +90,19 @@ export async function createNewWorkspace(
   createWorkspaceEntry(slug, title);
 
   return slug;
+}
+
+export async function deleteWorkspace(slug: string): Promise<void> {
+  // resolveWorkspacePath throws an -32602 invalid-params error if `slug`
+  // tries to escape the workspaces root. That's the single chokepoint; we
+  // don't need a separate guard here.
+  const target = resolveWorkspacePath(slug);
+
+  closeWorkspaceDb(slug);
+  deleteWorkspaceEntry(slug);
+  if (existsSync(target)) {
+    rmSync(target, { recursive: true, force: true });
+  }
 }
 
 export function updateWorkspaceLastOpened(slug: string): void {

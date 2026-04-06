@@ -1380,9 +1380,7 @@ export function createLithoTools(workspace: string, agentId: AgentId) {
           savePath: '',
         });
         const base64 = buffer.toString('base64');
-        console.log(
-          `[viewPage] page=${pageId} raw=${buffer.length}B base64=${base64.length}B`,
-        );
+        console.log(`[viewPage] page=${pageId} raw=${buffer.length}B base64=${base64.length}B`);
         return {
           type: 'content' as const,
           value: [{ type: 'media' as const, data: base64, mediaType: 'image/jpeg' }],

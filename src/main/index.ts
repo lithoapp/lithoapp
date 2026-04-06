@@ -13,6 +13,25 @@ if (existsSync(unpackedEsbuild)) {
   process.env.ESBUILD_BINARY_PATH = unpackedEsbuild;
 }
 
+// ---------------------------------------------------------------------------
+// Parse CLI flags BEFORE any workspace/db module loads, so storage root
+// overrides take effect before the first registry.db / workspace.db is opened.
+// ---------------------------------------------------------------------------
+import { setWorkspacesRootOverride } from './workspace-paths';
+
+const headlessArgv = process.argv.slice(2);
+const isHeadless = headlessArgv.includes('--headless');
+function argFlag(name: string): string | undefined {
+  const idx = headlessArgv.indexOf(name);
+  if (idx >= 0 && headlessArgv[idx + 1]) return headlessArgv[idx + 1];
+  return undefined;
+}
+{
+  const wsRoot = argFlag('--workspaces-root');
+  if (wsRoot) setWorkspacesRootOverride(wsRoot);
+}
+const headlessLogLevel = (argFlag('--log-level') ?? 'info') as 'debug' | 'info' | 'warn' | 'error';
+
 import {
   app,
   BrowserWindow,
@@ -416,6 +435,14 @@ nativeTheme.on('updated', () => {
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.lithoapp.litho');
 
+  // Headless mode: boot the JSON-RPC dispatcher on stdio and skip all
+  // window/MCP/auto-updater setup. Used by the litho-lab eval harness.
+  if (isHeadless) {
+    const { startHeadless } = await import('./headless');
+    await startHeadless({ logLevel: headlessLogLevel });
+    return;
+  }
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window);
   });
@@ -451,6 +478,9 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  // In headless mode there are no windows; shutdown is driven by stdin
+  // close or an explicit `shutdown` RPC call instead.
+  if (isHeadless) return;
   if (process.platform !== 'darwin') {
     app.quit();
   }

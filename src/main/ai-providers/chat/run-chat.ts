@@ -63,6 +63,21 @@ export function startChat(params: ChatStartParams, emit: Emit): string {
       `agent=${params.agentId} | tools=${toolNames.length} | msgs=${params.messages.length}`,
   );
 
+  // Emit a run-start event so headless consumers (and any future debug view)
+  // can faithfully replay what the agent saw: rendered system + kickoff prompts,
+  // the agentContext used to render them, and the primary user message.
+  emit('chat:delta', chatId, {
+    type: 'run-start',
+    agentId: params.agentId,
+    providerId: params.providerId,
+    modelId: params.modelId,
+    systemPromptRendered: systemPrompt,
+    kickoffPromptRendered: params.kickoffMessage ?? null,
+    agentContext: params.agentContext,
+    userMessage: params.userMessage ?? '',
+    startedAt: new Date().toISOString(),
+  } satisfies ChatStreamEvent);
+
   void runStepLoop(
     chatId,
     model,
@@ -279,6 +294,20 @@ async function runStepLoop(
           // biome-ignore lint/suspicious/noExplicitAny: providerMetadata shape varies by provider
           const meta = (p as any).providerMetadata;
           turnUsage.cacheWriteTokens = (meta?.anthropic?.cacheCreationInputTokens as number) ?? 0;
+
+          // Emit per-step usage snapshot so external harnesses can track
+          // cost/tokens at each step rather than only at the end of the turn.
+          emit('chat:delta', chatId, {
+            type: 'step-usage',
+            step: step + 1,
+            usage: {
+              inputTokens: turnUsage.inputTokens,
+              outputTokens: turnUsage.outputTokens,
+              reasoningTokens: turnUsage.reasoningTokens,
+              cacheReadTokens: turnUsage.cacheReadTokens,
+              cacheWriteTokens: turnUsage.cacheWriteTokens,
+            },
+          } satisfies ChatStreamEvent);
         } else if (p.type === 'error') {
           hadStreamError = true;
         }

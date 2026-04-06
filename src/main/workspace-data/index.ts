@@ -12,6 +12,7 @@ export {
   createNewWorkspace,
   createSnapshot,
   deleteDocument,
+  deleteWorkspace,
   duplicateDocument,
   getDesignSystemDocId,
   getDesignSystemDocInfo,

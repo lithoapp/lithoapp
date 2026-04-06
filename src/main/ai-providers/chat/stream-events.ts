@@ -1,4 +1,4 @@
-import type { ChatErrorType, StoredMessage } from '../../../shared/types';
+import type { AgentContext, AgentId, ChatErrorType, StoredMessage } from '../../../shared/types';
 import { parseError } from '../lib/parse-error';
 
 export type { ChatErrorType };
@@ -7,11 +7,31 @@ export type { ChatErrorType };
 // Chat stream event types (emitted to renderer via IPC)
 // ---------------------------------------------------------------------------
 
+export interface StepUsage {
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
 export type ChatStreamEvent =
+  | {
+      type: 'run-start';
+      agentId: AgentId;
+      providerId: string;
+      modelId: string;
+      systemPromptRendered: string;
+      kickoffPromptRendered: string | null;
+      agentContext: AgentContext;
+      userMessage: string;
+      startedAt: string;
+    }
   | { type: 'text-delta'; text: string }
   | { type: 'reasoning-delta'; text: string }
   | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown }
   | { type: 'tool-result'; toolCallId: string; toolName: string; output: unknown }
+  | { type: 'step-usage'; step: number; usage: StepUsage }
   | { type: 'source'; source: unknown }
   | { type: 'error'; errorType: ChatErrorType; message: string; retryAfter?: number }
   | {

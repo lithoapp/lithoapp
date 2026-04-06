@@ -20,13 +20,14 @@ pnpm build:mcp-wrapper    # Bundle MCP stdio wrapper + platform launchers
 
 ### Main Process (`src/main/`)
 
-- `index.ts` — Window creation, IPC handlers, `litho-asset://` custom protocol, app lifecycle
+- `index.ts` — Window creation, IPC handlers, `litho-asset://` custom protocol, app lifecycle. Top-level argv parsing: `--headless`, `--workspaces-root <path>`, `--log-level` (see Headless Architecture below).
 - `mcp-server.ts` — MCP server for external AI clients (see MCP Architecture below)
+- `headless/` — JSON-RPC 2.0 over stdio entrypoint for external eval harnesses (see Headless Architecture below)
 - `ai-providers/` — AI SDK integration (see AI Architecture below)
 - `renderer/` — Offline build pipeline (TSX + Tailwind → HTML): `build-csr.ts`, `build-ssr.ts`, `build-shared.ts`, `detect-approach.ts`, `loc-plugin.ts` (Babel-based `data-litho-loc` injection for edit mode), `editor-script.ts` (iframe interaction script for visual editing)
 - `exporter/` — Export capture & assembly: `export-page.ts` (hidden BrowserWindow → PDF/PNG/JPG buffer), `document-exporter.ts` (multi-page orchestrator), `batch-export.ts` (CLI batch entry point)
 - `workspace-data/` — SQLite-backed data layer: `db.ts` (connection pool, schema v5, migrations), `db-backend.ts` (CRUD operations), `registry-db.ts` (global workspace registry), `design-system-parser.ts` (CSS token extraction), `design-system-pages.ts` (template page definitions), `export-source.ts` (workspace ZIP export), `templates/` (Mustache templates for design system pages)
-- `workspace-paths.ts` — Resolves workspace name → `{userData}/workspaces/<name>`
+- `workspace-paths.ts` — Resolves workspace name → `{userData}/workspaces/<name>`, or an explicit root set via `setWorkspacesRootOverride()` (headless `--workspaces-root` flag). `assertWorkspaceNameSafe()` is the single chokepoint for workspace-id path-traversal protection — called from `resolveWorkspacePath()` and from every headless handler that accepts a `workspaceId`. `getRegistryDbPath()` co-locates `registry.db` with the workspaces root under overrides, preserving the default `<userData>/registry.db` location otherwise.
 - `assets-manager.ts` — Workspace asset CRUD with path traversal protection
 - `auto-updater.ts` — electron-updater for GitHub releases
 - `feedback.ts` — App-window screenshot capture for in-app feedback attachments
@@ -38,9 +39,9 @@ pnpm build:mcp-wrapper    # Bundle MCP stdio wrapper + platform launchers
 Powered by Vercel AI SDK (`ai`, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/openai-compatible`). All AI logic runs in the main Electron process — no external server.
 
 - `index.ts` — Registers IPC handlers: `chat:start`, `chat:abort`, `conversation:load/save/clear`, `ai-provider:*`
-- `chat/run-chat.ts` — Streaming chat engine. `startChat()` → `runStepLoop()` (up to 50 tool-use steps) → AI SDK `streamText()` → emits `chat:delta` IPC events back to renderer
+- `chat/run-chat.ts` — Streaming chat engine. `startChat()` → `runStepLoop()` (up to 50 tool-use steps) → AI SDK `streamText()` → emits `chat:delta` IPC events back to renderer. Emits `run-start` at the top of every chat with the fully rendered system+kickoff prompts and `agentContext` used to render them, and `step-usage` at the end of every step. The in-app renderer ignores these additional event types.
 - `chat/message-mapping.ts` — Bidirectional conversion: `StoredMessage[]` ↔ AI SDK `ModelMessage[]`
-- `chat/stream-events.ts` — `ChatStreamEvent` union type (text-delta, reasoning-delta, tool-call, tool-result, finish, error)
+- `chat/stream-events.ts` — `ChatStreamEvent` union type (run-start, text-delta, reasoning-delta, tool-call, tool-result, step-usage, finish, error)
 - `chat/provider-options.ts` — Per-provider `streamText` options (prompt caching, reasoning config, etc.)
 - `agents/config.ts` — Agent definitions: tool allowlists, system/kickoff templates (Mustache)
 - `agents/litho-tools.ts` — AI SDK tools with Zod schemas, executed directly in main process. Mutating tools emit `WorkspaceMutationEvent` via `mutation-emitter.ts` after each successful write, which the renderer subscribes to for automatic refresh.
@@ -78,6 +79,16 @@ Exposes all litho-tools to external AI clients (Claude Desktop, Cursor, VS Code 
 - **Platform launchers** (`resources/bin/litho-mcp`, `resources/bin/litho-mcp.cmd`) — Shell/batch scripts that run the wrapper using `ELECTRON_RUN_AS_NODE=1` with the app's bundled Electron binary. No external Node.js dependency required.
 - **Build** — `pnpm build:mcp-wrapper` (runs automatically via `prebuild` hook). See `scripts/build-mcp-wrapper.mjs`.
 - **Setup guide** — `docs/mcp-setup.md`
+
+### Headless Architecture (`src/main/headless/`)
+
+JSON-RPC 2.0 over stdio entrypoint for external eval harnesses (primarily `litho-lab`, a separate repo). Launched by passing `--headless` to the main bundle. One process per invocation; exits on stdin close or `shutdown` RPC. Distinct from MCP: MCP exposes tools to AI clients, headless exposes lifecycle + chat + export for automated evaluation.
+
+- **Transport** (`json-rpc.ts`) — newline-delimited JSON-RPC 2.0 dispatcher. stdin = requests, stdout = responses + notifications (nothing else ever goes there), stderr = structured logs. Requests processed in stdin order via a promise chain queue (not fire-and-forget) so stateful sequences like `provider.setCredential` → `agent.run` observe consistent state. Error envelopes honor a `code` property on thrown errors: `-32602` (invalid params) or `-32603` (internal error); validation failures do not leak stack traces.
+- **Bootstrap** (`index.ts`) — called from `app.whenReady()` when `--headless` is passed. Skips window creation, MCP server, auto-updater, and `litho-asset://` protocol. Waits for the models cache to be ready, then registers every RPC handler and starts the dispatcher. Intercepts `console.log/warn/error` via `logger.ts` so stray output from dependencies never pollutes stdout.
+- **Services** (`services/`) — thin adapters over existing main-process modules. `workspace-service.ts`, `document-service.ts`, `export-service.ts`, `provider-service.ts`, and `agent-service.ts` all call `assertWorkspaceNameSafe` at the top of every workspaceId-accepting handler. The agent service wires `startChat()`'s `emit` callback to `run.*` JSON-RPC notifications, prepending turn-input messages to `run.finish.messages` so clients receive the full turn (input + assistant/tool output).
+- **Storage isolation** — the `--workspaces-root <path>` flag redirects both the workspaces directory and `registry.db` into the given root, keeping eval runs fully isolated from the developer's installed app. `autoConnectProviders()` still runs on startup, so `free` is auto-connected on fresh roots; all other providers require `provider.setCredential`.
+- **Protocol reference** — `docs/headless-protocol.md` is the canonical integration guide for litho-lab and documents every request/notification, error code, and stability guarantee.
 
 ### Preload (`src/preload/`)
 
@@ -118,9 +129,9 @@ Sandbox enabled, context isolation, no nodeIntegration, CSP headers. Assets serv
 
 ### Two-Database Architecture (SQLite via better-sqlite3)
 
-**Registry database** (`{userData}/workspaces/registry.db`) — Global workspace list. Single `workspaces` table: slug, title, created_at, last_opened_at.
+**Registry database** (`{userData}/registry.db` by default, or `<workspacesRoot>/registry.db` when `--workspaces-root` is set) — Global workspace list. Single `workspaces` table: slug, title, created_at, last_opened_at. Also hosts `ai_credentials`, `ai_models_cache`, `ai_models_dev_cache`.
 
-**Workspace database** (`{userData}/workspaces/<slug>/workspace.db`) — Per-workspace data. Schema v6:
+**Workspace database** (`{userData}/workspaces/<slug>/workspace.db` by default, or `<workspacesRoot>/<slug>/workspace.db` under override) — Per-workspace data. Schema v6:
 - `documents` — id, title, type (`normal`|`design-system`), folder, size (preset/width/height/unit), position
 - `pages` — id, document_id (FK cascade), name, description, source (TSX), position
 - `pages_fts` — FTS5 virtual table on page source, auto-synced via triggers

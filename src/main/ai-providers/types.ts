@@ -131,4 +131,17 @@ export interface ChatStartParams {
   agentId: AgentId;
   agentContext: AgentContext;
   workspaceName: string;
+  /**
+   * Pre-rendered kickoff prompt. The in-app renderer passes the kickoff
+   * as a regular user message (so it doesn't set this). The headless
+   * dispatcher renders the kickoff template itself and passes it here
+   * so that `run-start` can report exactly what the agent saw.
+   */
+  kickoffMessage?: string;
+  /**
+   * Primary user message string for the run (used for `run-start` metadata
+   * in headless mode). For the in-app renderer this is derived from
+   * `messages` and left undefined here.
+   */
+  userMessage?: string;
 }
