@@ -117,6 +117,28 @@ function buildPartialStepMessages(
 }
 
 // ---------------------------------------------------------------------------
+// Race a promise against an AbortSignal so we never hang indefinitely
+// ---------------------------------------------------------------------------
+
+function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (v) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(v);
+      },
+      (e) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(e);
+      },
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Step loop — continues even after text-only responses (like OpenCode)
 // ---------------------------------------------------------------------------
 
@@ -282,8 +304,10 @@ async function runStepLoop(
       // tracked and will be included via buildPartialStepMessages below.
       if (controller.signal.aborted) break;
 
-      // Collect response messages from this step
-      const response = await result.response;
+      // Collect response messages from this step.
+      // Race against abort signal — some providers hang on result.response
+      // even after the stream ends, which blocks the entire step loop.
+      const response = await raceAbort(result.response, controller.signal);
       const stepMessages = response.messages as ResponseMessage[];
       allResponseMessages = [...allResponseMessages, ...stepMessages];
 

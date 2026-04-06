@@ -595,11 +595,29 @@ export function useChatV2({
     if (!chatIdRef.current) return;
     try {
       await window.litho.chat.abort(chatIdRef.current);
-      await activeStreamDoneRef.current;
+      // Wait for the finish event, but don't hang forever — if the main
+      // process is stuck (e.g. provider hangs on response finalization),
+      // time out and force-reset local state so the UI stays responsive.
+      if (activeStreamDoneRef.current) {
+        const timeout = new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 5000));
+        const winner = await Promise.race([
+          activeStreamDoneRef.current.then(() => 'done' as const),
+          timeout,
+        ]);
+        if (winner === 'timeout') {
+          chatIdRef.current = null;
+          streamingPartsRef.current = [];
+          pendingReasoningRef.current = '';
+          setStreamingParts([]);
+          setStreamingReasoning('');
+          setIsStreaming(false);
+          resetActiveStreamTracking();
+        }
+      }
     } catch {
       // ignore
     }
-  }, []);
+  }, [resetActiveStreamTracking]);
 
   // ---------------------------------------------------------------------------
   // Clear conversation
