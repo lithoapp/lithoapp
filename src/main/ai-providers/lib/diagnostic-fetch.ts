@@ -99,13 +99,14 @@ export function createDiagnosticFetch(inner: FetchFn = globalThis.fetch): FetchF
     const reader = response.body.getReader();
     let firstChunkLogged = false;
     let chunkCount = 0;
+    let totalBytes = 0;
 
     const wrappedBody = new ReadableStream<Uint8Array>({
       async pull(controller) {
         try {
           const { done, value } = await reader.read();
           if (done) {
-            log('debug', 'fetch:stream-done', { url, chunks: chunkCount });
+            log('info', 'fetch:stream-done', { url, chunks: chunkCount, bytes: totalBytes });
             controller.close();
             return;
           }
@@ -114,6 +115,7 @@ export function createDiagnosticFetch(inner: FetchFn = globalThis.fetch): FetchF
             log('info', 'fetch:first-chunk', { url, ttfbMs: Date.now() - reqStartMs });
           }
           chunkCount++;
+          totalBytes += value.byteLength;
           controller.enqueue(value);
         } catch (err) {
           log('error', 'fetch:stream-error', {

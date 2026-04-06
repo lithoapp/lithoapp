@@ -5,7 +5,18 @@
 // {"type":"ping","cost":"0"} that the ai-sdk can't parse. This fetch wrapper
 // intercepts streaming responses and filters out events without a `choices`
 // field — matching how OpenCode's Zen proxy handles these server-side.
+//
+// IMPORTANT: pull() loops until it enqueues at least one chunk (or upstream
+// is done). If pull() returns without enqueueing, the stream consumer can
+// stall waiting for data that the ReadableStream re-pull mechanism doesn't
+// reliably deliver. This was observed as a multi-minute hang on minimax
+// requests where the upstream sent a burst of OPENROUTER PROCESSING comments
+// followed by partial-event chunks — without the loop, the SSE filter would
+// stop polling the upstream after the first non-enqueueing pull and the
+// connection would silently die.
 // ---------------------------------------------------------------------------
+
+import { log } from '../../headless/logger';
 
 export function createSseFilterFetch(
   inner: typeof globalThis.fetch = globalThis.fetch,
@@ -23,31 +34,67 @@ export function createSseFilterFetch(
     const encoder = new TextEncoder();
     let buffer = '';
 
+    let chunkCount = 0;
+    let totalBytesIn = 0;
+    let eventsParsed = 0;
+    let eventsPassed = 0;
+    let eventsDropped = 0;
+
     const filtered = new ReadableStream<Uint8Array>({
       async pull(controller) {
-        const { done, value } = await reader.read();
-        if (done) {
-          // Flush any remaining buffer
-          if (buffer.trim()) {
-            const event = parseSseEvent(buffer);
-            if (event !== null) controller.enqueue(encoder.encode(event));
+        // Loop until we enqueue at least one chunk or the upstream is done.
+        // See file header for the rationale — without this loop, the consumer
+        // can stall when upstream sends partial events or batches of
+        // filtered-out events.
+        let enqueuedThisCall = false;
+        while (!enqueuedThisCall) {
+          const { done, value } = await reader.read();
+          if (done) {
+            // Flush any remaining buffer
+            if (buffer.trim()) {
+              eventsParsed++;
+              const event = parseSseEvent(buffer);
+              if (event !== null) {
+                eventsPassed++;
+                controller.enqueue(encoder.encode(event));
+              } else {
+                eventsDropped++;
+              }
+            }
+            log('info', 'sse-filter:done', {
+              chunks: chunkCount,
+              bytesIn: totalBytesIn,
+              parsed: eventsParsed,
+              passed: eventsPassed,
+              dropped: eventsDropped,
+            });
+            controller.close();
+            return;
           }
-          controller.close();
-          return;
-        }
 
-        buffer += decoder.decode(value, { stream: true });
+          chunkCount++;
+          totalBytesIn += value.byteLength;
+          buffer += decoder.decode(value, { stream: true });
 
-        // Split on double-newline (SSE event boundary)
-        const parts = buffer.split('\n\n');
-        // Last part is incomplete — keep it in buffer
-        buffer = parts.pop() ?? '';
+          // Split on double-newline (SSE event boundary)
+          const parts = buffer.split('\n\n');
+          // Last part is incomplete — keep it in buffer
+          buffer = parts.pop() ?? '';
 
-        for (const part of parts) {
-          const event = parseSseEvent(part);
-          if (event !== null) {
-            controller.enqueue(encoder.encode(event));
+          for (const part of parts) {
+            if (!part.trim()) continue;
+            eventsParsed++;
+            const event = parseSseEvent(part);
+            if (event !== null) {
+              eventsPassed++;
+              controller.enqueue(encoder.encode(event));
+              enqueuedThisCall = true;
+            } else {
+              eventsDropped++;
+            }
           }
+          // If we processed a chunk but didn't enqueue anything (partial event
+          // or all events filtered out), loop and read another chunk.
         }
       },
     });
