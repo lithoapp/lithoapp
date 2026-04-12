@@ -15,6 +15,7 @@ import { TEMPLATE_IDS } from '../workspace-data/design-system-pages';
 import { createDispatcher, type Dispatcher } from './json-rpc';
 import { interceptConsole, type LogLevel, log, setLogLevel } from './logger';
 import { createAgentService } from './services/agent-service';
+import { handleConversationSave } from './services/conversation-service';
 import {
   handleDocumentCreate,
   handleDocumentList,
@@ -112,6 +113,11 @@ export async function startHeadless(options: { logLevel?: LogLevel } = {}): Prom
   );
   dispatcher.register('document.export', (params) =>
     handleDocumentExport(params as Parameters<typeof handleDocumentExport>[0]),
+  );
+
+  // --- Conversations ---
+  dispatcher.register('conversation.save', (params) =>
+    handleConversationSave(params as Parameters<typeof handleConversationSave>[0]),
   );
 
   // --- Providers ---

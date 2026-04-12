@@ -17,7 +17,7 @@ if (existsSync(unpackedEsbuild)) {
 // Parse CLI flags BEFORE any workspace/db module loads, so storage root
 // overrides take effect before the first registry.db / workspace.db is opened.
 // ---------------------------------------------------------------------------
-import { setWorkspacesRootOverride } from './workspace-paths';
+import { resolveWorkspacePath, setWorkspacesRootOverride } from './workspace-paths';
 
 const headlessArgv = process.argv.slice(2);
 const isHeadless = headlessArgv.includes('--headless');
@@ -115,7 +115,6 @@ import {
   updateWorkspaceLastOpened,
 } from './workspace-data';
 import { getWorkspaceEntry } from './workspace-data/registry-db';
-import { resolveWorkspacePath } from './workspace-paths';
 
 if (!is.dev) {
   initSentry();
@@ -196,6 +195,7 @@ ipcMain.handle('preferences:reset', () => {
 });
 ipcMain.handle('app:getVersion', () => app.getVersion());
 ipcMain.handle('app:getPlatform', () => process.platform);
+
 ipcMain.handle('app:setTitleBarOverlay', (_event, color: string, symbolColor: string) => {
   if (!mainWindow) return;
   if (process.platform === 'win32') {

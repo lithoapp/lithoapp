@@ -220,6 +220,17 @@ Per-page file output is not currently supported. If litho-lab needs
 individual page files, the simplest path is to request PNG/JPG and unzip
 the result.
 
+### Conversations
+
+| Method | Params | Result |
+|---|---|---|
+| `conversation.save` | `{ workspaceId, documentId, messages: StoredMessage[], usage: { inputTokens, outputTokens } }` | `{}` |
+
+Persists the conversation history for a document. In GUI mode the renderer
+calls this automatically after each turn; in headless mode the client is
+responsible for calling it after `run.finish` with the `messages` array from
+that event.
+
 ### Agent runs
 
 | Method | Params | Result |
