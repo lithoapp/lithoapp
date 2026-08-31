@@ -1,12 +1,12 @@
 {
   "name": "litho",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Litho desktop application",
   "author": "Kareem Elbahrawy <kareem@kareemelbahrawy.com>",
   "homepage": "https://lithoapp.com",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "main": "./out/main/index.js",
   "packageManager": "pnpm@10.32.1",
   "engines": {

@@ -13,7 +13,7 @@ interface AppPreferences {
 }
 
 const DEFAULTS: AppPreferences = {
-  telemetryEnabled: true,
+  telemetryEnabled: false,
   theme: 'system',
 };
 

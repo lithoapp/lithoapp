@@ -2,10 +2,11 @@ import * as Sentry from '@sentry/electron/main';
 import { app } from 'electron';
 import { getTelemetryEnabled, getUserProfile } from './telemetry-store';
 
-const DSN =
-  'https://467d4eeb3212e6ac332ddd04e4924ecb@o4508006800097280.ingest.us.sentry.io/4510926183071744';
+const DSN = process.env.SENTRY_DSN;
 
 export function initSentry(): void {
+  if (!DSN) return;
+
   Sentry.init({
     dsn: DSN,
     release: `lithoapp@${app.getVersion()}`,

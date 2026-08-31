@@ -1,13 +1,15 @@
 import * as Sentry from '@sentry/electron/renderer';
 
-const DSN =
-  'https://467d4eeb3212e6ac332ddd04e4924ecb@o4508006800097280.ingest.us.sentry.io/4510926183071744';
-
 declare const __APP_VERSION__: string | undefined;
+declare const __SENTRY_DSN__: string;
+
+const DSN = __SENTRY_DSN__;
 
 let isAutomaticTelemetryEnabled = true;
 
 export async function initRendererSentry(): Promise<void> {
+  if (!DSN) return;
+
   isAutomaticTelemetryEnabled = await window.litho.telemetry.getEnabled().catch(() => true);
 
   Sentry.init({
