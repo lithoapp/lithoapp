@@ -22,6 +22,7 @@ extraResources:
       - "**/*"
 mac:
   category: public.app-category.productivity
+  identity: null
   target:
     - dmg
     - zip
@@ -35,7 +36,7 @@ mac:
     - NSHumanReadableCopyright: Copyright © 2026 Kareem Elbahrawy
   notarize: false
 dmg:
-  artifactName: ${name}-${version}.${ext}
+  artifactName: ${name}-${version}-${arch}.${ext}
 win:
   executableName: Litho
 nsis:
@@ -43,19 +44,9 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-linux:
-  target:
-    - AppImage
-    - snap
-    - deb
-  maintainer: Kareem Elbahrawy
-  category: Utility
-  synopsis: PDF Design Tool
-  description: Design and export beautiful PDFs with AI assistance
-appImage:
-  artifactName: ${name}-${version}.${ext}
 npmRebuild: true
 publish:
-  provider: generic
-  url: https://releases-api.lithoapp.com/v1/updates/
+  provider: github
+  owner: lithoapp
+  repo: lithoapp
   channel: latest

@@ -22,9 +22,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
 
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.requestHeaders = {
-    'x-api-key': '89b48001c49d7e61788d6945bd577fd1eacd5739dcb74f6e355ea419eca842bf',
-  };
+  autoUpdater.allowPrerelease = false;
 
   if (is.dev) {
     autoUpdater.forceDevUpdateConfig = true;

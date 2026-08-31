@@ -1,6 +1,6 @@
 {
   "name": "litho",
-  "version": "1.0.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "type": "module",
   "description": "Litho desktop application",
@@ -27,10 +27,8 @@
     "install:mac": "rm -rf /Applications/Litho.app && hdiutil info 2>/dev/null | grep -B 10 Litho | grep /dev/disk | awk '{print $1}' | xargs -I {} hdiutil detach {} -force 2>/dev/null; cp -R dist/$npm_package_version/mac-arm64/Litho.app /Applications/ && open /Applications/Litho.app",
     "rebuild:mac": "pnpm electron-rebuild -f -w better-sqlite3",
     "rebuild:win": "pnpm electron-rebuild -f -w better-sqlite3 -p win32 -a arm64,x64",
-    "dist:mac": "pnpm rebuild:mac && electron-vite build && electron-builder --mac --publish never",
-    "dist:win": "pnpm rebuild:win && electron-vite build && electron-builder --win --x64 --arm64 --publish never",
-    "dist:all": "electron-vite build && electron-builder --mac --win --publish never",
-    "release": "echo 'Use litho-releases API to upload artifacts. Build with dist:mac / dist:win / dist:all.' && exit 1"
+    "dist:mac": "pnpm rebuild:mac && electron-vite build && electron-builder --mac --arm64 --publish never",
+    "dist:win": "pnpm rebuild:win && electron-vite build && electron-builder --win --x64 --publish never"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.65",
