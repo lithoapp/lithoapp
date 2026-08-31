@@ -67,10 +67,15 @@ jobs:
       - name: Publish GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "$GITHUB_REF_NAME" release/*
-          --repo "$GITHUB_REPOSITORY"
-          --title "Litho ${GITHUB_REF_NAME#v}"
-          --generate-notes
-          --prerelease
-          --verify-tag
+        shell: bash
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null; then
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Litho ${GITHUB_REF_NAME#v}" \
+              --generate-notes \
+              --prerelease \
+              --verify-tag
+          fi
+          find release -type f -exec gh release upload "$GITHUB_REF_NAME" {} \
+            --repo "$GITHUB_REPOSITORY" --clobber \;
