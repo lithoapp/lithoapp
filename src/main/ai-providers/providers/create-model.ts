@@ -11,7 +11,7 @@ import { getCredential, setCredential } from './credential-store';
 import { getModelsCache, getOAuthConfig } from './models-cache';
 
 // ---------------------------------------------------------------------------
-// Max output token cap — matches OpenCode's ProviderTransform.OUTPUT_TOKEN_MAX
+// Max output token cap (matches OpenCode's OUTPUT_TOKEN_MAX)
 // ---------------------------------------------------------------------------
 
 const OUTPUT_TOKEN_MAX = 32_000;
@@ -23,18 +23,8 @@ const OUTPUT_TOKEN_MAX = 32_000;
 export function createModel(providerId: string, modelId: string): LanguageModel {
   const providerData = getModelsCache()?.providers?.[providerId];
 
-  let cred = getCredential(providerId);
-  if (!cred) {
-    if (providerData?.autoConnect) {
-      // Auto-connect providers (e.g. 'free') use a public key — store it for next time
-      cred = { type: 'api', key: 'public' };
-      setCredential(providerId, cred);
-    } else {
-      throw new Error(`No credentials found for provider: ${providerId}`);
-    }
-  }
-
-  const routingProviderId = providerData?.internalProvider ?? providerId;
+  const cred = getCredential(providerId);
+  if (!cred) throw new Error(`No credentials found for provider: ${providerId}`);
 
   if (providerId === 'openai' && cred.type === 'oauth') {
     const clientId = getOAuthConfig('openai')?.clientId;
@@ -72,13 +62,10 @@ export function createModel(providerId: string, modelId: string): LanguageModel 
     return provider(modelId);
   }
 
-  const routingProviderData = getModelsCache()?.providers?.[routingProviderId];
-  const baseURL =
-    providerData?.baseUrl ??
-    routingProviderData?.baseUrl ??
-    `https://api.${routingProviderId}.com/v1`;
+  const baseURL = providerData?.baseUrl;
+  if (!baseURL) throw new Error(`No base URL configured for provider: ${providerId}`);
   const provider = createOpenAICompatible({
-    name: routingProviderId,
+    name: providerId,
     baseURL,
     apiKey: (cred as CredentialApi).key,
     fetch: createSseFilterFetch(createDiagnosticFetch()),

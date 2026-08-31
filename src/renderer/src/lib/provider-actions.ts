@@ -25,10 +25,6 @@ export async function completeOAuth(
   }
 }
 
-export async function connectFree(providerId: string): Promise<void> {
-  await window.litho.aiProvider.connectFree(providerId);
-}
-
 export interface PingResult {
   text: string;
   reasoning: string;

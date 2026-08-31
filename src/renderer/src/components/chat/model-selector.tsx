@@ -62,7 +62,10 @@ export function ModelSelector({
         const data = await window.litho.aiProvider.list();
         setProviders(data.providers);
         setConnectedIds(data.connected);
-        const isCurrentConnected = providerId && data.connected.includes(providerId);
+        const isCurrentConnected =
+          providerId &&
+          data.connected.includes(providerId) &&
+          data.providers.some((p) => p.id === providerId);
         if (!isCurrentConnected) {
           const first = data.providers.find((p) => data.connected.includes(p.id));
           if (first) onSelect(first.id, first.defaultModel);
@@ -80,10 +83,7 @@ export function ModelSelector({
     [providers, connectedIds],
   );
 
-  const shouldShowAddProvider = useMemo(
-    () => connectedProviders.length === 0 || connectedProviders.every((p) => p.id === 'free'),
-    [connectedProviders],
-  );
+  const shouldShowAddProvider = connectedProviders.length === 0;
 
   // Fetch models for all connected providers on mount + refresh when popover opens
   useEffect(() => {

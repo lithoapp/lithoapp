@@ -10,7 +10,6 @@ import {
 } from './providers/credential-store';
 import { filterModelsForProvider } from './providers/model-filters';
 import {
-  autoConnectProviders,
   fetchModels,
   getModelsCache,
   getModelsCacheError,
@@ -29,7 +28,7 @@ import type { ChatStartParams } from './types';
 
 export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
   ensureAiTables();
-  initModelsCache(() => autoConnectProviders(setCredential, getConnectedProviderIds));
+  initModelsCache();
 
   // --- Provider discovery ---
 
@@ -64,10 +63,6 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
     removeCredential(providerId);
   });
 
-  ipcMain.handle('ai-provider:connect-free', (_event, providerId: string) => {
-    setCredential(providerId, { type: 'api', key: 'public' });
-  });
-
   // --- OAuth ---
 
   ipcMain.handle('ai-provider:start-oauth', async (_event, providerId: string, mode?: string) => {
@@ -97,7 +92,6 @@ export function registerAiProviderHandlers(ipcMain: Electron.IpcMain): void {
 
   ipcMain.handle('ai-provider:refresh-models-dev', async () => {
     await fetchModels();
-    autoConnectProviders(setCredential, getConnectedProviderIds);
     return { loaded: getModelsCache() !== null, error: getModelsCacheError() };
   });
 

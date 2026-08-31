@@ -1,18 +1,11 @@
 // ---------------------------------------------------------------------------
-// Provider-specific options — matches OpenCode's ProviderTransform.options()
+// Provider-specific streamText options
 // ---------------------------------------------------------------------------
-
-import { getProviderInfo } from '../providers/models-cache';
 
 // biome-ignore lint/suspicious/noExplicitAny: providerOptions accepts wide union
 type ProviderOpts = Record<string, Record<string, any>>;
 
 const ENABLE_PARALLEL_TOOL_CALLS = true;
-
-function getCompatibleProviderOptionsKey(providerId: string): string {
-  const routingProviderId = getProviderInfo(providerId)?.internalProvider ?? providerId;
-  return routingProviderId.split('.')[0]?.trim() || providerId;
-}
 
 export function buildProviderOptions(
   providerId: string,
@@ -20,7 +13,6 @@ export function buildProviderOptions(
   extra: Record<string, unknown> = {},
 ): ProviderOpts {
   const result: ProviderOpts = {};
-  const compatibleProviderOptionsKey = getCompatibleProviderOptionsKey(providerId);
 
   // OpenAI / Codex: store=false, promptCacheKey, configurable tool parallelism
   if (providerId === 'openai') {
@@ -32,10 +24,7 @@ export function buildProviderOptions(
   }
 
   if (providerId !== 'anthropic' && providerId !== 'openai') {
-    result[compatibleProviderOptionsKey] = {
-      ...(result[compatibleProviderOptionsKey] ?? {}),
-      parallel_tool_calls: ENABLE_PARALLEL_TOOL_CALLS,
-    };
+    result[providerId] = { parallel_tool_calls: ENABLE_PARALLEL_TOOL_CALLS };
   }
 
   // Google Gemini: enable thinking

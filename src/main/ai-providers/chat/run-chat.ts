@@ -7,9 +7,10 @@ import type {
 } from '../../../shared/types';
 import { renderSystemPrompt, resolveAgentTools } from '../agents/config';
 import { parseError } from '../lib/parse-error';
+import { CODEX_ORIGINATOR, codexUserAgent } from '../oauth/client-identity';
 import { createModel, OUTPUT_TOKEN_MAX } from '../providers/create-model';
 import { getCredential } from '../providers/credential-store';
-import { getModelInfo, getProviderInfo } from '../providers/models-cache';
+import { getModelInfo } from '../providers/models-cache';
 import type { ChatStartParams } from '../types';
 import {
   type ResponseMessage,
@@ -31,11 +32,6 @@ const activeStreams = new Map<string, AbortController>();
 // ---------------------------------------------------------------------------
 
 const MAX_STEPS = 50;
-
-function isOpencodeProvider(providerId: string): boolean {
-  const providerInfo = getProviderInfo(providerId);
-  return providerInfo?.internalProvider === 'opencode' || providerId === 'free';
-}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -89,7 +85,6 @@ export function startChat(params: ChatStartParams, emit: Emit): string {
     params.modelId,
     controller,
     emit,
-    params.workspaceName,
   );
 
   return chatId;
@@ -154,7 +149,7 @@ function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
-// Step loop — continues even after text-only responses (like OpenCode)
+// Step loop — continues even after text-only responses
 // ---------------------------------------------------------------------------
 
 async function runStepLoop(
@@ -168,7 +163,6 @@ async function runStepLoop(
   modelId: string,
   controller: AbortController,
   emit: Emit,
-  workspaceName: string,
 ): Promise<void> {
   let currentMessages = initialMessages;
   let allResponseMessages: ResponseMessage[] = [];
@@ -209,8 +203,7 @@ async function runStepLoop(
       stepToolCalls = [];
       stepToolResults = [];
 
-      // Build messages array: system prompt as system-role message (like OpenCode),
-      // followed by conversation messages.
+      // Build messages array: system prompt as system-role message, then conversation.
       const msgs: ModelMessage[] = [
         ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
         ...currentMessages,
@@ -219,7 +212,7 @@ async function runStepLoop(
       // Strip image outputs for models that don't support vision.
       const safeMsgs = stripImagesIfNoVision(msgs, hasVision);
 
-      // Build provider-specific options (matches OpenCode's ProviderTransform.options)
+      // Build provider-specific options
       // biome-ignore lint/suspicious/noExplicitAny: providerOptions needs wide type
       const extra: Record<string, any> = { promptCacheKey: chatId };
       if (isOAuthCodex && systemPrompt) {
@@ -244,22 +237,13 @@ async function runStepLoop(
         abortSignal: controller.signal,
         maxRetries: 0,
         ...(isOAuthCodex ? {} : { maxOutputTokens: OUTPUT_TOKEN_MAX }),
-        headers: {
-          ...(isOAuthCodex
-            ? {
-                originator: 'opencode',
-                'User-Agent': `opencode/litho (${process.platform} ${process.arch})`,
-                session_id: chatId,
-              }
-            : isOpencodeProvider(providerId)
-              ? {
-                  'x-opencode-project': workspaceName ?? 'litho',
-                  'x-opencode-session': chatId,
-                  'x-opencode-request': crypto.randomUUID(),
-                  'x-opencode-client': 'litho',
-                }
-              : {}),
-        },
+        headers: isOAuthCodex
+          ? {
+              originator: CODEX_ORIGINATOR,
+              'User-Agent': codexUserAgent(),
+              session_id: chatId,
+            }
+          : {},
         providerOptions,
         ...(tools ? { tools } : {}),
       });
@@ -365,7 +349,7 @@ async function runStepLoop(
       const stepMessages = response.messages as ResponseMessage[];
       allResponseMessages = [...allResponseMessages, ...stepMessages];
 
-      // Decide whether to continue (matches OpenCode: only continue on tool-calls/unknown)
+      // Only continue on tool calls
       if (!hasToolCalls) break;
 
       currentMessages = [...currentMessages, ...(stepMessages as ModelMessage[])];

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { completeOAuth, connectFree, connectWithApiKey, startOAuth } from '../lib/provider-actions';
+import { completeOAuth, connectWithApiKey, startOAuth } from '../lib/provider-actions';
 import type { AuthMethod, ProviderInfo } from './use-provider-list';
 
 export interface ConnectFlowState {
@@ -74,20 +74,6 @@ export function useConnectFlow(
     if (!method) return;
     if (method.type === 'api') {
       setStep('api-key');
-      return;
-    }
-    if (method.type === 'free') {
-      setLoading(true);
-      setError('');
-      connectFree(provider.id)
-        .then(() => {
-          if (!canceledRef.current) onConnected();
-        })
-        .catch((err) => {
-          if (!canceledRef.current)
-            setError(err instanceof Error ? err.message : 'Failed to connect');
-        })
-        .finally(() => setLoading(false));
       return;
     }
     // OAuth flow

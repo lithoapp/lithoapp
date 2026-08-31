@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { shell } from 'electron';
 import type { CredentialOAuth, OAuthTokenResponse, PkceCodes } from '../types';
+import { CODEX_ORIGINATOR } from './client-identity';
 import { generatePKCE, generateState } from './pkce';
 
 // ---------------------------------------------------------------------------
@@ -11,7 +12,7 @@ const OPENAI_ISSUER = 'https://auth.openai.com';
 const OAUTH_PORT = 1455;
 
 export const CODEX_API_ENDPOINT = 'https://chatgpt.com/backend-api/codex/responses';
-export const CODEX_DEFAULT_MODEL = 'gpt-5.3-codex';
+export const CODEX_DEFAULT_MODEL = 'gpt-5.6-sol';
 export const OAUTH_DUMMY_KEY = 'litho-oauth-dummy-key';
 
 // ---------------------------------------------------------------------------
@@ -231,7 +232,7 @@ export async function startOpenAIOAuth(
     id_token_add_organizations: 'true',
     codex_cli_simplified_flow: 'true',
     state,
-    originator: 'opencode',
+    originator: CODEX_ORIGINATOR,
   });
 
   const url = `${OPENAI_ISSUER}/oauth/authorize?${params.toString()}`;

@@ -1,3 +1,7 @@
+import type { AgentContext, AgentId, OAuthConfig, StoredMessage } from '../../shared/types';
+
+export type { AuthMethod, OAuthConfig, ProviderInfo } from '../../shared/types';
+
 // ---------------------------------------------------------------------------
 // Provider & Model types
 // ---------------------------------------------------------------------------
@@ -14,10 +18,6 @@ export interface LithoModel {
   releaseDate?: string;
 }
 
-export interface OAuthConfig {
-  clientId: string;
-}
-
 export interface LithoApiAuthMethod {
   type: string;
   name: string;
@@ -29,10 +29,8 @@ export interface LithoProvider {
   id: string;
   name: string;
   description: string;
-  autoConnect: boolean;
   defaultModel: string;
   authMethods: LithoApiAuthMethod[];
-  internalProvider?: string;
   baseUrl?: string;
   models: Record<string, LithoModel>;
 }
@@ -41,16 +39,6 @@ export interface LithoModelsData {
   version: string;
   generatedAt: string;
   providers: Record<string, LithoProvider>;
-}
-
-export interface ProviderInfo {
-  id: string;
-  name: string;
-  api?: string;
-  modelCount: number;
-  autoConnect: boolean;
-  defaultModel: string;
-  internalProvider?: string;
 }
 
 export interface ModelInfo {
@@ -83,13 +71,6 @@ export type Credential = CredentialApi | CredentialOAuth;
 // OAuth types
 // ---------------------------------------------------------------------------
 
-export interface AuthMethod {
-  type: 'api' | 'oauth' | 'free';
-  label: string;
-  id?: string;
-  oauth?: OAuthConfig;
-}
-
 export interface PkceCodes {
   verifier: string;
   challenge: string;
@@ -119,8 +100,6 @@ export interface PingResult {
 // ---------------------------------------------------------------------------
 // Chat params (IPC contract — ChatStreamEvent lives in chat/stream-events.ts)
 // ---------------------------------------------------------------------------
-
-import type { AgentContext, AgentId, StoredMessage } from '../../shared/types';
 
 export interface ChatStartParams {
   providerId: string;

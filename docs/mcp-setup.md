@@ -1,6 +1,8 @@
 # Litho MCP Server Setup
 
-Litho ships an MCP server so external AI clients (Claude Desktop, Cursor, VS Code Copilot, Claude Code, etc.) can use all Litho workspace tools.
+Litho ships an MCP server so external AI clients (Claude Code, OpenCode, Claude Desktop, Cursor, VS Code Copilot, etc.) can use all Litho workspace tools.
+
+Litho is the MCP **server** here — those clients connect *to* Litho. This is separate from the AI providers you connect inside Litho for in-app chat.
 
 **Requirement**: Litho must be running for the MCP server to work. The server starts automatically with the app.
 

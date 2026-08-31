@@ -1,4 +1,5 @@
 import type { CredentialOAuth } from '../types';
+import { CODEX_ORIGINATOR, codexUserAgent } from './client-identity';
 import { CODEX_API_ENDPOINT, extractAccountId, refreshOpenAIToken } from './openai-flow';
 
 // ---------------------------------------------------------------------------
@@ -57,10 +58,10 @@ export function createOpenAIFetchWrapper(
 
     headers.set('authorization', `Bearer ${oauthCred.access}`);
     if (!headers.has('originator')) {
-      headers.set('originator', 'opencode');
+      headers.set('originator', CODEX_ORIGINATOR);
     }
     if (!headers.has('User-Agent')) {
-      headers.set('User-Agent', `opencode/litho (${process.platform} ${process.arch})`);
+      headers.set('User-Agent', codexUserAgent());
     }
     if (oauthCred.accountId) {
       headers.set('ChatGPT-Account-Id', oauthCred.accountId);

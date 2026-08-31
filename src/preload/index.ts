@@ -139,8 +139,6 @@ contextBridge.exposeInMainWorld('litho', {
       mode?: string,
     ): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('ai-provider:complete-oauth', providerId, code, verifier, mode),
-    connectFree: (providerId: string): Promise<void> =>
-      ipcRenderer.invoke('ai-provider:connect-free', providerId),
     ping: (providerId: string, modelId: string): Promise<unknown> =>
       ipcRenderer.invoke('ai-provider:ping', providerId, modelId),
     refreshModelsDev: (): Promise<{ loaded: boolean; error: string | null }> =>

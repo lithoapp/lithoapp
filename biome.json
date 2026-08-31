@@ -8,8 +8,7 @@
       "!**/node_modules",
       "!.claude",
       "!references",
-      "!**/components/ui",
-      "!resources/opencode-plugin"
+      "!**/components/ui"
     ]
   },
   "assist": {

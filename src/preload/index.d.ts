@@ -1,11 +1,13 @@
 import type {
   AssetEntry,
+  AuthMethod,
   DesignSystem,
   DocumentConfig,
   DocumentInfo,
   ExportProgress,
   ExportRequest,
   PageSize,
+  ProviderInfo,
   WorkspaceMutationEvent,
 } from '../shared/types';
 import type { PageBuildData, PageExportOptions, RendererResult } from '../shared/types';
@@ -90,15 +92,7 @@ interface LithoAPI {
   };
   aiProvider: {
     list: () => Promise<{
-      providers: Array<{
-        id: string;
-        name: string;
-        api?: string;
-        modelCount: number;
-        autoConnect: boolean;
-        defaultModel: string;
-        internalProvider?: string;
-      }>;
+      providers: ProviderInfo[];
       connected: string[];
       modelsDevLoaded: boolean;
       modelsDevError: string | null;
@@ -115,9 +109,7 @@ interface LithoAPI {
         capabilities: string[];
       }>
     >;
-    authMethods: (
-      providerId: string,
-    ) => Promise<Array<{ type: 'api' | 'oauth' | 'free'; label: string; id?: string }>>;
+    authMethods: (providerId: string) => Promise<AuthMethod[]>;
     connectApiKey: (providerId: string, key: string) => Promise<void>;
     disconnect: (providerId: string) => Promise<void>;
     startOAuth: (
@@ -130,7 +122,6 @@ interface LithoAPI {
       verifier?: string,
       mode?: string,
     ) => Promise<{ success: boolean; error?: string }>;
-    connectFree: (providerId: string) => Promise<void>;
     ping: (
       providerId: string,
       modelId: string,

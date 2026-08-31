@@ -223,7 +223,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
                 Connect AI
               </h1>
               <p className="mt-2 text-base text-muted-foreground">
-                Free models included. Add your own anytime in Settings.
+                Connect a provider to start designing. You can add more anytime in Settings.
               </p>
             </div>
 

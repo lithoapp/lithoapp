@@ -1,5 +1,6 @@
 import { streamText } from 'ai';
 import { parseError } from '../lib/parse-error';
+import { CODEX_ORIGINATOR, codexUserAgent } from '../oauth/client-identity';
 import type { PingResult } from '../types';
 import { createModel } from './create-model';
 import { getCredential } from './credential-store';
@@ -24,15 +25,13 @@ export async function pingProvider(providerId: string, modelId: string): Promise
       { role: 'user' as const, content: 'Reply with only the word: Pong' },
     ],
     maxRetries: 0,
-    headers: {
-      ...(isOAuthCodex
-        ? {
-            originator: 'opencode',
-            'User-Agent': `opencode/litho (${process.platform} ${process.arch})`,
-            session_id: 'ping',
-          }
-        : {}),
-    },
+    headers: isOAuthCodex
+      ? {
+          originator: CODEX_ORIGINATOR,
+          'User-Agent': codexUserAgent(),
+          session_id: 'ping',
+        }
+      : {},
     providerOptions: {
       openai: {
         store: false,

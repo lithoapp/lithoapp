@@ -374,3 +374,24 @@ export interface DocumentInfo {
   folder?: string;
   updatedAt?: string;
 }
+
+// --- AI Providers ---
+
+export interface OAuthConfig {
+  clientId: string;
+}
+
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  api?: string;
+  modelCount: number;
+  defaultModel: string;
+}
+
+export interface AuthMethod {
+  type: 'api' | 'oauth';
+  label: string;
+  id?: string;
+  oauth?: OAuthConfig;
+}

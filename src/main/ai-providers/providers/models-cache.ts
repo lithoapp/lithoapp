@@ -1,11 +1,5 @@
 import { getAiDb } from '../db';
-import type {
-  CredentialApi,
-  LithoModelsData,
-  ModelInfo,
-  OAuthConfig,
-  ProviderInfo,
-} from '../types';
+import type { LithoModelsData, ModelInfo, OAuthConfig, ProviderInfo } from '../types';
 
 let modelsCache: LithoModelsData | null = null;
 let modelsCacheError: string | null = null;
@@ -51,13 +45,9 @@ let readyPromise: Promise<void> | null = null;
  * fresh data from network. Callers that need providers to be available
  * should await the returned promise.
  */
-export function initModelsCache(onLoad?: () => void): Promise<void> {
+export function initModelsCache(): Promise<void> {
   loadCacheFromDb();
-  if (modelsCache) onLoad?.();
-
-  // Always fetch fresh data on startup
-  readyPromise = fetchModels().then(() => onLoad?.());
-
+  readyPromise = fetchModels();
   return readyPromise;
 }
 
@@ -92,9 +82,7 @@ export function getProviderList(): ProviderInfo[] {
     name: p.name,
     api: p.baseUrl,
     modelCount: Object.keys(p.models).length,
-    autoConnect: p.autoConnect,
     defaultModel: p.defaultModel,
-    internalProvider: p.internalProvider,
   }));
 }
 
@@ -130,16 +118,4 @@ export function getModelInfo(providerId: string, modelId: string): ModelInfo | u
     capabilities: model.capabilities,
     authSupport: model.authSupport,
   };
-}
-
-export function autoConnectProviders(
-  setCredentialFn: (id: string, cred: CredentialApi) => void,
-  getConnectedFn: () => string[],
-): void {
-  const connected = getConnectedFn();
-  for (const provider of getProviderList()) {
-    if (provider.autoConnect && !connected.includes(provider.id)) {
-      setCredentialFn(provider.id, { type: 'api', key: 'public' });
-    }
-  }
 }

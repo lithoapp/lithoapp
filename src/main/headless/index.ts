@@ -61,10 +61,10 @@ export async function startHeadless(options: { logLevel?: LogLevel } = {}): Prom
 
   log('info', 'headless mode starting', { version: PROTOCOL_VERSION });
 
-  // AI subsystem (credential tables, models cache, auto-connect) is
-  // initialized as a side effect of registerAiProviderHandlers() in
-  // src/main/index.ts's top-level block. Here we just wait until the
-  // models cache is populated before accepting RPC calls.
+  // AI subsystem (credential tables, models cache) is initialized as a side
+  // effect of registerAiProviderHandlers() in src/main/index.ts's top-level
+  // block. Here we just wait until the models cache is populated before
+  // accepting RPC calls.
   await waitForModelsReady();
   log('info', 'ai subsystem ready');
 

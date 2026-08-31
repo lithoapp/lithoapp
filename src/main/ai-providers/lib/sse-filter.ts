@@ -4,7 +4,7 @@
 // Some providers (e.g. MiniMax) send non-standard SSE events like
 // {"type":"ping","cost":"0"} that the ai-sdk can't parse. This fetch wrapper
 // intercepts streaming responses and filters out events without a `choices`
-// field — matching how OpenCode's Zen proxy handles these server-side.
+// field.
 //
 // IMPORTANT: pull() loops until it enqueues at least one chunk (or upstream
 // is done). If pull() returns without enqueueing, the stream consumer can

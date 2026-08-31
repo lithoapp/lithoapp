@@ -1,78 +1,12 @@
-import { AlertCircle, Check, Loader2, Plug, RefreshCw } from 'lucide-react';
+import { AlertCircle, Check, Loader2, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { type ProviderInfo, useProviderList } from '@/hooks/use-provider-list';
-import { connectFree } from '@/lib/provider-actions';
 import { cn } from '@/lib/utils';
 import { ConnectDialog } from '../settings/connect-dialog';
 import { AiProviderIcon } from '../settings/provider-icon';
 
-const ZEN_ID = 'free';
-const FEATURED_IDS = ['anthropic', 'openai', 'google', 'github-copilot'];
-
-function ZenCard({
-  provider,
-  isConnected,
-}: {
-  provider: ProviderInfo;
-  isConnected: boolean;
-}): React.JSX.Element {
-  const [connecting, setConnecting] = useState(false);
-
-  const handleConnect = async (): Promise<void> => {
-    setConnecting(true);
-    try {
-      await connectFree(provider.id);
-    } catch {
-      toast.error('Failed to connect');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  return (
-    <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-          <AiProviderIcon providerId={provider.id} size={28} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold">{provider.name}</span>
-            <span className="text-xs text-muted-foreground/60">Provided by opencode.ai</span>
-          </div>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {provider.modelCount} model{provider.modelCount !== 1 ? 's' : ''} ready to use — no
-            setup needed
-          </p>
-        </div>
-        {isConnected ? (
-          <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-500">
-            <Check className="h-3 w-3" />
-            Ready
-          </span>
-        ) : (
-          <Button
-            variant="default"
-            className="h-9 shrink-0 px-4 text-sm"
-            onClick={() => void handleConnect()}
-            disabled={connecting}
-          >
-            {connecting ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <Plug className="mr-1.5 h-4 w-4" />
-            )}
-            Connect
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function FeaturedCard({
+function ProviderOption({
   provider,
   isConnected,
   onConnect,
@@ -130,18 +64,6 @@ export function ProviderPicker({
   const { providers, connected, authMethods, loading, error, refetch } = useProviderList();
   const [dialogProvider, setDialogProvider] = useState<ProviderInfo | null>(null);
 
-  const zenProvider = useMemo(() => providers.find((p) => p.id === ZEN_ID) ?? null, [providers]);
-
-  const featuredProviders = useMemo(
-    () => FEATURED_IDS.flatMap((id) => providers.find((p) => p.id === id) ?? []),
-    [providers],
-  );
-
-  const hasOtherProviders = useMemo(
-    () => providers.some((p) => p.id !== ZEN_ID && !FEATURED_IDS.includes(p.id)),
-    [providers],
-  );
-
   const totalModels = useMemo(() => {
     return connected.reduce((sum, id) => {
       const p = providers.find((pr) => pr.id === id);
@@ -177,40 +99,18 @@ export function ProviderPicker({
     );
   }
 
-  const isConnected = (id: string): boolean => connected.includes(id);
-
   return (
     <div className="flex flex-col gap-6">
-      {zenProvider && (
-        <div>
-          <p className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Included with Litho
-          </p>
-          <ZenCard provider={zenProvider} isConnected={isConnected(ZEN_ID)} />
-        </div>
-      )}
-
-      {featuredProviders.length > 0 && (
-        <div>
-          <p className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Popular providers
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {featuredProviders.map((provider) => (
-              <FeaturedCard
-                key={provider.id}
-                provider={provider}
-                isConnected={isConnected(provider.id)}
-                onConnect={() => setDialogProvider(provider)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {hasOtherProviders && (
-        <p className="text-base text-muted-foreground">More providers available in Settings.</p>
-      )}
+      <div className="grid grid-cols-2 gap-3">
+        {providers.map((provider) => (
+          <ProviderOption
+            key={provider.id}
+            provider={provider}
+            isConnected={connected.includes(provider.id)}
+            onConnect={() => setDialogProvider(provider)}
+          />
+        ))}
+      </div>
 
       {dialogProvider && (
         <ConnectDialog

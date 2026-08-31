@@ -30,25 +30,22 @@ electron out/main/index.js --headless --workspaces-root /path/to/isolated/dir
 ## Credentials model
 
 On startup with `--workspaces-root`, a fresh `registry.db` is created
-inside that directory. The AI credential store is seeded **only** with
-auto-connect providers — currently just `free`, which serves a set of
-no-setup-required models via a shared public key. All real providers
-(`anthropic`, `openai`, `zai-coding-plan`, …) start with no credentials
-and will fail any `agent.run` call with a credential-not-found error
-until you inject keys.
+inside that directory. The AI credential store starts **empty**. Every
+provider (`anthropic`, `openai`, `deepseek`, `zai-coding-plan`, …) will
+fail any `agent.run` call with a credential-not-found error until you
+inject keys.
 
 The correct flow is:
 
 1. `initialize` — wait for the models cache to be ready.
 2. `provider.setCredential` — once per real provider you intend to use,
    with a `Credential` object (see [`src/main/ai-providers/types.ts`](../src/main/ai-providers/types.ts)
-   for the exact `CredentialApi` / `CredentialOAuth` union). You do **not**
-   need to call this for `free` — auto-connect handles it.
+   for the exact `CredentialApi` / `CredentialOAuth` union).
 3. Everything else.
 
 To confirm what's connected after `initialize`, call `provider.list` — the
 `connected` field lists every provider with a credential, which on a fresh
-root will include at least `free`.
+root is empty.
 
 **Do not** copy the installed app's `registry.db` into the workspaces root
 as a shortcut. SQLite WAL mode means a plain copy misses uncommitted writes
@@ -159,7 +156,7 @@ shuts down cleanly (`closeAllDbs` runs either way).
 | `provider.listModels` | `{ providerId: string }` | `{ models: ModelInfo[] }` |
 
 `providerId` values must match what `provider.list` returns. At time of
-writing that's `'anthropic'`, `'openai'`, `'free'`, `'zai-coding-plan'` — but
+writing that's `'anthropic'`, `'openai'`, `'deepseek'`, `'zai-coding-plan'` — but
 don't hardcode; call `provider.list` and iterate. The authoritative list
 comes from `https://api.lithoapp.com/v1/models.json`, cached in `registry.db`
 and refreshed at startup.

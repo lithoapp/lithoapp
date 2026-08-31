@@ -21,7 +21,7 @@ import {
 import type { AuthMethod, ProviderInfo } from '@/hooks/use-provider-list';
 import { maybeAutoSelectDefault } from '@/lib/chat-prefs';
 import { extractIpcErrorMessage } from '@/lib/ipc-error';
-import { connectFree, disconnectProvider } from '@/lib/provider-actions';
+import { disconnectProvider } from '@/lib/provider-actions';
 import { cn } from '@/lib/utils';
 import { ConnectDialog } from './connect-dialog';
 import { PingDialog } from './ping-dialog';
@@ -53,7 +53,6 @@ export function ProviderCard({
 }): React.JSX.Element {
   const [connectOpen, setConnectOpen] = useState(false);
   const [pingOpen, setPingOpen] = useState(false);
-  const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [models, setModels] = useState<ModelEntry[]>([]);
@@ -71,20 +70,6 @@ export function ProviderCard({
   }, [expanded, isConnected, provider.id]);
 
   const isDefaultProvider = defaultProviderId === provider.id;
-
-  const handleAutoConnect = async (): Promise<void> => {
-    setConnecting(true);
-    try {
-      await connectFree(provider.id);
-      const autoModel = await maybeAutoSelectDefault(provider.id);
-      if (autoModel) toast.success(`Default model set to ${autoModel}`);
-      onRefresh();
-    } catch (err) {
-      toast.error(extractIpcErrorMessage(err, 'Failed to connect provider'));
-    } finally {
-      setConnecting(false);
-    }
-  };
 
   const handleDisconnect = useCallback(async () => {
     setDisconnecting(true);
@@ -134,9 +119,6 @@ export function ProviderCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-base font-semibold">{provider.name}</span>
-              {provider.autoConnect && (
-                <span className="text-xs text-muted-foreground/60">Provided by opencode.ai</span>
-              )}
               {isConnected && (
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-500">
                   <Check className="h-3 w-3" />
@@ -209,20 +191,6 @@ export function ProviderCard({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
-            ) : provider.autoConnect ? (
-              <Button
-                variant="default"
-                className="h-9 px-4 text-sm"
-                onClick={() => void handleAutoConnect()}
-                disabled={connecting}
-              >
-                {connecting ? (
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                ) : (
-                  <Plug className="mr-1.5 h-4 w-4" />
-                )}
-                Connect
-              </Button>
             ) : (
               <Button
                 variant="default"

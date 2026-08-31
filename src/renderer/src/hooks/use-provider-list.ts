@@ -1,20 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { AuthMethod, ProviderInfo } from '../../../shared/types';
 
-export interface ProviderInfo {
-  id: string;
-  name: string;
-  api?: string;
-  modelCount: number;
-  autoConnect: boolean;
-  defaultModel: string;
-  internalProvider?: string;
-}
-
-export interface AuthMethod {
-  type: 'api' | 'oauth' | 'free';
-  label: string;
-  id?: string;
-}
+export type { AuthMethod, ProviderInfo };
 
 export interface ProviderListState {
   providers: ProviderInfo[];

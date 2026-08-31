@@ -47,12 +47,7 @@ app.setName('Litho');
 
 import type { PageSizeName } from '../shared/types';
 import { registerAiProviderHandlers } from './ai-providers';
-import {
-  clearAllCredentials,
-  getConnectedProviderIds,
-  setCredential,
-} from './ai-providers/providers/credential-store';
-import { autoConnectProviders } from './ai-providers/providers/models-cache';
+import { clearAllCredentials } from './ai-providers/providers/credential-store';
 import {
   createAssetDirectory,
   deleteAsset,
@@ -185,7 +180,6 @@ ipcMain.handle('preferences:reset', () => {
   resetPreferences();
   syncSentryUserProfile();
   clearAllCredentials();
-  autoConnectProviders(setCredential, getConnectedProviderIds);
   if (is.dev) {
     mainWindow?.webContents.reloadIgnoringCache();
   } else {
