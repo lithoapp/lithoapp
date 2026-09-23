@@ -44,7 +44,30 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Stage Apple API key for notarization
+        if: matrix.os == 'macos-14' && env.APPLE_API_KEY_P8 != ''
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          key_path="$RUNNER_TEMP/apple-api-key.p8"
+          echo "$APPLE_API_KEY_P8" | base64 --decode > "$key_path"
+          echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
       - run: ${{ matrix.command }}
+        env:
+          # Developer ID Application cert (macOS only); windows-2022 leaves these unset and
+          # electron-builder falls back to the existing unsigned publish path.
+          CSC_LINK: ${{ matrix.os == 'macos-14' && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-14' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Verify Gatekeeper acceptance
+        if: matrix.os == 'macos-14' && env.APPLE_API_KEY != ''
+        run: |
+          set -euo pipefail
+          app=$(find dist -maxdepth 3 -name '*.app' -print -quit)
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute --verbose=2 "$app"
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}

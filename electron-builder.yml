@@ -22,7 +22,7 @@ extraResources:
       - "**/*"
 mac:
   category: public.app-category.productivity
-  identity: null
+  hardenedRuntime: true
   target:
     - dmg
     - zip
@@ -34,7 +34,6 @@ mac:
     - CFBundleDisplayName: Litho
     - CFBundleGetInfoString: Litho - PDF Design Tool
     - NSHumanReadableCopyright: Copyright © 2026 Kareem Elbahrawy
-  notarize: false
 dmg:
   artifactName: ${name}-${version}-${arch}.${ext}
 win:
